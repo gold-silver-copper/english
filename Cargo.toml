@@ -1,0 +1,24 @@
+[package]
+name = "english"
+version = "0.0.1"
+authors = ["gold-silver-copper"]
+edition = "2021"
+include = ["LICENSE-APACHE", "LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+rust-version = "1.76"
+description = "English language decliner"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/gold-silver-copper/english"
+
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+
+
+[profile.release]
+opt-level = 2 # fast and small wasm
+
+# Optimize all dependencies even in debug builds:
+[profile.dev.package."*"]
+opt-level = 2
