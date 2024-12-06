@@ -8,14 +8,9 @@ const IRREGULAR_NOUNS: &[(&str, &str)] = &[("cow", "cowzz")];
 
 impl English {
     pub fn noun(word: &str, number: Number) -> String {
-        let try_irregular = English::irregular_nouns(word);
-        if let Some(irr) = try_irregular {
-            return irr;
-        }
-
         match number {
             Number::Singular => return word.to_string(),
-            Number::Plural => return format!("{}{}", word, "s"),
+            Number::Plural => return English::pluralize_noun(word),
         }
     }
     fn irregular_nouns(word: &str) -> Option<String> {
@@ -25,5 +20,11 @@ impl English {
             }
         }
         None
+    }
+    fn pluralize_noun(word: &str) -> String {
+        if let Some(irr) = English::irregular_nouns(word) {
+            return irr;
+        }
+        format!("{}{}", word, "s")
     }
 }
