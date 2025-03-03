@@ -1,3 +1,4 @@
+mod adj;
 mod grammar;
 mod noun;
 mod utils;
