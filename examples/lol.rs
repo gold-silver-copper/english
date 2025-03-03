@@ -8,4 +8,8 @@ fn main() {
     println!("{:#?}", English::noun("you", Number::Plural));
     println!("{:#?}", English::noun("man", Number::Plural));
     println!("{:#?}", English::noun("wereman", Number::Plural));
+    println!(
+        "{:#?}",
+        English::verb("eat", &Person::Third, &Number::Singular, &Tense::SimplePast)
+    );
 }
