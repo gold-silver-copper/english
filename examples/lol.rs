@@ -6,4 +6,6 @@ fn main() {
     println!("{:#?}", English::noun("milk", Number::Plural));
     println!("{:#?}", English::noun("Americanese", Number::Plural));
     println!("{:#?}", English::noun("you", Number::Plural));
+    println!("{:#?}", English::noun("man", Number::Plural));
+    println!("{:#?}", English::noun("wereman", Number::Plural));
 }
