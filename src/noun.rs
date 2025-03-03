@@ -28,7 +28,7 @@ const IRREGULAR_SUFFIXES: &[(&str, &str)] = &[
 const INDECLINEABLE_NOUNS: &[&str] = &["chassis"];
 
 impl English {
-    pub fn noun(word: &str, number: Number) -> String {
+    pub fn noun(word: &str, number: &Number) -> String {
         match number {
             Number::Singular => return word.to_string(),
             Number::Plural => return English::pluralize_noun(word),

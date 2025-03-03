@@ -1,13 +1,14 @@
 use english::*;
 
 fn main() {
-    println!("{:#?}", English::noun("cow", Number::Plural));
-    println!("{:#?}", English::noun("blin", Number::Plural));
-    println!("{:#?}", English::noun("milk", Number::Plural));
-    println!("{:#?}", English::noun("Americanese", Number::Plural));
-    println!("{:#?}", English::noun("you", Number::Plural));
-    println!("{:#?}", English::noun("man", Number::Plural));
-    println!("{:#?}", English::noun("wereman", Number::Plural));
+    let numer = Number::Plural;
+    println!("{:#?}", English::noun("cow", &numer));
+    println!("{:#?}", English::noun("blin", &numer));
+    println!("{:#?}", English::noun("milk", &numer));
+    println!("{:#?}", English::noun("Americanese", &numer));
+    println!("{:#?}", English::noun("you", &numer));
+    println!("{:#?}", English::noun("man", &numer));
+    println!("{:#?}", English::noun("wereman", &numer));
     println!(
         "{:#?}",
         English::verb("eat", &Person::Third, &Number::Singular, &Tense::SimplePast)

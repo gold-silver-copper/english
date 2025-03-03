@@ -4,7 +4,7 @@ version = "0.0.3"
 authors = ["gold-silver-copper"]
 edition = "2021"
 include = ["LICENSE-APACHE", "LICENSE-MIT", "**/*.rs", "Cargo.toml"]
-rust-version = "1.76"
+
 description = "English language decliner"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/gold-silver-copper/english"
