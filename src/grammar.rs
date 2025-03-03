@@ -10,6 +10,10 @@ pub enum Case {
     Possessive,
     PersonalPossesive,
 }
+pub enum Tense {
+    Present,
+    Past,
+}
 pub enum Person {
     First,
     Second,

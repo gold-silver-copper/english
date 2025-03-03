@@ -1,6 +1,29 @@
 use crate::grammar::*;
 const IRREGULAR_NOUNS: &[(&str, &str)] = &[("blin", "bliny")];
-const IRREGULAR_SUFFIXES: &[(&str, &str)] = &[("man", "men")];
+
+//These are most of the irregular suffixes, not counted so far are wolves,potatoes,compound words
+const IRREGULAR_SUFFIXES: &[(&str, &str)] = &[
+    ("man", "men"),
+    ("mouse", "mice"),
+    ("louse", "lice"),
+    ("tooth", "teeth"),
+    ("goose", "geese"),
+    ("foot", "feet"),
+    ("zoon", "zoa"),
+    ("cis", "ces"),
+    ("sis", "ses"),
+    ("xis", "xes"),
+    ("trix", "trices"),
+    ("eau", "eaux"),
+    ("ieu", "ieux"),
+    ("inx", "inges"),
+    ("anx", "anges"),
+    ("ynx", "ynges"),
+    ("ex", "exes"),
+    ("ch", "ches"),
+    ("sh", "shes"),
+    ("ss", "sses"),
+];
 
 const INDECLINEABLE_NOUNS: &[&str] = &["chassis"];
 
