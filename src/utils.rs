@@ -1,13 +1,12 @@
 use crate::grammar::*;
 impl English {
     pub fn pair_match(word: &str, listik: &[(&str, &str)]) -> Option<String> {
-        for (sing, plur) in listik {
-            if sing == &word {
-                return Some((*plur).into());
-            }
-        }
-        None
+        listik
+            .iter()
+            .find(|(sing, _)| *sing == word)
+            .map(|(_, plur)| plur.to_string())
     }
+
     pub fn replace_last_occurence(input: &str, pattern: &str, replacement: &str) -> String {
         if let Some(last_index) = input.rfind(pattern) {
             let (before_last, _after_last) = input.split_at(last_index);
