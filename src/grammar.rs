@@ -18,6 +18,18 @@ pub enum Tense {
     Past,
     // Future could be added too
 }
+#[derive(Debug, PartialEq, Clone)]
+pub struct Noun {
+    pub word: String,
+    pub number: Number,
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct Verb {
+    pub word: String,
+    pub person: Person,
+    pub tense: Tense,
+    pub form: Form,
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Mood {
