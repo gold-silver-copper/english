@@ -28,14 +28,14 @@ const IRREGULAR_SUFFIXES: &[(&str, &str)] = &[
 const INDECLINEABLE_NOUNS: &[&str] = &["chassis"];
 
 impl English {
-    pub fn noun(word: &str, form: &NounFormSpec) -> String {
+    pub fn noun(word: &str, form: &Noun) -> String {
         match form.number {
             Number::Singular => word.to_string(),
             Number::Plural => English::pluralize_noun(word),
         }
     }
 
-    pub fn pronoun(person: &Person, form: &NounFormSpec) -> &'static str {
+    pub fn pronoun(person: &Person, form: &Noun) -> &'static str {
         let gender = form.gender.as_ref().unwrap_or(&Gender::Neuter);
         match form.number {
             Number::Singular => match person {

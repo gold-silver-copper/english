@@ -5,7 +5,7 @@ use steel::steel_vm::register_fn::RegisterFn;
 use steel_derive::Steel;
 
 fn plural(word: String) -> Option<String> {
-    let form = NounFormSpec {
+    let form = Noun {
         number: Number::Plural,
         case: Case::Nominative, // Usually plural nouns default to nominative case
         gender: None,
@@ -16,7 +16,7 @@ fn plural(word: String) -> Option<String> {
 fn main() {
     let mut vm = Engine::new();
     vm.register_fn("plural", plural);
-    let form = VerbFormSpec {
+    let form = Verb {
         form: VerbForm::Finite,
         tense: Some(Tense::Past),
         mood: Some(Mood::Indicative),
