@@ -1,8 +1,15 @@
 use crate::grammar::*;
-const IRREGULAR_NOUNS: &[(&str, &str)] = &[("blin", "bliny")];
 
 //These are most of the irregular suffixes, not counted so far are wolves,potatoes,compound words
 const IRREGULAR_SUFFIXES: &[(&str, &str)] = &[
+    ("fish", "fish"),
+    ("ois", "ois"),
+    ("sheep", "sheep"),
+    ("deer", "deer"),
+    ("pox", "pox"),
+    ("itis", "itis"),
+    ("chassis", "chassis"),
+    ("ese", "ese"),
     ("man", "men"),
     ("mouse", "mice"),
     ("louse", "lice"),
@@ -24,8 +31,6 @@ const IRREGULAR_SUFFIXES: &[(&str, &str)] = &[
     ("sh", "shes"),
     ("ss", "sses"),
 ];
-
-const INDECLINEABLE_NOUNS: &[&str] = &["chassis"];
 
 impl English {
     pub fn noun(word: &str, number: &Number) -> String {
@@ -101,24 +106,6 @@ impl English {
         }
     }
 
-    fn is_indeclineable_nationality(word: &str) -> bool {
-        English::starts_with_uppercase(word) && word.ends_with("ese")
-    }
-    fn non_declineable(word: &str) -> Option<String> {
-        if word.ends_with("fish")
-            || word.ends_with("ois")
-            || word.ends_with("sheep")
-            || word.ends_with("deer")
-            || word.ends_with("pox")
-            || word.ends_with("itis")
-            || English::is_indeclineable_nationality(word)
-            || INDECLINEABLE_NOUNS.contains(&word)
-        {
-            return Some(word.into());
-        }
-        None
-    }
-
     fn irregular_suffix(word: &str) -> Option<String> {
         for (sing, plur) in IRREGULAR_SUFFIXES {
             if word.ends_with(sing) {
@@ -129,12 +116,6 @@ impl English {
     }
 
     fn pluralize_noun(word: &str) -> String {
-        if let Some(irr) = English::pair_match(word, IRREGULAR_NOUNS) {
-            return irr;
-        }
-        if let Some(irr) = English::non_declineable(word) {
-            return irr;
-        }
         if let Some(irr) = English::irregular_suffix(word) {
             return irr;
         }

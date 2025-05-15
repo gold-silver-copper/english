@@ -13,7 +13,13 @@ fn main() {
     vm.register_fn("plural", plural);
     println!(
         "{:#?}",
-        English::verb("eat", &Person::Third, &Number::Singular, &Tense::SimplePast)
+        English::verb(
+            "eat",
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Past,
+            &Form::Finite
+        )
     );
     loop {
         print!("> ");

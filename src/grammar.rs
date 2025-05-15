@@ -14,15 +14,39 @@ pub enum Case {
 }
 #[derive(Debug, PartialEq, Clone)]
 pub enum Tense {
-    SimplePresent,
-    SimplePast,
-    ParticiplePast,
-    ParticiplePresent,
-    SubjunctivePresent,
-    SubjunctivePast,
-    ImperativePresent,
-    //ImperativePast,
+    Present,
+    Past,
+    // Future could be added too
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Mood {
+    Indicative,
+    Subjunctive,
+    Imperative,
+    // Conditional, Interrogative, etc.
+}
+/*#[derive(Debug, PartialEq, Clone)]
+pub enum Det {
+    Definite,
+    Indefinite,
+}
+ */
+#[derive(Debug, PartialEq, Clone)]
+pub enum Form {
+    Finite,
+    Participle,
+    Infinitive,
+    // Transgressive, Supine, etc., depending on language
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Voice {
+    Active,
+    Passive,
+    // Middle, Reflexive, etc.
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Person {
     First,

@@ -1,29 +1,46 @@
 use crate::grammar::*;
 
 impl English {
-    pub fn verb(word: &str, person: &Person, number: &Number, tense: &Tense) -> String {
+    pub fn verb(
+        word: &str,
+        person: &Person,
+        number: &Number,
+        tense: &Tense,
+        form: &Form,
+    ) -> String {
         match word {
-            "be" => English::to_be(person, number, tense).to_string(),
-            _ => English::regular_verb(word, person, number, tense),
+            "be" => {
+                return English::to_be(person, number, tense, form).to_string();
+            }
+            _ => (),
+        }
+        match (person, number, tense, form) {
+            (_, _, _, Form::Infinitive) => {
+                return word.to_string();
+            }
+
+            (Person::Third, Number::Singular, Tense::Present, Form::Finite) => {
+                return format!("{}{}", word, "s");
+            }
+            (_, _, Tense::Present, Form::Finite) => {
+                return word.to_string();
+            }
+
+            (_, _, Tense::Past, Form::Finite) => {
+                return format!("{}{}", word, "ed");
+            }
+            (_, _, Tense::Past, Form::Participle) => {
+                return format!("{}{}", word, "ed");
+            }
+            (_, _, Tense::Present, Form::Participle) => {
+                return format!("{}{}", word, "ing");
+            }
         }
     }
-    pub fn regular_verb(word: &str, person: &Person, number: &Number, tense: &Tense) -> String {
-        if (person == &Person::Third
-            && (number == &Number::Singular)
-            && (tense == &Tense::SimplePresent))
-        {
-            return format!("{}{}", word, "s");
-        } else if ((tense == &Tense::SimplePast) || (tense == &Tense::ParticiplePast)) {
-            return format!("{}{}", word, "ed");
-        } else if (tense == &Tense::ParticiplePresent) {
-            return format!("{}{}", word, "ing");
-        } else {
-            return word.to_string();
-        }
-    }
-    pub fn to_be(person: &Person, number: &Number, tense: &Tense) -> &'static str {
-        match tense {
-            Tense::SimplePresent => match number {
+    pub fn to_be(person: &Person, number: &Number, tense: &Tense, form: &Form) -> &'static str {
+        match (tense, form) {
+            (_, Form::Infinitive) => "be",
+            (Tense::Present, Form::Finite) => match number {
                 Number::Singular => match person {
                     Person::First => "am",
                     Person::Second => "are",
@@ -31,7 +48,7 @@ impl English {
                 },
                 Number::Plural => "are",
             },
-            Tense::SimplePast => match number {
+            (Tense::Past, Form::Finite) => match number {
                 Number::Singular => match person {
                     Person::First => "was",
                     Person::Second => "were",
@@ -39,11 +56,8 @@ impl English {
                 },
                 Number::Plural => "were",
             },
-            Tense::ParticiplePast => "been",
-            Tense::ParticiplePresent => "being",
-            Tense::ImperativePresent => "be",
-            Tense::SubjunctivePresent => "be",
-            Tense::SubjunctivePast => "were",
+            (Tense::Past, Form::Participle) => "been",
+            (Tense::Present, Form::Participle) => "being",
         }
     }
 }
