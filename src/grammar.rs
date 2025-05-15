@@ -1,7 +1,7 @@
 pub struct English {}
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Verb {
+pub struct VerbFormSpec {
     pub tense: Option<Tense>,
     pub mood: Option<Mood>,
     pub form: VerbForm,
@@ -10,7 +10,7 @@ pub struct Verb {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Noun {
+pub struct NounFormSpec {
     pub number: Number,
     pub case: Case,
     pub gender: Option<Gender>,

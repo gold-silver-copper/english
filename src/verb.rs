@@ -4,17 +4,17 @@ use Tense::*;
 use VerbForm::*;
 
 impl English {
-    pub fn verb(word: &str, form: &Verb) -> String {
-        English::regular_verb(word, form)
+    pub fn verb(word: &str, form: &VerbFormSpec) -> String {
+        match word {
+            "be" => English::to_be(form).to_string(),
+            _ => English::regular_verb(word, form),
+        }
     }
 
-    pub fn regular_verb(word: &str, form: &Verb) -> String {
-        if word == "be" {
-            return English::to_be(form).to_string();
-        }
+    pub fn regular_verb(word: &str, form: &VerbFormSpec) -> String {
         match form {
             // Present simple 3rd person singular
-            Verb {
+            VerbFormSpec {
                 form: Finite,
                 tense: Some(Present),
                 mood: Some(Indicative),
@@ -23,21 +23,21 @@ impl English {
             } => format!("{}s", word),
 
             // Past tense (regular)
-            Verb {
+            VerbFormSpec {
                 form: Finite,
                 tense: Some(Past),
                 ..
             } => format!("{}ed", word),
 
             // Past participle
-            Verb {
+            VerbFormSpec {
                 form: Participle,
                 tense: Some(Past),
                 ..
             } => format!("{}ed", word),
 
             // Present participle
-            Verb {
+            VerbFormSpec {
                 form: Participle,
                 tense: Some(Present),
                 ..
@@ -48,10 +48,10 @@ impl English {
         }
     }
 
-    pub fn to_be(form: &Verb) -> &'static str {
+    pub fn to_be(form: &VerbFormSpec) -> &'static str {
         match form {
             // Present indicative
-            Verb {
+            VerbFormSpec {
                 form: Finite,
                 tense: Some(Present),
                 mood: Some(Indicative),
@@ -67,7 +67,7 @@ impl English {
             },
 
             // Past indicative
-            Verb {
+            VerbFormSpec {
                 form: Finite,
                 tense: Some(Past),
                 mood: Some(Indicative),
@@ -83,28 +83,28 @@ impl English {
             },
 
             // Present participle
-            Verb {
+            VerbFormSpec {
                 form: Participle,
                 tense: Some(Present),
                 ..
             } => "being",
 
             // Past participle
-            Verb {
+            VerbFormSpec {
                 form: Participle,
                 tense: Some(Past),
                 ..
             } => "been",
 
             // Imperative "be"
-            Verb {
+            VerbFormSpec {
                 form: Finite,
                 mood: Some(Imperative),
                 ..
             } => "be",
 
             // Subjunctive present
-            Verb {
+            VerbFormSpec {
                 form: Finite,
                 mood: Some(Subjunctive),
                 tense: Some(Present),
@@ -112,7 +112,7 @@ impl English {
             } => "be",
 
             // Subjunctive past
-            Verb {
+            VerbFormSpec {
                 form: Finite,
                 mood: Some(Subjunctive),
                 tense: Some(Past),
