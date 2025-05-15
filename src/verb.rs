@@ -26,12 +26,10 @@ impl English {
                 return word.to_string();
             }
 
-            (_, _, Tense::Past, Form::Finite) => {
+            (_, _, Tense::Past, Form::Finite | Form::Participle) => {
                 return format!("{}{}", word, "ed");
             }
-            (_, _, Tense::Past, Form::Participle) => {
-                return format!("{}{}", word, "ed");
-            }
+
             (_, _, Tense::Present, Form::Participle) => {
                 return format!("{}{}", word, "ing");
             }
