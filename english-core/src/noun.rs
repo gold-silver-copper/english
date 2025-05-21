@@ -115,7 +115,7 @@ impl English {
         None
     }
 
-    fn pluralize_noun(word: &str) -> String {
+    pub fn pluralize_noun(word: &str) -> String {
         if let Some(irr) = English::irregular_suffix(word) {
             return irr;
         }

@@ -1,4 +1,5 @@
 use csv::Writer;
+use english_core::*;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
@@ -58,7 +59,7 @@ fn extract_irregular_noun_plurals(
         if let Some(forms) = entry.forms {
             for form in forms {
                 if form.tags.contains(&"plural".to_string())
-                    && form.form == format!("{}s", entry.word)
+                    && form.form == English::pluralize_noun(&entry.word)
                 {
                     normal_plural_nouns.insert(entry.word.clone());
                 }
@@ -89,7 +90,7 @@ fn extract_irregular_noun_plurals(
         if let Some(forms) = entry.forms {
             for form in forms {
                 if form.tags.contains(&"plural".to_string())
-                    && form.form != format!("{}s", entry.word)
+                    && form.form != English::pluralize_noun(&entry.word)
                     && seen_pairs.insert((entry.word.clone(), form.form.clone()))
                 {
                     writer.write_record(&[entry.word.clone(), form.form.clone()])?;
