@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 #[derive(Debug, Deserialize)]
-struct Form {
+struct Forms {
     form: String,
     tags: Vec<String>,
 }
@@ -16,7 +16,7 @@ struct Form {
 struct Entry {
     word: String,
     pos: String,
-    forms: Option<Vec<Form>>,
+    forms: Option<Vec<Forms>>,
     lang_code: String,
 }
 
@@ -136,6 +136,7 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
 
         let mut forms_map = HashMap::new();
         let mut has_third = false;
+        let infinitive = entry.word.to_lowercase();
 
         if let Some(forms) = entry.forms {
             for form in forms {
@@ -147,10 +148,6 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
                 {
                     has_third = true;
                     forms_map.insert("third_person_singular", form.form.clone());
-                }
-
-                if tags.contains(&"infinitive".into()) {
-                    forms_map.insert("infinitive", form.form.clone());
                 }
 
                 if tags.contains(&"past".into()) && !tags.contains(&"participle".into()) {
@@ -166,16 +163,53 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
                 }
             }
         }
+        let predicted_third = English::verb(
+            &infinitive,
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Present,
+            &Form::Finite,
+        );
+        let predicted_past = English::verb(
+            &infinitive,
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Past,
+            &Form::Finite,
+        );
+        let predicted_participle = English::verb(
+            &infinitive,
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Present,
+            &Form::Participle,
+        );
+        let gotten = [
+            &infinitive,
+            forms_map
+                .get("third_person_singular")
+                .unwrap_or(&predicted_third),
+            forms_map.get("past").unwrap_or(&predicted_past),
+            forms_map
+                .get("present_participle")
+                .unwrap_or(&predicted_participle),
+            forms_map.get("past_participle").unwrap_or(&predicted_past),
+        ];
+        let predicted_struct = [
+            &infinitive,
+            &predicted_third,
+            &predicted_past,
+            &predicted_participle,
+            &predicted_past,
+        ];
 
-        if has_third && !duplicate_map.contains(&entry.word) {
-            duplicate_map.insert(entry.word.clone());
-            writer.write_record(&[
-                &entry.word,
-                forms_map.get("third_person_singular").unwrap_or(&"".into()),
-                forms_map.get("past").unwrap_or(&"".into()),
-                forms_map.get("present_participle").unwrap_or(&"".into()),
-                forms_map.get("past_participle").unwrap_or(&"".into()),
-            ])?;
+        if predicted_struct == gotten {
+            duplicate_map.insert(infinitive.clone());
+        }
+
+        if has_third && !duplicate_map.contains(&infinitive) {
+            duplicate_map.insert(infinitive.clone());
+            writer.write_record(&gotten)?;
         }
     }
 
