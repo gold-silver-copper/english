@@ -1,5 +1,5 @@
 mod adj;
-mod grammar;
+pub mod grammar;
 mod noun;
 mod sentence;
 mod utils;
