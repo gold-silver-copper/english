@@ -141,25 +141,26 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
         if let Some(forms) = entry.forms {
             for form in forms {
                 let tags = &form.tags;
+                let entry_form = form.form.to_lowercase();
 
                 if tags.contains(&"third-person".into())
                     && tags.contains(&"singular".into())
                     && tags.contains(&"present".into())
                 {
                     has_third = true;
-                    forms_map.insert("third_person_singular", form.form.clone());
+                    forms_map.insert("third_person_singular", entry_form.clone());
                 }
 
                 if tags.contains(&"past".into()) && !tags.contains(&"participle".into()) {
-                    forms_map.insert("past", form.form.clone());
+                    forms_map.insert("past", entry_form.clone());
                 }
 
                 if tags.contains(&"participle".into()) && tags.contains(&"present".into()) {
-                    forms_map.insert("present_participle", form.form.clone());
+                    forms_map.insert("present_participle", entry_form.clone());
                 }
 
                 if tags.contains(&"participle".into()) && tags.contains(&"past".into()) {
-                    forms_map.insert("past_participle", form.form.clone());
+                    forms_map.insert("past_participle", entry_form.clone());
                 }
             }
         }
