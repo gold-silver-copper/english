@@ -4,7 +4,7 @@ use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 
 #[derive(Debug, Deserialize)]
 struct Forms {
@@ -22,8 +22,10 @@ struct Entry {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let input_path = "../../english.jsonl";
-    extract_irregular_noun_plurals(input_path, "nouns_with_plurals.csv")?;
-    extract_verb_conjugations(input_path, "verb_conjugations.csv")?;
+    // extract_irregular_noun_plurals(input_path, "nouns_with_plurals.csv")?;
+    //  extract_verb_conjugations(input_path, "verb_conjugations.csv")?;
+    generate_nouns_file("nouns_with_plurals.csv", "nounsiki.rs");
+    generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");
     Ok(())
 }
 
@@ -216,5 +218,102 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
 
     writer.flush()?;
     println!("Done! Output written to {}", output_path);
+    Ok(())
+}
+
+pub fn generate_nouns_file(inputik: &str, outputik: &str) -> std::io::Result<()> {
+    let input = File::open(inputik)?;
+    let reader = BufReader::new(input);
+
+    let mut pairs: Vec<(String, String)> = reader
+        .lines()
+        .skip(1) // Skip header
+        .filter_map(|line| {
+            let line = line.ok()?;
+            let mut parts = line.split(',');
+            Some((
+                parts.next()?.trim().to_string(),
+                parts.next()?.trim().to_string(),
+            ))
+        })
+        .collect();
+
+    // Sort by the word (key)
+    pairs.sort_by_key(|(word, _)| word.clone());
+
+    // Write to a Rust file
+    let mut output = File::create(outputik)?;
+
+    writeln!(output, "static PLURAL_MAP: &[(&str, &str)] = &[")?;
+    for (word, plural) in &pairs {
+        writeln!(output, "    (\"{}\", \"{}\"),", word, plural)?;
+    }
+    writeln!(output, "];\n")?;
+
+    writeln!(
+        output,
+        "pub fn get_plural(word: &str) -> Option<&'static str> {{"
+    )?;
+    writeln!(
+        output,
+        "    PLURAL_MAP.binary_search_by_key(&word, |&(k, _)| k).ok().map(|i| PLURAL_MAP[i].1)"
+    )?;
+    writeln!(output, "}}")?;
+    Ok(())
+}
+
+pub fn generate_verbs_file(inputik: &str, outputik: &str) -> std::io::Result<()> {
+    let input = File::open(inputik)?;
+    let reader = BufReader::new(input);
+
+    let mut entries: Vec<(String, (String, String, String, String))> = reader
+        .lines()
+        .skip(1) // Skip header
+        .filter_map(|line| {
+            let line = line.ok()?;
+            let mut parts = line.split(',');
+            Some((
+                parts.next()?.trim().to_string(), // infinitive
+                (
+                    parts.next()?.trim().to_string(), // 3rd person singular
+                    parts.next()?.trim().to_string(), // past
+                    parts.next()?.trim().to_string(), // present participle
+                    parts.next()?.trim().to_string(), // past participle
+                ),
+            ))
+        })
+        .collect();
+
+    // Sort by infinitive
+    entries.sort_by_key(|(inf, _)| inf.clone());
+
+    let mut output = File::create(outputik)?;
+
+    writeln!(
+        output,
+        "/// (3rd person singular, past, present participle, past participle)"
+    )?;
+    writeln!(
+        output,
+        "static VERB_MAP: &[(&str, (&str, &str, &str, &str))] = &["
+    )?;
+    for (inf, (third, past, pres_part, past_part)) in &entries {
+        writeln!(
+            output,
+            "    (\"{}\", (\"{}\", \"{}\", \"{}\", \"{}\")),",
+            inf, third, past, pres_part, past_part
+        )?;
+    }
+    writeln!(output, "];\n")?;
+
+    writeln!(output, "pub fn get_verb_forms(infinitive: &str) -> Option<(&'static str, &'static str, &'static str, &'static str)> {{")?;
+    writeln!(
+        output,
+        "    VERB_MAP.binary_search_by_key(&infinitive, |&(k, _)| k)"
+    )?;
+    writeln!(output, "        .ok()")?;
+    writeln!(output, "        .map(|i| VERB_MAP[i].1)")?;
+    writeln!(output, "}}")?;
+
     Ok(())
 }
