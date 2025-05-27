@@ -32,11 +32,11 @@ const IRREGULAR_SUFFIXES: &[(&str, &str)] = &[
     ("ss", "sses"),
 ];
 
-impl English {
+impl EnglishCore {
     pub fn noun(word: &str, number: &Number) -> String {
         match number {
             Number::Singular => return word.to_string(),
-            Number::Plural => return English::pluralize_noun(word),
+            Number::Plural => return EnglishCore::pluralize_noun(word),
         }
     }
     pub fn pronoun(person: &Person, number: &Number, gender: &Gender, case: &Case) -> &'static str {
@@ -109,14 +109,14 @@ impl English {
     fn irregular_suffix(word: &str) -> Option<String> {
         for (sing, plur) in IRREGULAR_SUFFIXES {
             if word.ends_with(sing) {
-                return Some(English::replace_last_occurence(word, sing, plur));
+                return Some(EnglishCore::replace_last_occurence(word, sing, plur));
             }
         }
         None
     }
 
     pub fn pluralize_noun(word: &str) -> String {
-        if let Some(irr) = English::irregular_suffix(word) {
+        if let Some(irr) = EnglishCore::irregular_suffix(word) {
             return irr;
         }
         format!("{}{}", word, "s")

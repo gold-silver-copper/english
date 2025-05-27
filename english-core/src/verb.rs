@@ -1,6 +1,6 @@
 use crate::grammar::*;
 
-impl English {
+impl EnglishCore {
     pub fn verb(
         word: &str,
         person: &Person,
@@ -10,7 +10,7 @@ impl English {
     ) -> String {
         match word {
             "be" => {
-                return English::to_be(person, number, tense, form).to_string();
+                return EnglishCore::to_be(person, number, tense, form).to_string();
             }
             _ => (),
         }

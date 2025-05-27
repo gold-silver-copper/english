@@ -61,7 +61,7 @@ fn extract_irregular_noun_plurals(
         if let Some(forms) = entry.forms {
             for form in forms {
                 if form.tags.contains(&"plural".to_string())
-                    && form.form == English::pluralize_noun(&entry.word)
+                    && form.form == EnglishCore::pluralize_noun(&entry.word)
                 {
                     normal_plural_nouns.insert(entry.word.clone());
                 }
@@ -92,7 +92,7 @@ fn extract_irregular_noun_plurals(
         if let Some(forms) = entry.forms {
             for form in forms {
                 if form.tags.contains(&"plural".to_string())
-                    && form.form != English::pluralize_noun(&entry.word)
+                    && form.form != EnglishCore::pluralize_noun(&entry.word)
                     && seen_pairs.insert((entry.word.clone(), form.form.clone()))
                 {
                     writer.write_record(&[entry.word.clone(), form.form.clone()])?;
@@ -166,21 +166,21 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
                 }
             }
         }
-        let predicted_third = English::verb(
+        let predicted_third = EnglishCore::verb(
             &infinitive,
             &Person::Third,
             &Number::Singular,
             &Tense::Present,
             &Form::Finite,
         );
-        let predicted_past = English::verb(
+        let predicted_past = EnglishCore::verb(
             &infinitive,
             &Person::Third,
             &Number::Singular,
             &Tense::Past,
             &Form::Finite,
         );
-        let predicted_participle = English::verb(
+        let predicted_participle = EnglishCore::verb(
             &infinitive,
             &Person::Third,
             &Number::Singular,

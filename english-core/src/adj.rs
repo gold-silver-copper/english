@@ -1,6 +1,6 @@
 use crate::grammar::*;
 
-impl English {
+impl EnglishCore {
     pub fn adjective(word: &str, number: &Number) -> String {
         match number {
             Number::Singular => word.to_string(),

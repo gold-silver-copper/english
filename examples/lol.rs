@@ -5,7 +5,7 @@ use steel::steel_vm::register_fn::RegisterFn;
 use steel_derive::Steel;
 
 fn plural(word: String) -> Option<String> {
-    Some(English::noun(&word, &Number::Plural))
+    Some(EnglishCore::noun(&word, &Number::Plural))
 }
 
 fn main() {
@@ -13,7 +13,7 @@ fn main() {
     vm.register_fn("plural", plural);
     println!(
         "{:#?}",
-        English::verb(
+        EnglishCore::verb(
             "eat",
             &Person::Third,
             &Number::Singular,
@@ -32,7 +32,10 @@ fn main() {
         person: Person::Third,
         form: Form::Finite,
     };
-    println!("{:#?}", English::simple_sentence(&noun1, &noun1, &verb1));
+    println!(
+        "{:#?}",
+        EnglishCore::simple_sentence(&noun1, &noun1, &verb1)
+    );
 
     /*   loop {
         print!("> ");

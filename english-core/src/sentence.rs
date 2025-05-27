@@ -1,10 +1,10 @@
 use crate::grammar::*;
 
-impl English {
+impl EnglishCore {
     pub fn simple_sentence(object: &Noun, subject: &Noun, verb: &Verb) -> String {
-        let obj_str = English::noun(&object.word, &object.number);
-        let subj_str = English::noun(&subject.word, &subject.number);
-        let verb_str = English::verb(
+        let obj_str = EnglishCore::noun(&object.word, &object.number);
+        let subj_str = EnglishCore::noun(&subject.word, &subject.number);
+        let verb_str = EnglishCore::verb(
             &verb.word,
             &verb.person,
             &object.number,
