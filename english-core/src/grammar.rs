@@ -32,31 +32,11 @@ pub struct Verb {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Mood {
-    Indicative,
-    Subjunctive,
-    Imperative,
-    // Conditional, Interrogative, etc.
-}
-/*#[derive(Debug, PartialEq, Clone)]
-pub enum Det {
-    Definite,
-    Indefinite,
-}
- */
-#[derive(Debug, PartialEq, Clone)]
 pub enum Form {
     Finite,
     Participle,
     Infinitive,
     // Transgressive, Supine, etc., depending on language
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Voice {
-    Active,
-    Passive,
-    // Middle, Reflexive, etc.
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -71,3 +51,24 @@ pub enum Gender {
     Feminine,
     Neuter,
 }
+
+/*#[derive(Debug, PartialEq, Clone)]
+pub enum Mood {
+    Indicative,
+    Subjunctive,
+    Imperative,
+    // Conditional, Interrogative, etc.
+} */
+/*#[derive(Debug, PartialEq, Clone)]
+pub enum Det {
+    Definite,
+    Indefinite,
+}
+ */
+/*#[derive(Debug, PartialEq, Clone)]
+pub enum Voice {
+    Active,
+    Passive,
+    // Middle, Reflexive, etc.
+}
+*/
