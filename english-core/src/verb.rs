@@ -36,6 +36,9 @@ impl EnglishCore {
             (_, _, Tense::Present, Form::Participle) => {
                 if word.ends_with("e") {
                     return EnglishCore::replace_last_occurence(word, "e", "ing");
+                }
+                if word.ends_with("p") {
+                    return format!("{}{}", word, "ping");
                 } else {
                     return format!("{}{}", word, "ing");
                 }
@@ -44,6 +47,9 @@ impl EnglishCore {
             (_, _, Tense::Past, _) => {
                 if word.ends_with("e") {
                     return format!("{}{}", word, "d");
+                }
+                if word.ends_with("p") {
+                    return format!("{}{}", word, "ped");
                 } else {
                     return format!("{}{}", word, "ed");
                 }
