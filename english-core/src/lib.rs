@@ -5,3 +5,4 @@ mod sentence;
 mod utils;
 mod verb;
 pub use crate::grammar::*;
+pub struct EnglishCore {}

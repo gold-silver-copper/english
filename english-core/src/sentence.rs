@@ -1,5 +1,5 @@
 use crate::grammar::*;
-
+use crate::EnglishCore;
 impl EnglishCore {
     pub fn simple_sentence(object: &Noun, subject: &Noun, verb: &Verb) -> String {
         let obj_str = EnglishCore::noun(&object.word, &object.number);

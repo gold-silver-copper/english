@@ -1,4 +1,5 @@
 pub use english_core::grammar::*;
+pub use english_core::EnglishCore;
 mod nounsiki;
 pub use nounsiki::*;
 mod verbsiki;
@@ -46,5 +47,11 @@ impl English {
             },
             None => EnglishCore::verb(word, person, number, tense, form),
         }
+    }
+    pub fn pronoun(person: &Person, number: &Number, gender: &Gender, case: &Case) -> &'static str {
+        EnglishCore::pronoun(person, number, gender, case)
+    }
+    pub fn possessive(word: &str, number: &Number) -> String {
+        EnglishCore::possessive(word, number)
     }
 }

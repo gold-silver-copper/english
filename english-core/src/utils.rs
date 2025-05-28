@@ -1,4 +1,5 @@
 use crate::grammar::*;
+use crate::EnglishCore;
 impl EnglishCore {
     pub fn pair_match(word: &str, listik: &[(&str, &str)]) -> Option<String> {
         listik

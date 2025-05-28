@@ -1,5 +1,5 @@
 use crate::grammar::*;
-
+use crate::EnglishCore;
 impl EnglishCore {
     pub fn verb(
         word: &str,

@@ -1,10 +1,25 @@
 use crate::grammar::*;
+use crate::EnglishCore;
 
 impl EnglishCore {
     pub fn noun(word: &str, number: &Number) -> String {
         match number {
             Number::Singular => return word.to_string(),
             Number::Plural => return EnglishCore::pluralize_noun(word),
+        }
+    }
+    pub fn possessive(word: &str, number: &Number) -> String {
+        match number {
+            Number::Singular => {
+                format!("{word}'s")
+            }
+            Number::Plural => {
+                if word.ends_with('s') {
+                    format!("{word}'") // Regular plural: dogs'
+                } else {
+                    format!("{word}'s") // Irregular plural: children’s
+                }
+            }
         }
     }
 

@@ -1,4 +1,3 @@
-pub struct EnglishCore {}
 #[derive(Debug, PartialEq, Clone)]
 pub enum Number {
     Singular,

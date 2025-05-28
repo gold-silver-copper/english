@@ -1,5 +1,6 @@
 use english::*;
-use std::io::{self, Write};
+
+use std::time::Instant;
 use steel::steel_vm::engine::Engine;
 use steel::steel_vm::register_fn::RegisterFn;
 use steel_derive::Steel;
@@ -38,6 +39,7 @@ fn main() {
     );
 
     println!("{}", English::noun("planta", &Number::Plural));
+    benchmark_verb();
 
     /*   loop {
         print!("> ");
@@ -59,4 +61,32 @@ fn main() {
             }
         }
     } */
+}
+
+pub fn benchmark_verb() {
+    let words = ["free", "dub", "planta", "yak", "yandex", "zebra"];
+    let person = Person::Third;
+    let number = Number::Singular;
+    let tense = Tense::Present;
+    let form = Form::Finite;
+
+    let iterations = 10_000_000;
+
+    let start = Instant::now();
+    let mut result = String::new();
+
+    for _ in 0..iterations {
+        for &word in &words {
+            result = English::verb(word, &person, &number, &tense, &form);
+            //std::hint::black_box(&result); // Prevents compiler optimizations
+        }
+    }
+
+    let duration = start.elapsed();
+    println!("{result}");
+    println!(
+        "Benchmark completed in {:?} ({} total calls)",
+        duration,
+        iterations * words.len()
+    );
 }

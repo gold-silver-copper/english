@@ -1,4 +1,5 @@
 use crate::grammar::*;
+use crate::EnglishCore;
 
 impl EnglishCore {
     pub fn adjective(word: &str, number: &Number) -> String {
