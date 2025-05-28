@@ -20,17 +20,29 @@ impl EnglishCore {
             }
 
             (Person::Third, Number::Singular, Tense::Present, Form::Finite) => {
-                return format!("{}{}", word, "s");
+                if word.ends_with("s") {
+                    return format!("{}{}", word, "es");
+                } else {
+                    return format!("{}{}", word, "s");
+                }
             }
             (_, _, Tense::Present, Form::Finite) => {
                 return word.to_string();
             }
             (_, _, Tense::Present, Form::Participle) => {
-                return format!("{}{}", word, "ing");
+                if word.ends_with("e") {
+                    return EnglishCore::replace_last_occurence(word, "e", "ing");
+                } else {
+                    return format!("{}{}", word, "ing");
+                }
             }
 
             (_, _, Tense::Past, _) => {
-                return format!("{}{}", word, "ed");
+                if word.ends_with("e") {
+                    return format!("{}{}", word, "d");
+                } else {
+                    return format!("{}{}", word, "ed");
+                }
             }
         }
     }
