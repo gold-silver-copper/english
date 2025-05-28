@@ -20,7 +20,11 @@ impl EnglishCore {
             }
 
             (Person::Third, Number::Singular, Tense::Present, Form::Finite) => {
-                if word.ends_with("s") || word.ends_with("z") || word.ends_with("sh") {
+                if word.ends_with("s")
+                    || word.ends_with("z")
+                    || word.ends_with("sh")
+                    || word.ends_with("x")
+                {
                     return format!("{}{}", word, "es");
                 } else {
                     return format!("{}{}", word, "s");
