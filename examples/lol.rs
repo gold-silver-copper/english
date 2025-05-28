@@ -64,13 +64,13 @@ fn main() {
 }
 
 pub fn benchmark_verb() {
-    let words = ["free", "dub", "planta", "yak", "yandex", "zebra"];
+    let words = ["free", "dub", "planta"]; //"yak", "yandex", "zebra"
     let person = Person::Third;
     let number = Number::Singular;
     let tense = Tense::Present;
     let form = Form::Finite;
 
-    let iterations = 10_000_000;
+    let iterations = 1_000_000;
 
     let start = Instant::now();
     let mut result = String::new();
