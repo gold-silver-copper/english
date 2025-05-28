@@ -22,8 +22,8 @@ struct Entry {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let input_path = "../../english.jsonl";
-    // extract_irregular_noun_plurals(input_path, "nouns_with_plurals.csv")?;
-    //  extract_verb_conjugations(input_path, "verb_conjugations.csv")?;
+    extract_irregular_noun_plurals(input_path, "nouns_with_plurals.csv")?;
+    extract_verb_conjugations(input_path, "verb_conjugations.csv")?;
     generate_nouns_file("nouns_with_plurals.csv", "nounsiki.rs");
     generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");
     Ok(())
