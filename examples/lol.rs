@@ -37,6 +37,8 @@ fn main() {
         EnglishCore::simple_sentence(&noun1, &noun1, &verb1)
     );
 
+    println!("{}", English::noun("planta", &Number::Plural));
+
     /*   loop {
         print!("> ");
         io::stdout().flush().unwrap();
