@@ -70,4 +70,6 @@ const IRREGULAR_SUFFIXES: &[(&str, &str)] = &[
     ("ch", "ches"),
     ("sh", "shes"),
     ("s", "ses"),
+    ("y", "ies"),
+    ("f", "ves"),
 ];
