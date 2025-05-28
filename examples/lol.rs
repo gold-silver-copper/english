@@ -33,12 +33,9 @@ fn main() {
         person: Person::Third,
         form: Form::Finite,
     };
-    println!(
-        "{:#?}",
-        EnglishCore::simple_sentence(&noun1, &noun1, &verb1)
-    );
+    println!("{:#?}", English::simple_sentence(&noun1, &noun1, &verb1));
 
-    println!("{}", English::noun("planta", &Number::Plural));
+    println!("{}", English::noun("thyridium", &Number::Plural));
     benchmark_verb();
 
     /*   loop {
@@ -64,7 +61,7 @@ fn main() {
 }
 
 pub fn benchmark_verb() {
-    let words = ["zag", "zany", "askjhjkjakssasasasaasasqa"]; //"yak", "yandex", "zebra"
+    let words = ["tango", "dance", "ziknik"]; //"yak", "yandex", "zebra"
     let person = Person::Third;
     let number = Number::Singular;
     let tense = Tense::Present;

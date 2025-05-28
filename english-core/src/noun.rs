@@ -8,7 +8,7 @@ impl EnglishCore {
             Number::Plural => return EnglishCore::pluralize_noun(word),
         }
     }
-    pub fn possessive(word: &str, number: &Number) -> String {
+    pub fn add_possessive(word: &str, number: &Number) -> String {
         match number {
             Number::Singular => {
                 format!("{word}'s")

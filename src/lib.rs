@@ -1,10 +1,12 @@
+use core::fmt;
+
 pub use english_core::grammar::*;
 pub use english_core::EnglishCore;
 mod nounsiki;
 pub use nounsiki::*;
 mod verbsiki;
 pub use verbsiki::*;
-
+mod sentence;
 pub struct English {}
 impl English {
     pub fn noun(word: &str, number: &Number) -> String {
@@ -51,7 +53,39 @@ impl English {
     pub fn pronoun(person: &Person, number: &Number, gender: &Gender, case: &Case) -> &'static str {
         EnglishCore::pronoun(person, number, gender, case)
     }
-    pub fn possessive(word: &str, number: &Number) -> String {
-        EnglishCore::possessive(word, number)
+    pub fn add_possessive(word: &str, number: &Number) -> String {
+        EnglishCore::add_possessive(word, number)
     }
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Noun {
+    pub word: String,
+    pub number: Number,
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct Verb {
+    pub word: String,
+    pub person: Person,
+    pub tense: Tense,
+    pub form: Form,
+}
+
+impl fmt::Display for Noun {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", English::noun(&self.word, &self.number))
+    }
+}
+
+/*
+impl fmt::Display for Verb {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            English::verb(&self.word, &self.person, &self.tense, &self.form)
+        )
+    }
+}
+
+*/
