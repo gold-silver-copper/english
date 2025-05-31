@@ -56,8 +56,8 @@ fn main() {
     );
 
     let noun1 = Noun {
-        word: "man".to_string(),
-        number: Number::Singular,
+        word: "chicanery".to_string(),
+        number: Number::Plural,
     };
     let verb1 = Verb {
         word: "eat".to_string(),
