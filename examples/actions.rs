@@ -91,28 +91,17 @@ pub enum HairStyle {
     Ponytail,
     Bun,
     Braided,
-    Mohawk,
     Curly,
     Wavy,
     Straight,
-    Dreadlocks,
     Tangled,
-    Spiky,
-    Undercut,
-    Messy,
-    Tiedback,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FacialHair {
-    None,
     Mustache,
     Beard,
-    Goatee,
-    Sideburns,
     Stubble,
-    FullBeard,
-    CleanShaven,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -123,7 +112,6 @@ pub enum EyeShape {
     Monolid,
     Downturned,
     Upturned,
-    Elven,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -138,51 +126,30 @@ pub enum NoseType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum LipShape {
-    Thin,
-    Full,
-    HeartShaped,
-    Round,
-    BowShaped,
-    Small,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EarType {
-    Small,
-    Large,
-    Pointed,
-    Round,
-    AttachedLobe,
-    DetachedLobe,
+    Elven,
+    Wolf,
+    Dog,
+    Cat,
+    Human,
+    Fox,
+}
+pub struct Ears {
+    ear_type: EarType,
+    ear_size: BasicSize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Jawline {
-    Soft,
-    Sharp,
-    Square,
-    Round,
-    Oval,
-    ProminentChin,
+pub enum BasicSize {
+    Small,
+    Medium,
+    Big,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Freckles {
-    None,
     Few,
     Moderate,
     Many,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Scars {
-    None,
-    Small,
-    Noticeable,
-    Prominent,
-    AcrossEye,
-    Burn,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -200,12 +167,11 @@ pub enum AnimalType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HairColor {
     Blonde,
-    Brown,
+    Brunette,
     Black,
-    Red,
+    Ginger,
     Gray,
     White,
-    Bald,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -225,4 +191,15 @@ pub enum EyeColor {
     Brown,
     Amber,
     Violet,
+    Red,
 }
+
+/*#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Scars {
+    None,
+    Small,
+    Noticeable,
+    Prominent,
+    AcrossEye,
+    Burn,
+} */
