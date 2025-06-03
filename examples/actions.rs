@@ -68,6 +68,7 @@ fn main() {
     println!("{:#?}", English::simple_sentence(&noun1, &noun1, &verb1));
 
     println!("{}", English::noun("thyridium", &Number::Plural));
+    println!("{:?}", FacialHair::Beard);
 }
 
 pub struct Human {
@@ -80,6 +81,11 @@ pub struct Human {
     age: usize,
     gender: Gender,
     location: Locative,
+}
+
+pub struct Hair {
+    style: HairStyle,
+    color: HairColor,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -95,6 +101,16 @@ pub enum HairStyle {
     Wavy,
     Straight,
     Tangled,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HairColor {
+    Blonde,
+    Brunette,
+    Black,
+    Ginger,
+    Gray,
+    White,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -162,16 +178,6 @@ pub enum Tattoo {
 pub enum AnimalType {
     Wolf,
     Fox,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum HairColor {
-    Blonde,
-    Brunette,
-    Black,
-    Ginger,
-    Gray,
-    White,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
