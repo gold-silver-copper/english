@@ -141,9 +141,33 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
         let infinitive = entry.word.to_lowercase();
 
         if let Some(forms) = entry.forms {
-            for form in forms {
+            for form in &forms {
                 let tags = &form.tags;
                 let entry_form = form.form.to_lowercase();
+                if infinitive == "go" {
+                    println!("{:#?}", &forms);
+                }
+                if infinitive == "eat" {
+                    println!("{:#?}", &forms);
+                }
+                /*    if entry_form == "eaten" {
+                    println!("{:#?}", &forms);
+                } */
+                if tags.contains(&"obsolete".into()) {
+                    break;
+                }
+                if tags.contains(&"error-unknown-tag".into()) {
+                    break;
+                }
+                if tags.contains(&"dialectal".into()) {
+                    break;
+                }
+                if tags.contains(&"alternative".into()) {
+                    break;
+                }
+                if tags.contains(&"nonstandard".into()) {
+                    break;
+                }
 
                 if tags.contains(&"third-person".into())
                     && tags.contains(&"singular".into())
