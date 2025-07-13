@@ -141,15 +141,16 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
         let infinitive = entry.word.to_lowercase();
 
         if let Some(forms) = entry.forms {
+            if infinitive == "go" {
+                println!("{:#?}", &forms);
+            }
+            if infinitive == "eat" {
+                println!("{:#?}", &forms);
+            }
             for form in &forms {
                 let tags = &form.tags;
                 let entry_form = form.form.to_lowercase();
-                if infinitive == "go" {
-                    println!("{:#?}", &forms);
-                }
-                if infinitive == "eat" {
-                    println!("{:#?}", &forms);
-                }
+
                 /*    if entry_form == "eaten" {
                     println!("{:#?}", &forms);
                 } */
