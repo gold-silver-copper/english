@@ -1,8 +1,8 @@
 [package]
 name = "english"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["gold-silver-copper"]
-edition = "2021"
+edition = "2024"
 include = ["LICENSE-APACHE", "LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 description = "English language inflector"
