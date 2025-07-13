@@ -1,56 +1,113 @@
 # english
 
-A high-performance English inflection library written in Rust. This crate provides functions to **conjugate verbs** and **decline nouns/adjectives** for English. It was built by processing large English Wiktionary datasets to capture nearly all irregular forms. The implementation heavily uses Rust’s **metaprogramming (macros)** to generate efficient, data-driven code at compile time. Internally, it stores inflection rules in pre-sorted arrays and uses binary search for fast lookup. Importantly, it has **no external dependencies**, making it extremely lightweight and easy to embed in other projects.
+[![Crates.io](https://img.shields.io/crates/v/english)](https://crates.io/crates/english)
+[![Docs.rs](https://docs.rs/english/badge.svg)](https://docs.rs/english)
+![License](https://img.shields.io/crates/l/english)
 
-## Features
+**english** is a blazing fast English morphology library written in Rust. It provides accurate verb conjugation and noun/adjective declension based on processed Wiktionary data, making it ideal for language processing and game development.
 
-* **English only:** Supports only English grammar (verbs, nouns, adjectives).
-* **Wiktionary-based data:** Covers regular and irregular forms using extracted Wiktionary data.
-* **Fast lookups:** Uses sorted tables and binary search for efficient inflection.
-* **Zero dependencies:** No runtime dependencies (zero-cost to include).
-* **Metaprogramming:** Rust macros generate the inflection logic at compile time.
-* **Game and NLP friendly:** Ideal for game dialogue systems or any text-processing task requiring correct English forms.
+This repository contains multiple tightly integrated crates working together to deliver an efficient, dependency-free inflection engine. It was built by processing large English Wiktionary datasets to capture nearly all irregular forms. The implementation heavily uses Rust’s **metaprogramming (macros)** to generate efficient, data-driven code at compile time. Internally, it stores inflection rules in pre-sorted arrays and uses binary search for fast lookup. Importantly, it has **no external dependencies**, making it extremely lightweight and easy to embed in other projects.
 
-## Example Usage
+---
 
-```rust
-use english::English;
-use english::Tense;
-use english::Number;
+## 🔧 Crate Overview
 
-fn main() {
-    // Conjugate a verb (handles irregulars)
-    let past = English::verb("go", Tense::Past);
-    println!("go (past) -> {}", past); // went
+### `english`
 
-    // Decline a noun (handles irregulars)
-    let plural = English::noun("child", Number::Plural);
-    println!("child (plural) -> {}", plural); // children
+> The public API for verb conjugation and noun/adjective declension.
 
-    // Regular forms
-    assert_eq!(English::verb("walk", Tense::Past), "walked");
-    assert_eq!(English::noun("cat", Number::Plural), "cats");
-}
-```
+* Combines optimized data generated from `extractor` with inflection logic from `english-core`
+* Pure Rust, no dependencies
+* Fast binary search and compact data structures
+* Tiny binary footprint, perfect for embedded usage
 
-In this code, calling `English::verb` or `English::noun` returns the correctly inflected form (even for irregular words). The library’s compile-time data and lookup tables ensure these calls are very fast.
+### `english-core`
 
-## Installation
+> The core engine for English inflection — pure algorithmic logic.
 
-Add the crate to your `Cargo.toml`:
+* Implements the core rules for conjugation/declension
+* Used to classify forms as regular or irregular
+* Has no data dependency — logic-only
+* Can be used stand alone for an even smaller footprint (at the cost of some accuracy)
+
+### `extractor`
+
+> A tool to process and refine Wiktionary data.
+
+* Parses large English Wiktionary dumps
+* Extracts all verb, noun, and adjective forms
+* Uses `english-core` to filter out regular forms, preserving only irregulars
+* Generates compact tables for use in `english`
+
+---
+
+## ✨ Features
+
+* ✅ High-accuracy inflection from real-world Wiktionary data
+* 🚀 Extremely fast: uses pre-sorted static arrays with binary search
+* ⚙️ Metaprogrammed: static sorted arrays generated at compile time
+* 🧩 Zero external dependencies — fully self-contained
+* 📦 Tiny, embeddable, and ready for production
+* 🧠 Ideal for NLP pipelines and game dialogue engines
+
+---
+
+## 📦 Installation
+
+Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
 english = "0.0.3"
 ```
 
-Then import and use it as shown above. Because the crate has **no runtime dependencies**, you can embed it in any project without adding extra libraries.
+Then in your code:
 
-## License
+```rust
+use english::*;
 
-This library is released under the MIT License.
+fn main() {
+    // Conjugate a verb (handles irregulars)
+    let past = English::verb(
+        "eat",
+        &Person::Third,
+        &Number::Singular,
+        &Tense::Past,
+        &Form::Finite,
+    );
+    println!("eat (past) -> {}", past); // ate
 
-**Sources:** Design and implementation are based on wiktionary data processing, Rust macros (metaprogramming), and a no-dependencies philosophy to maximize performance and portability.
+    // Decline a noun (handles irregulars)
+    let plural = English::noun("child", &Number::Plural);
+    println!("child (plural) -> {}", plural); // children
+
+    // Regular forms
+    assert_eq!(English::noun("cat", &Number::Plural), "cats");
+}
+
+```
+
+---
+
+## ⚡ Performance
+
+* Compile-time macro expansion ensures no runtime penalty.
+* Irregular forms stored in compact static slices.
+* Binary search over pre-sorted data: `O(log n)` lookup.
+* Minimal memory usage and no heap allocation.
+
+This makes `english` suitable for high-performance or embedded environments like:
+
+* Dialogue trees in games
+* Procedural text generators
+* Edge devices or WASM
+
+
+---
+
+## 📄 License
+
+MIT License © 2024 [gold-silver-copper](https://github.com/gold-silver-copper)
 
 
 ## Inspirations
