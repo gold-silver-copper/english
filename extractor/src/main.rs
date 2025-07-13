@@ -6,6 +6,23 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 
+static BAD_TAGS: &[&str] = &[
+    "obsolete",
+    "error-unknown-tag",
+    "dialectal",
+    "alternative",
+    "nonstandard",
+];
+
+fn contains_bad_tag(words: Vec<String>) -> bool {
+    for word in words {
+        if BAD_TAGS.contains(&&*word) {
+            return true;
+        }
+    }
+    false
+}
+
 #[derive(Debug, Deserialize)]
 struct Forms {
     form: String,
@@ -141,52 +158,37 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
         let infinitive = entry.word.to_lowercase();
 
         if let Some(forms) = entry.forms {
-            if infinitive == "go" {
-                println!("{:#?}", &forms);
-            }
-            if infinitive == "eat" {
-                println!("{:#?}", &forms);
-            }
             for form in &forms {
                 let tags = &form.tags;
                 let entry_form = form.form.to_lowercase();
 
-                /*    if entry_form == "eaten" {
-                    println!("{:#?}", &forms);
-                } */
-                if tags.contains(&"obsolete".into()) {
-                    break;
-                }
-                if tags.contains(&"error-unknown-tag".into()) {
-                    break;
-                }
-                if tags.contains(&"dialectal".into()) {
-                    break;
-                }
-                if tags.contains(&"alternative".into()) {
-                    break;
-                }
-                if tags.contains(&"nonstandard".into()) {
-                    break;
-                }
-
                 if tags.contains(&"third-person".into())
                     && tags.contains(&"singular".into())
                     && tags.contains(&"present".into())
+                    && !contains_bad_tag(tags.clone())
                 {
                     has_third = true;
                     forms_map.insert("third_person_singular", entry_form.clone());
                 }
 
-                if tags.contains(&"past".into()) && !tags.contains(&"participle".into()) {
+                if tags.contains(&"past".into())
+                    && !tags.contains(&"participle".into())
+                    && !contains_bad_tag(tags.clone())
+                {
                     forms_map.insert("past", entry_form.clone());
                 }
 
-                if tags.contains(&"participle".into()) && tags.contains(&"present".into()) {
+                if tags.contains(&"participle".into())
+                    && tags.contains(&"present".into())
+                    && !contains_bad_tag(tags.clone())
+                {
                     forms_map.insert("present_participle", entry_form.clone());
                 }
 
-                if tags.contains(&"participle".into()) && tags.contains(&"past".into()) {
+                if tags.contains(&"participle".into())
+                    && tags.contains(&"past".into())
+                    && !contains_bad_tag(tags.clone())
+                {
                     forms_map.insert("past_participle", entry_form.clone());
                 }
             }
@@ -331,7 +333,10 @@ pub fn generate_verbs_file(inputik: &str, outputik: &str) -> std::io::Result<()>
     }
     writeln!(output, "];\n")?;
 
-    writeln!(output, "pub fn get_verb_forms(infinitive: &str) -> Option<(&'static str, &'static str, &'static str, &'static str)> {{")?;
+    writeln!(
+        output,
+        "pub fn get_verb_forms(infinitive: &str) -> Option<(&'static str, &'static str, &'static str, &'static str)> {{"
+    )?;
     writeln!(
         output,
         "    VERB_MAP.binary_search_by_key(&infinitive, |&(k, _)| k)"
