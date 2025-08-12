@@ -42,6 +42,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // extract_irregular_noun_plurals(input_path, "nouns_with_plurals.csv")?;
     // extract_verb_conjugations(input_path, "verb_conjugations.csv")?;
     extract_irregular_adjectives(input_path, "adjectives.csv")?;
+    generate_adjectives_file("adjectives.csv", "adjiki.rs");
     // generate_nouns_file("nouns_with_plurals.csv", "nounsiki.rs");
     // generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");
     Ok(())
@@ -417,6 +418,57 @@ pub fn generate_verbs_file(inputik: &str, outputik: &str) -> std::io::Result<()>
     )?;
     writeln!(output, "        .ok()")?;
     writeln!(output, "        .map(|i| VERB_MAP[i].1)")?;
+    writeln!(output, "}}")?;
+
+    Ok(())
+}
+
+pub fn generate_adjectives_file(inputik: &str, outputik: &str) -> std::io::Result<()> {
+    let input = File::open(inputik)?;
+    let reader = BufReader::new(input);
+
+    let mut entries: Vec<(String, (String, String))> = reader
+        .lines()
+        .skip(1) // Skip header row
+        .filter_map(|line| {
+            let line = line.ok()?;
+            let mut parts = line.split(',');
+            Some((
+                parts.next()?.trim().to_string(), // positive
+                (
+                    parts.next()?.trim().to_string(), // comparative
+                    parts.next()?.trim().to_string(), // superlative
+                ),
+            ))
+        })
+        .collect();
+
+    // Sort by positive form
+    entries.sort_by_key(|(pos, _)| pos.clone());
+
+    let mut output = File::create(outputik)?;
+
+    writeln!(output, "/// (comparative, superlative)")?;
+    writeln!(output, "static ADJECTIVE_MAP: &[(&str, (&str, &str))] = &[")?;
+    for (positive, (comparative, superlative)) in &entries {
+        writeln!(
+            output,
+            "    (\"{}\", (\"{}\", \"{}\")),",
+            positive, comparative, superlative
+        )?;
+    }
+    writeln!(output, "];\n")?;
+
+    writeln!(
+        output,
+        "pub fn get_adjective_forms(positive: &str) -> Option<(&'static str, &'static str)> {{"
+    )?;
+    writeln!(
+        output,
+        "    ADJECTIVE_MAP.binary_search_by_key(&positive, |&(k, _)| k)"
+    )?;
+    writeln!(output, "        .ok()")?;
+    writeln!(output, "        .map(|i| ADJECTIVE_MAP[i].1)")?;
     writeln!(output, "}}")?;
 
     Ok(())

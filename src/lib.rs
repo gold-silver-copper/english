@@ -1,6 +1,6 @@
 use core::fmt;
 
-pub use english_core::EnglishCore;
+use english_core::EnglishCore;
 pub use english_core::grammar::*;
 mod nounsiki;
 pub use nounsiki::*;
@@ -20,6 +20,13 @@ impl English {
                 } else {
                     return EnglishCore::noun(word, number);
                 }
+            }
+        }
+    }
+    pub fn adj(word: &str, degree: &Degree) -> String {
+        match degree {
+            Number::Singular => {
+                return word.to_string();
             }
         }
     }
