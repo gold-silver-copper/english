@@ -8,18 +8,11 @@ impl EnglishCore {
             Number::Plural => return EnglishCore::pluralize_noun(word),
         }
     }
-    pub fn add_possessive(word: &str, number: &Number) -> String {
-        match number {
-            Number::Singular => {
-                format!("{word}'s")
-            }
-            Number::Plural => {
-                if word.ends_with('s') {
-                    format!("{word}'") // Regular plural: dogs'
-                } else {
-                    format!("{word}'s") // Irregular plural: children’s
-                }
-            }
+    pub fn add_possessive(word: &str) -> String {
+        if word.ends_with('s') {
+            format!("{word}'") // Regular plural: dogs'
+        } else {
+            format!("{word}'s") // Irregular plural: children’s
         }
     }
 

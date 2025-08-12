@@ -1,7 +1,7 @@
 use core::fmt;
 
-pub use english_core::grammar::*;
 pub use english_core::EnglishCore;
+pub use english_core::grammar::*;
 mod nounsiki;
 pub use nounsiki::*;
 mod verbsiki;
@@ -53,8 +53,8 @@ impl English {
     pub fn pronoun(person: &Person, number: &Number, gender: &Gender, case: &Case) -> &'static str {
         EnglishCore::pronoun(person, number, gender, case)
     }
-    pub fn add_possessive(word: &str, number: &Number) -> String {
-        EnglishCore::add_possessive(word, number)
+    pub fn add_possessive(word: &str) -> String {
+        EnglishCore::add_possessive(word)
     }
 }
 

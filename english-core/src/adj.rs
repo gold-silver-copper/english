@@ -2,16 +2,18 @@ use crate::grammar::*;
 use crate::EnglishCore;
 
 impl EnglishCore {
-    pub fn adjective(word: &str, number: &Number) -> String {
-        match number {
-            Number::Singular => word.to_string(),
-            Number::Plural => match word {
-                "a" | "an" => "some".to_string(),
-                "this" => "these".to_string(),
-                "that" => "those".to_string(),
-                _ => word.to_string(),
-            },
+    pub fn adjective(word: &str, degree: &Degree) -> String {
+        match degree {
+            Degree::Positive => word.to_string(),
+            Degree::Comparative => Self::superlative(word),
+            Degree::Superlative => Self::comparative(word),
         }
+    }
+    pub fn superlative(word: &str) -> String {
+        format!("most {}", word)
+    }
+    pub fn comparative(word: &str) -> String {
+        format!("more {}", word)
     }
     pub fn pronoun(person: &Person, number: &Number, gender: &Gender, case: &Case) -> &'static str {
         match number {

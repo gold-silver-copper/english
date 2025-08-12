@@ -38,6 +38,12 @@ pub enum Gender {
     Feminine,
     Neuter,
 }
+#[derive(Debug, PartialEq, Clone)]
+pub enum Degree {
+    Positive,
+    Comparative,
+    Superlative,
+}
 
 /*#[derive(Debug, PartialEq, Clone)]
 pub enum Mood {
