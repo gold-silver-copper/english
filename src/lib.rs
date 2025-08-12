@@ -6,6 +6,8 @@ mod nounsiki;
 pub use nounsiki::*;
 mod verbsiki;
 pub use verbsiki::*;
+mod adjiki;
+pub use adjiki::*;
 mod sentence;
 pub struct English {}
 impl English {
@@ -25,11 +27,24 @@ impl English {
     }
     pub fn adj(word: &str, degree: &Degree) -> String {
         match degree {
-            Number::Singular => {
-                return word.to_string();
+            Degree::Positive => word.to_string(),
+            Degree::Comparative => {
+                if let Some((comp, _)) = get_adjective_forms(word) {
+                    comp.to_string()
+                } else {
+                    EnglishCore::comparative(word)
+                }
+            }
+            Degree::Superlative => {
+                if let Some((_, sup)) = get_adjective_forms(word) {
+                    sup.to_string()
+                } else {
+                    EnglishCore::superlative(word)
+                }
             }
         }
     }
+
     pub fn verb(
         word: &str,
         person: &Person,
