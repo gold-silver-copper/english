@@ -51,6 +51,7 @@ struct Entry {
     pos: String,
     forms: Option<Vec<Forms>>,
     lang_code: String,
+    //etymology_number: Option<u32>,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -75,14 +76,17 @@ fn entry_is_proper(entry: &Entry, pos: &str) -> bool {
     }
     true
 }
+fn base_setup(input_path: &str, output_path: &str) -> (BufReader<File>, Writer<File>) {
+    let input = File::open(input_path).unwrap();
+    let reader = BufReader::new(input);
+    let mut writer = Writer::from_path(output_path).unwrap();
+    (reader, writer)
+}
 
 /// Extracts irregular noun plurals and writes them to a CSV.
 fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
-    let input = File::open(input_path)?;
-    let reader = BufReader::new(input);
     let mut duplicate_map = HashSet::new();
-
-    let mut writer = Writer::from_path(output_path)?;
+    let (reader, mut writer) = base_setup(input_path, output_path);
     writer.write_record(&["word", "plural"])?;
 
     let mut tag_set = HashSet::new();
@@ -91,7 +95,10 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
         let line = line?;
         let entry: Entry = match serde_json::from_str(&line) {
             Ok(e) => e,
-            Err(_) => continue,
+            Err(e) => {
+                println!("{:#?}", e);
+                continue;
+            }
         };
         if !entry_is_proper(&entry, "noun") {
             continue;
@@ -139,7 +146,6 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
         }
     }
 
-    println!("TAGSET IS {:#?}", tag_set);
     writer.flush()?;
     println!("Done! Output written to {}", output_path);
     Ok(())
