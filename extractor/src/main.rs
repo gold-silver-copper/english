@@ -121,6 +121,7 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
         let infinitive = entry.word.to_lowercase();
 
         let predicted_plural = EnglishCore::pluralize_noun(&infinitive);
+        let predicted_struct = [infinitive.clone(), predicted_plural.clone()];
 
         let word_key = match entry.etymology_number {
             Some(1) => infinitive.clone(),
@@ -144,7 +145,7 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
                 if tags.contains(&"plural".into()) {
                     if entry_form == predicted_plural {
                         duplicate_key_set.insert(word_key.clone());
-                        duplicate_pairs_set.insert([infinitive.clone(), predicted_plural.clone()]);
+                        duplicate_pairs_set.insert(predicted_struct.clone());
                     }
                     plural_found = true;
                     forms_map.insert("plural", entry_form.clone());
@@ -153,21 +154,17 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
         }
 
         if plural_found {
-            let gotten = [&infinitive, forms_map.get("plural").unwrap()];
-            let predicted_struct = [&infinitive, &predicted_plural];
+            let gotten = [infinitive.clone(), forms_map.get("plural").unwrap().clone()];
+            let keyd_struct = [word_key.clone(), forms_map.get("plural").unwrap().clone()];
 
             if predicted_struct == gotten {
                 duplicate_key_set.insert(word_key.clone());
             }
 
-            if !duplicate_key_set.contains(&infinitive)
-                && !duplicate_pairs_set
-                    .contains(&[infinitive.clone(), forms_map.get("plural").unwrap().clone()])
-            {
+            if !duplicate_key_set.contains(&infinitive) && !duplicate_pairs_set.contains(&gotten) {
                 duplicate_key_set.insert(word_key.clone());
-                duplicate_pairs_set
-                    .insert([infinitive.clone(), forms_map.get("plural").unwrap().clone()]);
-                writer.write_record(&[&word_key, forms_map.get("plural").unwrap()])?;
+                duplicate_pairs_set.insert(gotten.clone());
+                writer.write_record(&keyd_struct)?;
             }
         }
     }
