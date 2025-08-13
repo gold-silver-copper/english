@@ -6,7 +6,7 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 mod file_generation;
-pub use file_generation::*;
+use file_generation::*;
 
 static BAD_TAGS: &[&str] = &[
     "obsolete",
