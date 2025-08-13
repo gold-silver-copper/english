@@ -149,19 +149,21 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
             }
         }
 
-        let gotten = [
-            &infinitive,
-            forms_map.get("plural").unwrap_or(&predicted_plural),
-        ];
-        let predicted_struct = [&infinitive, &predicted_plural];
+        if plural_found {
+            let gotten = [
+                &infinitive,
+                forms_map.get("plural").unwrap_or(&predicted_plural),
+            ];
+            let predicted_struct = [&infinitive, &predicted_plural];
 
-        if predicted_struct == gotten {
-            duplicate_map.insert(infinitive.clone());
-        }
+            if predicted_struct == gotten {
+                duplicate_map.insert(infinitive.clone());
+            }
 
-        if !duplicate_map.contains(&infinitive) {
-            duplicate_map.insert(infinitive.clone());
-            writer.write_record(&gotten)?;
+            if !duplicate_map.contains(&infinitive) {
+                duplicate_map.insert(infinitive.clone());
+                writer.write_record(&gotten)?;
+            }
         }
     }
 

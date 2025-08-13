@@ -27,6 +27,7 @@ welsh,welsh
 danish,danish
 czech,czechs
 quaff,quaffs
+x,xes
 species,species
 px,pxes
 bx,bxes
@@ -57,8 +58,10 @@ accused,accused
 human,humans
 fallen,fallen
 syntax,syntaxes
+go,goes
 sandbox,sandboxes
 lied,lieder
+means,means
 brief,briefs
 belief,beliefs
 cheese,cheeses
@@ -70,9 +73,11 @@ won,won
 begum,begums
 by,bys
 box,boxes
+bitters,bitters
 spacecraft,spacecraft
 lynx,lynxes
 fox,foxes
+us,uss
 if,ifs
 life,lives
 knife,knives
@@ -156,11 +161,13 @@ americium,americiums
 yu,yu
 aluminum,aluminums
 au,au
+links,links
 of,ofs
 mf,mfs
 deuterium,deuteriums
 krona,kronor
 les,less
+es,esses
 ix,ixes
 laudanum,laudanums
 condemned,condemned
@@ -195,6 +202,7 @@ bes,besses
 ersatz,ersatzes
 harmonia,harmoniai
 navicula,naviculae
+nix,nixes
 appendix,appendixes
 criterion,criteria
 ee,een
@@ -231,6 +239,7 @@ calx,calxes
 eunuch,eunuchs
 pluma,plumae
 ren,renes
+mos,mores
 pagina,paginae
 cuniculus,cuniculi
 prox,proxes
@@ -271,6 +280,8 @@ hero,heroes
 tech,techs
 arco,archi
 unix,unixen
+pax,pax
+dens,dentes
 nox,nox
 colonus,coloni
 adenitis,adenitides
@@ -293,6 +304,7 @@ catapulta,catapultae
 genu,genua
 slushbox,slushboxes
 braccio,braccia
+gelati,gelati
 calix,calices
 goof,goofs
 palus,pali
@@ -308,10 +320,12 @@ cmavo,cmavo
 famulus,famuli
 gaff,gaffs
 kibbutz,kibbutzes
+dreads,dreads
 shinjitai,shinjitai
 ko,ko
 su,su
 roux,roux
+sous,sous
 jus,jus
 duce,duci
 pancreatitis,pancreatitides
@@ -398,6 +412,7 @@ caff,caffs
 nicker,nicker
 womyn,wymyn
 luftmensch,luftmenschen
+pila,pilae
 ref,refs
 admix,admixes
 alga,algae
@@ -453,8 +468,11 @@ maki,maki
 sf,sfs
 quartz,quartzes
 ft,ft
+bnf,bnfs
 ootheca,oothecae
 alms,alms
+butchers,butchers
+blues,blues
 addax,addax
 aconitum,aconitums
 appendicitis,appendicites
@@ -467,6 +485,7 @@ millihertz,millihertz
 megahertz,megahertzes
 surf,surfs
 humerus,humeri
+services,services
 sniff,sniffs
 fasciculus,fasciculi
 toff,toffs
@@ -475,6 +494,7 @@ aesthetics,aesthetics
 esthetics,esthetics
 spiff,spiffs
 asis,asiss
+diagnostics,diagnostics
 spaghetto,spaghetti
 efflux,effluxes
 dolus,doli
@@ -494,6 +514,7 @@ customs,customs
 zampone,zamponi
 cuff,cuffs
 inuit,inuit
+gaum,gaums
 digitus,digiti
 blouse,blouses
 electronics,electronics
@@ -516,6 +537,7 @@ spaz,spazzes
 spazz,spazzes
 jun,jun
 relief,reliefs
+fonds,fonds
 cvs,cvss
 tessera,tesserae
 temenos,temene
@@ -548,6 +570,7 @@ wampum,wampum
 patibulum,patibulums
 stipes,stipites
 spoof,spoofs
+palla,pallae
 smallpox,smallpoxes
 noseeum,noseeums
 smurf,smurfs
@@ -559,7 +582,9 @@ afterlife,afterlives
 mls,mlss
 ws,wss
 problema,problemata
+mains,mains
 rai,rai
+sweets,sweets
 backstaff,backstaves
 fuzz,fuzzes
 frizz,frizzes
@@ -603,9 +628,12 @@ stelo,steloj
 commis,commis
 prefrosh,prefrosh
 chatterbox,chatterboxes
+gubbins,gubbins
+waxworks,waxworks
 jizz,jizzes
 okonomiyaki,okonomiyaki
 whereabouts,whereabouts
+grounds,grounds
 whiff,whiffs
 max,maxes
 whiz,whizzes
@@ -636,6 +664,8 @@ shvitz,shvitzes
 handoff,handoffs
 hermeneutics,hermeneutics
 thorax,thoraxes
+shojo,shojo
+mux,muxes
 xiphopagus,xiphopagi
 bacillus,bacilli
 taff,taffs
@@ -660,6 +690,7 @@ butterfingers,butterfingers
 principe,principi
 bildungsroman,bildungsromane
 mastitis,mastitises
+pix,pixes
 staphylococcus,staphylococci
 mischief,mischiefs
 lax,laxes
@@ -672,7 +703,9 @@ toolbox,toolboxes
 nutgraf,nutgrafs
 bogof,bogofs
 alf,alfs
+sacra,sacrae
 waterworks,waterworks
+toots,toots
 testis,testes
 coxa,coxae
 erinys,erinyes
@@ -687,12 +720,14 @@ ansatz,ansatzes
 cercus,cerci
 fundus,fundi
 puits,puits
+masters,masters
 foodstuff,foodstuffs
 cumulus,cumuli
 jedi,jedi
 gregory,gregorys
 psych,psychs
 niveau,niveaus
+chips,chips
 def,defs
 postfix,postfixes
 catafalco,catafalcoes
@@ -713,14 +748,19 @@ metacarpus,metacarpi
 metatarsus,metatarsi
 astragalus,astragali
 aries,aries
+f,fs
 orthodox,orthodoxes
 pentium,pentiums
 pisces,pisces
 pullman,pullmans
+roman,romans
+s,ss
+y,ys
 tarsus,tarsi
 carpus,carpi
 sempervivum,sempervivums
 bison,bison
+abas,abas
 gruff,gruffs
 decaf,decafs
 xu,xu
@@ -730,6 +770,7 @@ pof,pofs
 bronchus,bronchi
 bronchitis,bronchitides
 unobtainium,unobtainiums
+vox,voxes
 cutis,cutes
 riffraff,riffraffs
 dermatitis,dermatites
@@ -774,6 +815,7 @@ corrach,corrachs
 vbs,vbss
 atf,atfs
 cns,cnss
+irs,irss
 lf,lfs
 graf,grafs
 woodruff,woodruffs
@@ -890,8 +932,10 @@ letterbox,letterboxes
 lenis,lenes
 raviolo,ravioli
 brushoff,brushoffs
+baths,baths
 scampo,scampi
 decubitus,decubitus
+lds,ldss
 fluff,fluffs
 sapiens,sapientes
 utf,utfs
@@ -955,6 +999,7 @@ antitragus,antitragi
 protium,protiums
 vena,venae
 crimen,crimina
+works,works
 cisterna,cisternae
 khanty,khanty
 nenets,nenets
@@ -1131,6 +1176,7 @@ furfur,furfures
 discobolus,discoboli
 hafiz,huffaz
 kouros,kouroi
+tales,tales
 sakatottari,sakatottari
 ethics,ethics
 revers,revers
@@ -1153,6 +1199,7 @@ sokubiotoshi,sokubiotoshi
 sotogake,sotogake
 phillips,phillips
 cunji,cunji
+sails,sails
 fritz,fritzes
 oecus,oeci
 tsitsith,tsitsiyoth
@@ -1163,6 +1210,7 @@ quarterstaff,quarterstaves
 oligarch,oligarchs
 hydronium,hydroniums
 frijol,frijoles
+crossroads,crossroads
 stroma,stromata
 concha,conchae
 archdiocese,archdioceses
@@ -1177,6 +1225,7 @@ radiostrontium,radiostrontiums
 naif,naifs
 antlia,antliae
 cris,crisses
+sis,sisses
 titulus,tituli
 sotokomata,sotokomata
 sotomuso,sotomuso
@@ -1263,7 +1312,9 @@ sextans,sextantes
 boulonnais,boulonnais
 tais,tais
 scuff,scuffs
+moneybags,moneybags
 guff,guffs
+watches,watches
 dms,dmss
 liftoff,liftoffs
 vasculitis,vasculitides
@@ -1293,6 +1344,7 @@ aum,aums
 tegula,tegulae
 musca,muscae
 tendonitis,tendonites
+scutella,scutellae
 microflora,microflorae
 marans,marans
 bacchius,bacchii
@@ -1419,6 +1471,7 @@ myocarditis,myocarditises
 nimbostratus,nimbostrati
 stratus,strati
 magnalium,magnaliums
+magnox,magnoxes
 salume,salumi
 perf,perfs
 imperf,imperfs
@@ -1442,12 +1495,15 @@ wallach,wallachs
 tortellino,tortellini
 braciola,braciole
 broccolo,broccoli
+sparks,sparks
 peperoncino,peperoncini
 bpm,bpm
+barracks,barracks
 nevus,nevi
 fico,ficoes
 badlands,badlands
 cannolo,cannoli
+grams,grams
 sauternes,sauternes
 kairos,kairoi
 lamellibranch,lamellibranchs
@@ -1464,6 +1520,7 @@ proteus,protei
 heresiarch,heresiarchs
 harmonium,harmoniums
 vomitus,vomita
+lignum,lignums
 loculus,loculi
 zarf,zarfs
 sephirah,sephirot
@@ -1472,7 +1529,9 @@ membrana,membranae
 biscotto,biscotti
 nudibranch,nudibranchs
 minium,miniums
+mps,mpss
 horsebox,horseboxes
+scores,scores
 omnium,omniums
 dura,durae
 chinois,chinoises
@@ -1515,6 +1574,7 @@ lightbox,lightboxes
 cauda,caudae
 blastoff,blastoffs
 crs,crss
+futures,futures
 haikai,haikai
 maasai,maasai
 lum,lums
@@ -1547,12 +1607,15 @@ bailo,baili
 bata,bata
 narrows,narrows
 limes,limites
+moms,moms
+scops,scops
 fucknuts,fucknuts
 virginals,virginals
 silversides,silversides
 escalado,escaladoes
 firman,firmans
 toadflax,toadflaxes
+dings,dings
 viburnum,viburnums
 superhuman,superhumans
 sidhe,sidhe
@@ -1580,6 +1643,7 @@ goldilocks,goldilocks
 gaf,gafs
 shero,sheroes
 opisthodomos,opisthodomoi
+assizes,assizes
 anopheles,anopheles
 bollix,bollixes
 aedicula,aediculae
@@ -1599,6 +1663,7 @@ schrod,schrod
 currach,currachs
 protonium,protoniums
 daraf,darafs
+carrots,carrots
 brickworks,brickworks
 microfungus,microfungi
 microbacillus,microbacilli
@@ -1636,6 +1701,7 @@ cysticercus,cysticerci
 textbox,textboxes
 bombproof,bombproofs
 sendoff,sendoffs
+hames,hames
 fornix,fornices
 deeksies,deeksies
 uncus,unci
@@ -1644,10 +1710,12 @@ frons,frontes
 amigurumi,amigurumi
 retiarius,retiarii
 fiamma,fiamme
+hubs,hubs
 showoff,showoffs
 frate,frati
 supraspinatus,supraspinati
 spinoff,spinoffs
+sweepstakes,sweepstakes
 outbox,outboxes
 inbox,inboxes
 papadum,papadums
@@ -1701,6 +1769,7 @@ communitas,communitates
 macronucleus,macronuclei
 fisticuff,fisticuffs
 colosseum,colosseums
+stoneworks,stoneworks
 paperknife,paperknives
 lubritorium,lubritoriums
 ateji,ateji
@@ -1713,10 +1782,13 @@ trach,trachs
 cuz,cuzzes
 checkoff,checkoffs
 firefox,firefoxes
+lancers,lancers
 phosphorescences,phosphorescenses
 hao,hao
 philodox,philodoxes
 taf,tafs
+astroturf,astroturfs
+snuffers,snuffers
 exarch,exarchs
 dreamchild,dreamchildren
 attacco,attacchi
@@ -1724,6 +1796,7 @@ kermes,kermes
 sarubobo,sarubobo
 kamaitachi,kamaitachi
 ferrovanadium,ferrovanadiums
+garnets,garnets
 coccobacillus,coccobacilli
 shutoff,shutoffs
 firebox,fireboxes
@@ -1743,9 +1816,12 @@ insigne,insignia
 pilaf,pilafs
 jackoff,jackoffs
 khoums,khoums
+kuai,kuai
 jiao,jiao
+exsiccata,exsiccatae
 behoof,behoofs
 relais,relais
+backpackers,backpackers
 illui,illuim
 cheesebox,cheeseboxes
 arum,arums
@@ -1784,6 +1860,7 @@ lymphonodus,lymphonodi
 flyby,flybys
 xs,xss
 xxs,xxss
+flatlands,flatlands
 hypolimnion,hypolimnia
 thearch,thearchs
 orangey,orangies
@@ -1855,8 +1932,10 @@ strobila,strobilae
 habenula,habenulae
 centistokes,centistokes
 rus,rus
+mya,mya
 miniseries,miniseries
 hoki,hoki
+masu,masu
 minga,minga
 marginale,marginalia
 tifoso,tifosi
@@ -1885,6 +1964,7 @@ lebes,lebetes
 sefer,sefarim
 kph,kph
 pronucleus,pronuclei
+shames,shamesim
 fustilugs,fustilugs
 synonymum,synonymums
 premix,premixes
@@ -1906,6 +1986,7 @@ mof,mofs
 lapsus,lapsus
 esca,escae
 arroz,arroces
+rolls,rolls
 anasyrma,anasyrmata
 sicano,sicani
 birman,birmans
@@ -1913,6 +1994,7 @@ chartreux,chartreux
 skookum,skookums
 sphynx,sphynxes
 vibrissa,vibrissae
+nibs,nibs
 clivus,clivi
 valium,valiums
 hapax,hapaxes
@@ -1931,6 +2013,7 @@ togemans,togemans
 pneumococcus,pneumococci
 dipositronium,dipositroniums
 orbita,orbitae
+onesies,onesies
 craniopagus,craniopagi
 permille,permille
 pseudomonas,pseudomonades
@@ -2018,6 +2101,7 @@ conops,conopss
 kkwaenggwari,kkwaenggwari
 rhonchus,rhonchi
 skeezicks,skeezicks
+dinos,dinoi
 kommos,kommoi
 medrese,medreses
 qaly,qalys
@@ -2043,6 +2127,8 @@ supertaxon,supertaxa
 cf,cfs
 cy,cys
 gy,gys
+my,mys
+sy,sys
 aition,aitia
 crumbum,crumbums
 woodbox,woodboxes
@@ -2072,6 +2158,7 @@ senarius,senarii
 crepida,crepidae
 footmuff,footmuffs
 tizz,tizzes
+ans,anss
 pf,pfs
 tf,tfs
 pardessus,pardessus
@@ -2141,6 +2228,7 @@ hamentash,hamentashen
 haematodocha,haematodochae
 cx,cxes
 termes,termites
+speedos,speedos
 semiosis,semiosises
 phytotelma,phytotelmata
 sharif,shurafa
@@ -2190,6 +2278,7 @@ flavylium,flavyliums
 halirenium,halireniums
 halonium,haloniums
 fbs,fbss
+ich,ichs
 stammbaum,stammbaums
 imidonium,imidoniums
 iminium,iminiums
@@ -2239,6 +2328,7 @@ gugelhupf,gugelhupfs
 aandblom,aandblomme
 shidduch,shidduchim
 speos,speoi
+xp,xp
 exp,exp
 minimax,minimaxes
 irmos,irmoi
@@ -2257,6 +2347,8 @@ kolkhoz,kolkhozy
 debuff,debuffs
 yech,yechs
 cloff,cloffs
+yellowlegs,yellowlegs
+pubs,pubs
 faex,faeces
 orans,orantes
 durdum,durdums
@@ -2283,6 +2375,7 @@ exahertz,exahertz
 petahertz,petahertz
 yottahertz,yottahertz
 conus,coni
+butoh,butoh
 sfogliatella,sfogliatelle
 palmares,palmares
 elenchus,elenchi
@@ -2312,11 +2405,13 @@ manyplies,manyplies
 fiz,fizzes
 nucha,nuchae
 sanserif,sanserifs
+ironworks,ironworks
 userbox,userboxes
 yonsei,yonsei
 confix,confixes
 ceras,cerata
 periaktos,periaktoi
+scatterbrains,scatterbrains
 laceworks,laceworks
 morphosyntax,morphosyntaxes
 hotfix,hotfixes
@@ -2454,7 +2549,9 @@ zonohedron,zonohedra
 cheilitis,cheilitides
 dummkopf,dummkopfs
 printworks,printworks
+ovipara,oviparae
 mrf,mrfs
+woodworks,woodworks
 phrenitis,phrenitides
 cyclopropenium,cyclopropeniums
 antiarch,antiarchs
@@ -2543,6 +2640,7 @@ bullmastiff,bullmastiffs
 kuvasz,kuvaszok
 mariengroschen,mariengroschen
 carpale,carpalia
+kers,kerss
 micella,micellae
 losse,lossem
 thyroiditis,thyroidites
@@ -2554,10 +2652,12 @@ ascoma,ascomata
 bossyboots,bossyboots
 manchild,menchildren
 nonhero,nonheroes
+daf,dafs
 phytophotodermatitis,phytophotodermatitides
 dermatomyositis,dermatomyositides
 myositis,myositides
 lilyturf,lilyturfs
+uncs,uncs
 massula,massulae
 totenkopf,totenkopfs
 exclus,exclus
@@ -2678,6 +2778,7 @@ otaman,otamans
 vataman,vatamans
 esquilax,esquilaxes
 dezh,dezhes
+tbs,tbs
 hypervertex,hypervertices
 prothese,protheses
 folklife,folklives
@@ -2739,6 +2840,7 @@ ornis,ornithes
 lapillus,lapilli
 indecorum,indecorums
 supertax,supertaxes
+dars,duroos
 kbps,kbps
 carditis,carditides
 phantasma,phantasmata
@@ -2796,6 +2898,7 @@ pastizzi,pastizzi
 antivortex,antivortices
 traineau,traineaus
 paragraphos,paragraphoi
+crows,crows
 triskeles,triskeles
 occipitofrontalis,occipitofrontales
 occipitalis,occipitales
@@ -2865,6 +2968,7 @@ diaryliodonium,diaryliodoniums
 fuzzbox,fuzzboxes
 gyroradius,gyroradii
 winebox,wineboxes
+wf,wfs
 mirach,mirachs
 chengyu,chengyu
 nzima,nzima
@@ -2999,6 +3103,7 @@ zygomaticus,zygomatici
 tinctura,tincturae
 aulos,auloi
 sicilicus,sicilici
+rollmops,rollmops
 endophthalmitis,endophthalmites
 doronicum,doronicums
 modiolus,modioli
@@ -3101,6 +3206,7 @@ serositis,serosites
 sweetlips,sweetlips
 greenstuff,greenstuffs
 pittosporum,pittosporums
+metalworks,metalworks
 fulmen,fulmina
 overblouse,overblouses
 rhombos,rhomboi
@@ -3143,6 +3249,7 @@ plagium,plagiums
 stepwife,stepwives
 oeconomus,oeconomi
 anigif,anigifs
+aka,aka
 surculus,surculi
 xylon,xyla
 maqaf,maqafs
@@ -3187,6 +3294,7 @@ shaobing,shaobing
 voicemailbox,voicemailboxes
 octaeteris,octaeterides
 pugillaris,pugillares
+flightcraft,flightcraft
 foodfish,foodfishes
 goalbox,goalboxes
 startbox,startboxes
@@ -3258,6 +3366,7 @@ peribolos,periboloi
 syntheton,syntheta
 phylarchus,phylarchi
 roastbeef,roastbeefs
+reticula,reticulae
 spherula,spherulae
 sportula,sportulae
 subucula,subuculae
@@ -3356,6 +3465,7 @@ xiaolongbao,xiaolongbao
 lagopus,lagopodes
 thriambus,thriambi
 gtt,gtt
+boggards,boggards
 subepoch,subepochs
 otakukin,otakukin
 zoochlorella,zoochlorellae
@@ -3363,15 +3473,18 @@ fakelaki,fakelakia
 imaum,imaums
 secdef,secdefs
 hieracosphinx,hieracosphinxes
+kickshaws,kickshaws
 quoif,quoifs
 yellowshanks,yellowshanks
 howf,howfs
 undercliff,undercliffs
 wayzegoose,wayzegooses
+dives,dives
 sizz,sizzes
 municipalidad,municipalidades
 sqft,sqft
 cucullus,cuculli
+tinworks,tinworks
 ukiyoe,ukiyoe
 prytanis,prytaneis
 coinbox,coinboxes
@@ -3411,6 +3524,7 @@ guz,guzzes
 threesies,threesies
 foursies,foursies
 fivesies,fivesies
+sixies,sixies
 sevensies,sevensies
 erodium,erodiums
 metif,metifs
@@ -3487,6 +3601,7 @@ nomarch,nomarchs
 trierarch,trierarchs
 kunai,kunai
 loff,loffs
+horos,horoi
 paolo,paoli
 fuff,fuffs
 oversum,oversums
@@ -3558,6 +3673,7 @@ perioikos,perioikoi
 spinula,spinulae
 giftbox,giftboxes
 sphex,spheges
+goff,goffs
 rattlebox,rattleboxes
 orbicularis,orbiculares
 eupatorium,eupatoriums
@@ -3603,6 +3719,7 @@ postfurca,postfurcae
 hypotarsus,hypotarsi
 macroglomerulus,macroglomeruli
 langlauf,langlaufs
+qrs,qrss
 lirella,lirellae
 entoplastron,entoplastra
 thalamencephalon,thalamencephala
@@ -3866,6 +3983,7 @@ peristoma,peristomata
 paranucleus,paranuclei
 gyroma,gyromata
 foalfoot,foalfoots
+tts,ttss
 phyz,phyzzes
 tigella,tigellae
 vityaz,vityazes
@@ -3878,6 +3996,7 @@ tarpum,tarpums
 metanauplius,metanauplii
 omnishambles,omnishambles
 pseudofilaria,pseudofilariae
+quadrium,quadriums
 dieoff,dieoffs
 trimix,trimixes
 decuman,decumans
@@ -4102,6 +4221,7 @@ anaprotaspis,anaprotaspides
 metaprotaspis,metaprotaspides
 paraprotaspis,paraprotaspides
 magtf,magtfs
+pts,ptss
 fmf,fmfs
 mich,michs
 kuman,kumans
@@ -4178,6 +4298,7 @@ epoophoron,epoophora
 floorbox,floorboxes
 airprox,airproxes
 pundonor,pundonores
+dof,dofs
 aabfs,aabfss
 aadccs,aadccss
 pelioma,peliomata
@@ -4429,6 +4550,7 @@ tuckerbox,tuckerboxes
 zygobranch,zygobranchs
 upshorts,upshorts
 chikuwa,chikuwa
+paintworks,paintworks
 beforelife,beforelives
 gnss,gnsss
 akara,akara
@@ -4576,6 +4698,7 @@ mythopoetics,mythopoetics
 fmz,fmz
 strelets,streltsy
 finoki,finoki
+fuzznuts,fuzznuts
 perforatus,perforati
 agonistarch,agonistarchs
 astragalos,astragaloi
@@ -4646,6 +4769,7 @@ tribrachus,tribrachi
 parulis,parulides
 pseudoganglion,pseudoganglia
 pseudomamma,pseudomammae
+raj,rajes
 scf,scfs
 sortilegus,sortilegi
 oxyrhynchus,oxyrhynchi
@@ -4716,6 +4840,7 @@ albaqualf,albaqualfs
 boralf,boralfs
 cowife,cowives
 biautomaton,biautomata
+leadworks,leadworks
 lemonfish,lemonfishes
 zhonghu,zhonghu
 dihu,dihu
@@ -4762,6 +4887,7 @@ dojikko,dojikko
 cerebrocortex,cerebrocortices
 synganglion,synganglia
 genospecies,genospecies
+das,dass
 noshi,noshi
 friggitello,friggitelli
 fangtooth,fangtooths
@@ -4782,6 +4908,7 @@ skyphos,skyphoi
 quaternarius,quaternarii
 enokidake,enokidake
 nnes,nness
+sillykins,sillykins
 kikumon,kikumon
 pneumotach,pneumotachs
 shokunin,shokunin
@@ -4859,6 +4986,7 @@ lenos,lenoi
 erxian,erxian
 esraj,esrajes
 daruan,daruan
+lightskirts,lightskirts
 gayageum,gayageums
 kayagum,kayagums
 praecuneus,praecunei
@@ -4966,6 +5094,7 @@ longuda,longuda
 shammash,shammashim
 shammas,shammasim
 filf,filfs
+wommon,womyn
 minigarch,minigarchs
 jawbox,jawboxes
 rtty,rttys
@@ -5009,6 +5138,7 @@ tephillah,tephilloth
 pithos,pithoi
 isoflux,isofluxes
 trisetum,trisetums
+autum,autums
 toof,teef
 navbox,navboxes
 akule,akule
@@ -5036,6 +5166,8 @@ spekulatius,spekulatius
 throwbox,throwboxes
 mesocoxa,mesocoxae
 bitchtits,bitchtits
+gentlemen,gentlemen
+gents,gents
 ipf,ipfs
 transmedium,transmediums
 uchigatana,uchigatana
@@ -5077,6 +5209,7 @@ pws,pwss
 karajishi,karajishi
 towfish,towfishes
 fatherkins,fatherkins
+tonkotsu,tonkotsu
 underlife,underlives
 fintech,fintechs
 duplicarius,duplicarii
@@ -5165,6 +5298,7 @@ chicanx,chicanxs
 jariya,jawari
 kalpis,kalpides
 empasma,empasmata
+biles,biles
 alytarch,alytarchs
 parencephalon,parencephala
 gunworks,gunworks
@@ -5205,6 +5339,7 @@ prolarva,prolarvae
 taraiu,taraiu
 lichanos,lichanoi
 apotropaion,apotropaia
+rosc,roscada
 libfix,libfixes
 sextych,sextychs
 paximadi,paximadia
@@ -5230,6 +5365,7 @@ epiphallus,epiphalli
 diethylammonium,diethylammoniums
 uncollegiality,collegialities
 alkylpalladium,alkylpalladiums
+metretes,metretai
 immonium,immoniums
 pentanidium,pentanidiums
 peribothron,peribothra
@@ -5297,6 +5433,7 @@ apostrophus,apostrophi
 triazolium,triazoliums
 trifluoroacetoxy,trifluoroacetoxys
 heikegani,heikegani
+ifs,ifss
 sublocus,subloci
 hyperoctahedron,hyperoctahedra
 hankerchief,hankerchiefs
@@ -5351,10 +5488,12 @@ megadaraf,megadarafs
 ploughstaff,ploughstaffs
 plowstaff,plowstaffs
 demibranch,demibranchs
+chous,choes
 zaisu,zaisu
 lecythion,lecythia
 lekythion,lekythia
 bayliff,bayliffs
+gos,gos
 plesiohedron,plesiohedra
 kinchaku,kinchaku
 erysimum,erysimums
@@ -5598,6 +5737,7 @@ submotif,submotifs
 costimulus,costimuli
 setworks,setworks
 axlebox,axleboxes
+gonja,gonja
 khuleef,khuleefs
 homeolocus,homeoloci
 tetraphenylarsonium,tetraphenylarsoniums
@@ -5646,6 +5786,7 @@ shinobu,shinobu
 caulonema,caulonemata
 chloronema,chloronemata
 bitesheep,bitesheeps
+sds,sdss
 corronach,corronachs
 corrinoch,corrinochs
 larrakitj,larrakitj
@@ -5798,6 +5939,7 @@ subapex,subapices
 burikko,burikko
 burriko,burriko
 backflux,backfluxes
+lovekins,lovekins
 aphelench,aphelenchs
 parapleuron,parapleura
 pfas,pfass
@@ -5921,6 +6063,7 @@ vertax,vertaxes
 kuromaku,kuromaku
 madchild,madchildren
 trophospecies,trophospecies
+trf,trfs
 raphis,raphides
 horarium,horariums
 mapach,mapachs
@@ -6040,6 +6183,7 @@ glof,glofs
 diblastula,diblastulae
 wombchild,wombchildren
 crossstaff,crossstaffs
+uas,uass
 gasmoulos,gasmouloi
 gukja,gukja
 bouleutes,bouleutai
@@ -6059,6 +6203,7 @@ a**,a**es
 sporf,sporfs
 phourion,phouria
 stiliaga,stiliagi
+myroblytes,myroblytai
 wcw,wcw
 microtrix,microtriches
 seelie,seelie
@@ -6101,6 +6246,7 @@ paracervix,paracervices
 jttf,jttfs
 backbrief,backbriefs
 retrocervix,retrocervices
+pce,pcs
 ectocolpus,ectocolpi
 cnf,cnfs
 otosalpingitis,otosalpingitides
@@ -6135,6 +6281,7 @@ pentabrach,pentabrachs
 pentarch,pentarchs
 borametz,borametzes
 baromez,baromezes
+tets,tets
 misbox,misboxes
 spathiphyllum,spathiphyllums
 daly,dalys
@@ -6180,6 +6327,7 @@ pteropleuron,pteropleura
 giboshi,giboshi
 bukkumi,bukkumi
 endonucleus,endonuclei
+uda,uda
 pseudostroma,pseudostromata
 headach,headachs
 topato,topatoes
@@ -6199,6 +6347,7 @@ yoozh,yoozhes
 yuzh,yuzhes
 youzh,youzhes
 yooj,yoojes
+flizz,flizzes
 quadrarch,quadrarchs
 pectunculus,pectunculi
 biflux,bifluxes
@@ -6222,6 +6371,7 @@ paddlebox,paddleboxes
 pampelmouse,pampelmouses
 pompelmouse,pompelmouses
 spaynard,spaynnards
+chis,chis
 silfe,silves
 ottavarima,ottavarime
 tomacula,tomaculae
@@ -6314,6 +6464,7 @@ showbox,showboxes
 propodeon,propodea
 pseudepigraphon,pseudepigrapha
 putoff,putoffs
+psis,psises
 aiis,aiiss
 piis,piiss
 rolloff,rolloffs
@@ -6329,6 +6480,7 @@ charshaf,charshafs
 charsaf,charsafs
 wakasagi,wakasagi
 ukiyoye,ukiyoye
+cmbs,cmbss
 cpmm,cpmm
 elephantarch,elephantarchs
 spinitrix,spinitriches
@@ -6348,6 +6500,7 @@ radiculoneuritis,radiculoneuritides
 costula,costulae
 teleconf,teleconfs
 pantcuff,pantcuffs
+gbas,gbass
 gls,glss
 thyroarytenoideus,thyroarytenoidei
 pseudofungus,pseudofungi
@@ -6380,6 +6533,7 @@ spithame,spithamai
 kareau,kareaus
 kikyo,kikyo
 kugelhupf,kugelhupfs
+mcts,mctss
 venidium,venidiums
 viff,viffs
 wallum,wallums
@@ -6389,12 +6543,14 @@ bothros,bothroi
 mly,mlys
 ssrf,ssrfs
 yored,yordim
+vx,vxes
 garnetz,garnetz
 tanstuff,tanstuffs
 dbf,dbfs
 kdf,kdfs
 tetrachenium,tetracheniums
 immunothrombus,immunothrombi
+ipfs,ipfss
 diphenyliodonium,diphenyliodoniums
 tetrabranch,tetrabranchs
 pentecontalitron,pentecontalitra
@@ -6425,9 +6581,11 @@ switchknife,switchknives
 ecoroof,ecoroofs
 seediq,seediq
 fundatrigenia,fundatrigeniae
+flox,floxes
 wakaf,wakafs
 shtiebel,shtieblach
 killese,killeses
+asf,asfs
 upf,upfs
 neospecies,neospecies
 martech,martechs
@@ -6464,6 +6622,8 @@ pseudoepipleuron,pseudoepipleura
 trimethylphenylammonium,trimethylphenylammoniums
 swimoff,swimoffs
 penty,penty
+tbps,tbps
+pbps,pbps
 gemmun,gemmen
 tearoff,tearoffs
 wheelbox,wheelboxes
@@ -6525,6 +6685,7 @@ torafugu,torafugu
 margraf,margrafs
 prostylos,prostyloi
 chamoix,chamoix
+fls,flss
 nonspecies,nonspecies
 katoch,katoch
 davoch,davochs
@@ -6564,6 +6725,7 @@ cowchild,cowchildren
 mzs,mzss
 fzs,fzss
 ofbs,ofbss
+msis,msiss
 mlrs,mlrss
 pseudomycetoma,pseudomycetomata
 horcrux,horcruxes
@@ -6666,6 +6828,7 @@ underbailiff,underbailiffs
 chauf,chaufs
 octakaidecahedron,octakaidecahedra
 euopisthobranch,euopisthobranchs
+lps,lpss
 s*x,s*xes
 rux,ruxes
 draconcopedes,draconcopedes
@@ -6679,6 +6842,7 @@ shomer,shomrim
 prettikins,prettikins
 melakhah,melakhot
 queriman,querimans
+tcm,tcm
 buscemese,buscemeses
 verbenarius,verbenarii
 benzopyrylium,benzopyryliums
@@ -6688,6 +6852,7 @@ overchief,overchiefs
 oots,ootss
 proskynitarion,proskynitaria
 proskynetarion,proskynetaria
+fns,fnss
 neighborhoodful,neighborhoodsful
 ballotful,ballotsful
 diezeugmenon,diezeugmena
@@ -6796,6 +6961,7 @@ gigaannum,gigaannums
 truff,truffs
 dactylethra,dactylethrae
 gynopara,gynoparae
+pios,pioss
 puzzlebox,puzzleboxes
 adeagus,adeagi
 cahiz,cahizes
@@ -6809,9 +6975,11 @@ kurman,kurmans
 lummux,lummuxes
 pinworks,pinworks
 apf,apfs
+tsps,tspss
 melampodium,melampodiums
 metaphenomenon,metaphenomena
 euhedron,euhedra
+lats,latss
 msh,mshs
 yanyuedao,yanyuedao
 takanah,takanot
@@ -6830,6 +6998,7 @@ sufganiya,sufganiyot
 schtoff,schtoffs
 glitteratus,glitterati
 aoidos,aoidoi
+bronzeworks,bronzeworks
 sisyrinchium,sisyrinchiums
 skycraft,skycraft
 lch,lchs
@@ -6846,12 +7015,14 @@ paleorelief,paleoreliefs
 zygomaticomandibularis,zygomaticomandibulares
 zygomaticotemporalis,zygomaticotemporales
 supertetrahedron,supertetrahedra
+ends,endss
 paleosubspecies,paleosubspecies
 tanworks,tanworks
 tartemorion,tartemoria
 televox,televoxes
 terfez,terfez
 thulr,thulir
+mgus,mguss
 tarruf,tarrufs
 teruf,terufs
 fibnif,fibnifs
@@ -6876,6 +7047,7 @@ cff,cffs
 xanthocobalt,??
 shnozz,shnozzes
 welsbach,welsbachs
+fes,fess
 flerf,flerfs
 pissoff,pissoffs
 herx,herxes
@@ -6885,6 +7057,7 @@ precornu,precornua
 snowtrout,snowtrout
 oysterleaf,oysterleafs
 ebus,ebuss
+jws,jwss
 kwazoku,kwazoku
 tirf,tirfs
 houmongi,houmongi
@@ -6908,6 +7081,7 @@ roskopf,roskopfs
 robotrix,robotrixes
 vibroknife,vibroknives
 pif,pifs
+pins,pins
 popovets,popovtsy
 wilamowitzianus,wilamowitziani
 scrapbox,scrapboxes
@@ -6919,6 +7093,7 @@ seawife,seawives
 norito,norito
 bezpopovets,bezpopovtsy
 cemf,cemfs
+bis,biss
 sfpm,sfpm
 tashrif,tashrifs
 tasheriff,tasheriffs
@@ -7003,6 +7178,7 @@ taepyeongso,taepyeongso
 semicha,semichoth
 shetadlan,shetadlanim
 vif,vifs
+pais,paiss
 waterfoot,waterfoots
 goddexx,goddexxes
 chapandaz,chapandaz
@@ -7028,6 +7204,7 @@ coleorrhiza,coleorrhizae
 archmagus,archmagi
 tchaviche,tchaviche
 wogbox,wogboxes
+lfs,lfss
 wpi,wpi
 rutf,rutfs
 demiguy,demiguys
@@ -7070,6 +7247,7 @@ ephoros,ephoroi
 ornithogalum,ornithogalums
 peptostreptococcus,peptostreptococci
 lootbox,lootboxes
+sdas,sdass
 duckpower,duckpower
 apteryla,apterylae
 rockaby,rockabys
@@ -7087,6 +7265,8 @@ protocephalon,protocephala
 holei,holei
 kichel,kichlach
 mokkan,mokkan
+wms,wmss
+wfms,wfmss
 longshucks,longshucks
 yamamai,yamamai
 pcls,pclss
@@ -7281,6 +7461,7 @@ brdf,brdfs
 thetanullwert,thetanullwerte
 inumimi,inumimi
 gunduy,gunduys
+vats,vatss
 ovf,ovfs
 dipteron,diptera
 scaredeer,scaredeers
@@ -7298,6 +7479,7 @@ natla,natlot
 broligarch,broligarchs
 lantum,lantums
 passby,passbys
+tows,towss
 chresmographion,chresmographia
 katsuogi,katsuogi
 chigi,chigi
@@ -7364,6 +7546,7 @@ dathanaic,dathanaic
 dathanik,dathanik
 dhaasanac,dhaasanac
 zmijovka,zmijovky
+homoousion,homoousia
 nalistniki,nalistniki
 nalysnyky,nalysnyky
 nalesnyky,nalesnyky
