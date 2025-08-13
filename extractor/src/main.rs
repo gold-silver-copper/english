@@ -144,6 +144,7 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
                 if tags.contains(&"plural".into()) {
                     if entry_form == predicted_plural {
                         duplicate_key_set.insert(word_key.clone());
+                        duplicate_pairs_set.insert([infinitive.clone(), predicted_plural.clone()]);
                     }
                     plural_found = true;
                     forms_map.insert("plural", entry_form.clone());
@@ -162,7 +163,12 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
                 duplicate_key_set.insert(word_key.clone());
             }
 
-            if !duplicate_key_set.contains(&infinitive) {
+            if !duplicate_key_set.contains(&infinitive)
+                && !duplicate_pairs_set.contains(&[
+                    infinitive.clone(),
+                    forms_map.get("plural").unwrap_or(&predicted_plural).clone(),
+                ])
+            {
                 duplicate_key_set.insert(word_key.clone());
                 writer.write_record(&[
                     &word_key,
