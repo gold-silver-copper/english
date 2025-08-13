@@ -1,17 +1,12 @@
 use english::*;
 
 use std::time::Instant;
-use steel::steel_vm::engine::Engine;
-use steel::steel_vm::register_fn::RegisterFn;
-use steel_derive::Steel;
 
 fn plural(word: String) -> Option<String> {
     Some(EnglishCore::noun(&word, &Number::Plural))
 }
 
 fn main() {
-    let mut vm = Engine::new();
-    vm.register_fn("plural", plural);
     println!(
         "{:#?}",
         EnglishCore::verb(
@@ -37,27 +32,6 @@ fn main() {
 
     println!("{}", English::noun("thyridium", &Number::Plural));
     benchmark_verb();
-
-    /*   loop {
-        print!("> ");
-        io::stdout().flush().unwrap();
-
-        let mut input = String::new();
-        io::stdin().read_line(&mut input).unwrap();
-        let command = input.trim().to_lowercase();
-        if command == "quit" {
-            panic!("byebye")
-        }
-
-        match vm.run(command) {
-            Ok(x) => {
-                println!(" {x:#?} ")
-            }
-            Err(y) => {
-                println!(" {y:#?} ")
-            }
-        }
-    } */
 }
 
 pub fn benchmark_verb() {

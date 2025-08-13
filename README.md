@@ -112,3 +112,7 @@ MIT License © 2024 [gold-silver-copper](https://github.com/gold-silver-copper)
 
 ## Inspirations
 https://github.com/atteo/evo-inflector
+
+
+## Benchmarks
+https://github.com/monolithpl/verb.forms.dictionary
