@@ -45,92 +45,25 @@ struct Entry {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let input_path = "../../english.jsonl";
-    //   extract_irregular_noun_plurals(input_path, "nouns_with_plurals.csv")?;
+
     extract_irregular_nouns(input_path, "nouns_with_plurals.csv")?;
-    // extract_verb_conjugations(input_path, "verb_conjugations.csv")?;
-    // extract_irregular_adjectives(input_path, "adjectives.csv")?;
-    // generate_adjectives_file("adjectives.csv", "adjiki.rs");
+    extract_verb_conjugations(input_path, "verb_conjugations.csv")?;
+    extract_irregular_adjectives(input_path, "adjectives.csv")?;
+    generate_adjectives_file("adjectives.csv", "adjiki.rs");
     generate_nouns_file("nouns_with_plurals.csv", "nounsiki.rs");
-    //  generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");
+    generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");
     Ok(())
 }
 
-/// Extracts irregular noun plurals and writes them to a CSV.
-fn extract_irregular_noun_plurals(
-    input_path: &str,
-    output_path: &str,
-) -> Result<(), Box<dyn Error>> {
-    let input = File::open(input_path)?;
-    let reader = BufReader::new(input);
-
-    let mut writer = Writer::from_path(output_path)?;
-    writer.write_record(&["word", "plural"])?;
-
-    let mut normal_plural_nouns = HashSet::new();
-    let mut seen_pairs = HashSet::new();
-
-    // First pass: identify nouns with regular plurals
-    for line in reader.lines() {
-        let line = line?;
-        let entry: Entry = match serde_json::from_str(&line) {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-
-        if entry.pos != "noun" || entry.word.contains(" ") {
-            continue;
-        }
-        if entry.lang_code != "en" {
-            continue;
-        }
-
-        if let Some(forms) = entry.forms {
-            for form in forms {
-                if form.tags.contains(&"plural".to_string())
-                    && form.form == EnglishCore::pluralize_noun(&entry.word)
-                {
-                    normal_plural_nouns.insert(entry.word.clone());
-                }
-            }
-        }
+fn entry_is_proper(entry: &Entry, pos: &str) -> bool {
+    if entry.lang_code != "en" {
+        return false;
     }
 
-    // Second pass: collect irregular plurals
-    let input = File::open(input_path)?;
-    let reader = BufReader::new(input);
-    for line in reader.lines() {
-        let line = line?;
-        let entry: Entry = match serde_json::from_str(&line) {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-        if entry.lang_code != "en" {
-            continue;
-        }
-
-        if entry.pos != "noun"
-            || entry.word.contains(" ")
-            || normal_plural_nouns.contains(&entry.word)
-        {
-            continue;
-        }
-
-        if let Some(forms) = entry.forms {
-            for form in forms {
-                if form.tags.contains(&"plural".to_string())
-                    && form.form != EnglishCore::pluralize_noun(&entry.word)
-                    && seen_pairs.insert((entry.word.clone(), form.form.clone()))
-                {
-                    writer.write_record(&[entry.word.clone(), form.form.clone()])?;
-                    break;
-                }
-            }
-        }
+    if entry.pos != pos || contains_bad_chars(&entry.word) || !entry.word.is_ascii() {
+        return false;
     }
-
-    writer.flush()?;
-    println!("Done! Output written to {}", output_path);
-    Ok(())
+    true
 }
 
 /// Extracts irregular noun plurals and writes them to a CSV.
@@ -148,11 +81,7 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
             Ok(e) => e,
             Err(_) => continue,
         };
-        if entry.lang_code != "en" {
-            continue;
-        }
-
-        if entry.pos != "noun" || contains_bad_chars(&entry.word) || !entry.word.is_ascii() {
+        if !entry_is_proper(&entry, "noun") {
             continue;
         }
 
@@ -223,11 +152,7 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
             Ok(e) => e,
             Err(_) => continue,
         };
-        if entry.lang_code != "en" {
-            continue;
-        }
-
-        if entry.pos != "verb" || entry.word.contains(" ") {
+        if !entry_is_proper(&entry, "verb") {
             continue;
         }
 
@@ -341,11 +266,7 @@ fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(
             Ok(e) => e,
             Err(_) => continue,
         };
-        if entry.lang_code != "en" {
-            continue;
-        }
-
-        if entry.pos != "adj" || entry.word.contains(" ") {
+        if !entry_is_proper(&entry, "adj") {
             continue;
         }
 
