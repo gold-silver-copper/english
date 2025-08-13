@@ -54,7 +54,7 @@ struct Entry {
     pos: String,
     forms: Option<Vec<Forms>>,
     lang_code: String,
-    //  etymology_number: Option<u32>,
+    etymology_number: Option<u32>,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -110,26 +110,21 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
             }
         };
 
-        if entry.word == "child" {
-            println!("child - {:#?}", &entry);
-        }
-
         if !entry_is_proper(&entry, "noun") {
             continue;
-        }
-
-        if entry.word == "child" {
-            println!("child is proper");
         }
 
         let mut forms_map = HashMap::new();
 
         let infinitive = entry.word.to_lowercase();
+
         let predicted_plural = EnglishCore::pluralize_noun(&infinitive);
 
-        if entry.word == "child" {
-            println!(" predicted child - {:#?}", &predicted_plural);
-        }
+        let word_key = match entry.etymology_number {
+            Some(1) => infinitive.clone(),
+            Some(x) => format!("{infinitive}{x}"),
+            None => infinitive.clone(),
+        };
 
         if let Some(forms) = entry.forms {
             for form in &forms {
