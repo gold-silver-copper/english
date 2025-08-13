@@ -165,6 +165,8 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
                     .contains(&[infinitive.clone(), forms_map.get("plural").unwrap().clone()])
             {
                 duplicate_key_set.insert(word_key.clone());
+                duplicate_pairs_set
+                    .insert([infinitive.clone(), forms_map.get("plural").unwrap().clone()]);
                 writer.write_record(&[&word_key, forms_map.get("plural").unwrap()])?;
             }
         }
