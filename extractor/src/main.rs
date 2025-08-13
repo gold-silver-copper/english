@@ -74,15 +74,19 @@ fn entry_is_proper(entry: &Entry, pos: &str) -> bool {
         return false;
     }
 
-    if entry.pos != pos
-        || contains_bad_chars(&entry.word)
-        || !entry.word.is_ascii()
-        || contains_number(&entry.word)
-    {
+    if entry.pos != pos || !word_is_proper(&entry.word) {
         return false;
     }
     true
 }
+
+fn word_is_proper(word: &str) -> bool {
+    if contains_bad_chars(&word) || !word.is_ascii() || contains_number(&word) {
+        return false;
+    }
+    true
+}
+
 fn base_setup(input_path: &str, output_path: &str) -> (BufReader<File>, Writer<File>) {
     let input = File::open(input_path).unwrap();
     let reader = BufReader::new(input);
