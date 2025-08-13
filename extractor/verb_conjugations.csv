@@ -69,7 +69,6 @@ drink,drinks,drunk,drinking,drunk
 baby,babies,babied,babying,babied
 yes,yeses,yessed,yessing,yessed
 stand,stands,stood,standing,stood
-id,id's,id'd,id'ing,id'd
 thin,thins,thinned,thinning,thinned
 know,knows,knew,knowing,known
 buy,buys,bought,buying,bought
@@ -139,8 +138,7 @@ leaflet,leaflets,leafletted,leafletting,leafletted
 toilet,toilets,toiletted,toiletting,toiletted
 dub,dubs,dubbed,dubbing,dubbed
 god,gods,godded,godding,godded
-dc,dcs,dc'd,dcing,dc'd
-sa,sas,sa'd,sa'ing,sa'd
+sa,sas,saed,sa-ing,saed
 tamp,tamps,tamped,tamping,tamped
 mulch,mulches,mulched,mulching,mulched
 bam,bams,bammed,bamming,bammed
@@ -150,7 +148,7 @@ bat,bats,batted,batting,batted
 beat,beats,beat,beating,beaten
 bed,beds,bedded,bedding,bedded
 comely,comelies,comelied,comelying,comelied
-ta,ta's,ta'd,ta'ing,ta'd
+ta,tas,tad,taing,tad
 hear,hears,heard,hearing,heard
 touch,touches,touched,touching,touched
 bite,bites,bit,biting,bit
@@ -162,7 +160,6 @@ ks,kss,ksed,ksing,ksed
 beg,begs,begged,begging,begged
 begin,begins,began,beginning,begun
 bran,brans,branned,branning,branned
-ok,ok's,ok'd,ok'ing,ok'd
 read,reads,read,reading,read
 draw,draws,drew,drawing,drawn
 upbreak,upbreaks,upbroke,upbreaking,upbroken
@@ -401,7 +398,6 @@ benefit,benefits,benefitted,benefitting,benefitted
 control,controls,controlled,controlling,controlled
 belly,bellies,bellied,bellying,bellied
 blanket,blankets,blanketted,blanketting,blanketted
-kek,keks,kek'd,keking,kek'd
 dry,dries,dried,drying,dried
 dirty,dirties,dirtied,dirtying,dirtied
 deep,deeps,deeped,deeping,deeped
@@ -544,7 +540,6 @@ punch,punches,punched,punching,punched
 bar,bars,barred,barring,barred
 accoutre,accoutres,accoutred,accoutreing,accoutred
 pun,puns,punned,punning,punned
-shanghai,shanghais,shanghai'd,shanghaiing,shanghai'd
 vilify,vilifies,vilified,vilifying,vilified
 skin,skins,skinned,skinning,skinned
 pat,pats,patted,patting,patted
@@ -612,7 +607,7 @@ log,logs,logged,logging,logged
 lug,lugs,lugged,lugging,lugged
 special,specials,specialled,specialling,specialled
 couch,couches,couched,couching,couched
-rpg,rpgs,rpg'd,rpg'ing,rpg'd
+rpg,rpgs,rpged,rpg-ing,rpged
 larp,larps,larped,larping,larped
 mango,mangoes,mangoed,mangoing,mangoed
 curry,curries,curried,currying,curried
@@ -903,7 +898,6 @@ slot,slots,slotted,slotting,slotted
 scar,scars,scarred,scarring,scarred
 fresco,frescoes,frescoed,frescoing,frescoed
 bin,bins,binned,binning,binned
-ninja,ninjas,ninja'd,ninjaing,ninja'd
 plot,plots,plotted,plotting,plotted
 soap,soaps,soaped,soaping,soaped
 blackberry,blackberries,blackberried,blackberrying,blackberried
@@ -960,7 +954,7 @@ yen,yens,yenned,yenning,yenned
 necropsy,necropsies,necropsied,necropsying,necropsied
 corset,corsets,corsetted,corsetting,corsetted
 diy,diys,diyed,diy-ing,diyed
-rp,rps,rp'd,rp'ing,rp'd
+rp,rps,rped,rping,rped
 lag,lags,lagged,lagging,lagged
 spy,spies,spied,spying,spied
 guarantee,guarantees,guaranteed,guaranteeing,guaranteed
@@ -1220,7 +1214,6 @@ thatch,thatches,thatched,thatching,thatched
 towel,towels,towelled,towelling,towelled
 trowel,trowels,trowelled,trowelling,trowelled
 trustee,trustees,trusteed,trusteeing,trusteed
-typo,typos,typo'd,typoing,typo'd
 unbend,unbends,unbent,unbending,unbent
 underlet,underlets,underlet,underletting,underlet
 underset,undersets,underset,undersetting,underset
@@ -1251,7 +1244,6 @@ motel,motels,motelled,motelling,motelled
 singe,singes,singed,singeing,singed
 butty,butties,buttied,buttying,buttied
 dich,diches,diched,diching,diched
-jpeg,jpegs,jpeg'd,jpeging,jpeg'd
 splat,splats,splatted,splatting,splatted
 dequeue,dequeues,dequeued,dequeueing,dequeued
 crunch,crunches,crunched,crunching,crunched
@@ -1364,7 +1356,7 @@ boogie,boogies,boogied,boogieing,boogied
 blackleg,blacklegs,blacklegged,blacklegging,blacklegged
 occur,occurs,occurred,occurring,occurred
 tranch,tranches,tranched,tranching,tranched
-rsvp,rsvps,rsvp'd,rsvping,rsvp'd
+rsvp,rsvps,rsvped,rsvping,rsvped
 grit,grits,gritted,gritting,gritted
 drum,drums,drummed,drumming,drummed
 courtesy,courtesies,courtesied,courtesying,courtesied
@@ -1406,7 +1398,6 @@ admin,admins,adminned,adminning,adminned
 breastfeed,breastfeeds,breastfed,breastfeeding,breastfed
 teabag,teabags,teabagged,teabagging,teabagged
 blotto,blottoes,blottoed,blottoing,blottoed
-barista,baristas,barista'd,baristaing,barista'd
 traunch,traunches,traunched,traunching,traunched
 coop,coops,cooped,cooping,cooped
 journal,journals,journalled,journalling,journalled
@@ -1513,7 +1504,6 @@ stig,stigs,stigged,stigging,stigged
 filigree,filigrees,filigreed,filigreeing,filigreed
 sig,sigs,sigged,sigging,sigged
 smug,smugs,smugged,smugging,smugged
-dj,dj's,dj'd,dj'ing,dj'd
 occupy,occupies,occupied,occupying,occupied
 tea-bag,tea-bags,tea-bagged,tea-bagging,tea-bagged
 nav,navs,navved,navving,navved
@@ -1575,8 +1565,8 @@ whinny,whinnies,whinnied,whinnying,whinnied
 lek,leks,lekked,lekking,lekked
 classify,classifies,classified,classifying,classified
 whiz,whizzes,whizzed,whizzing,whizzed
-ha-ha,ha-ha's,ha-ha'd,ha-ha'ing,ha-ha'd
-haha,hahas,haha'd,haha-ing,haha'd
+ha-ha,ha-has,ha-ha-ed,ha-ha-ing,ha-ha-ed
+haha,hahas,haha-ed,haha-ing,haha-ed
 croup,croups,crouped,crouping,crouped
 golly,gollies,gollied,gollying,gollied
 entrench,entrenches,entrenched,entrenching,entrenched
@@ -1585,7 +1575,6 @@ calumny,calumnies,calumnied,calumnying,calumnied
 debag,debags,debagged,debagging,debagged
 defrag,defrags,defragged,defragging,defragged
 withstand,withstands,withstood,withstanding,withstood
-bsod,bsods,bsod'd,bsoding,bsod'd
 cosset,cossets,cossetted,cossetting,cossetted
 detach,detaches,detached,detaching,detached
 sheepdog,sheepdogs,sheepdogged,sheepdogging,sheepdogged
@@ -1613,7 +1602,7 @@ brig,brigs,brigged,brigging,brigged
 atrophy,atrophies,atrophied,atrophying,atrophied
 hypertrophy,hypertrophies,hypertrophied,hypertrophying,hypertrophied
 microsoftify,microsoftifies,microsoftified,microsoftifying,microsoftified
-od,od's,od'd,od-ing,od'd
+od,ods,oded,od-ing,oded
 besmirch,besmirches,besmirched,besmirching,besmirched
 vodcast,vodcasts,vodcast,vodcasting,vodcast
 ranch,ranches,ranched,ranching,ranched
@@ -1653,7 +1642,6 @@ toady,toadies,toadied,toadying,toadied
 rosy,rosies,rosied,rosying,rosied
 crib,cribs,cribbed,cribbing,cribbed
 dit,dits,ditted,ditting,ditted
-thinko,thinkos,thinko'd,thinkoing,thinko'd
 brickbat,brickbats,brickbatted,brickbatting,brickbatted
 nom,noms,nommed,nomming,nommed
 benny,bennies,bennied,bennying,bennied
@@ -1686,7 +1674,6 @@ swoop,swoops,swooped,swooping,swooped
 giddy,giddies,giddied,giddying,giddied
 plummet,plummets,plummetted,plummetting,plummetted
 sully,sullies,sullied,sullying,sullied
-cgi,cgis,cgi'd,cgiing,cgi'd
 clasp,clasps,clasped,clasping,clasped
 clamp,clamps,clamped,clamping,clamped
 reverie,reveries,reveried,reverying,reveried
@@ -1716,10 +1703,8 @@ swot,swots,swotted,swotting,swotted
 justify,justifies,justified,justifying,justified
 patrol,patrols,patrolled,patrolling,patrolled
 appal,appals,appalled,appalling,appalled
-tp,tp's,tp'ed,tp'ing,tp'ed
 datestamp,datestamps,datestamped,datestamping,datestamped
 overdub,overdubs,overdubbed,overdubbing,overdubbed
-f,f's,f'ed,f'ing,f'ed
 japan,japans,japanned,japanning,japanned
 togo,togoes,towent,togoing,togone
 brim,brims,brimmed,brimming,brimmed
@@ -1760,9 +1745,7 @@ squib,squibs,squibbed,squibbing,squibbed
 impasto,impastoes,impastoed,impastoing,impastoed
 tupe,tupes,tuped,tupeing,tuped
 vlog,vlogs,vlogged,vlogging,vlogged
-rv,rv's,rv'ed,rv-ing,rv'ed
-tos,toses,tos'd,tosing,tos'd
-ko,ko's,ko'd,ko'ing,ko'd
+rv,rvs,rved,rv-ing,rved
 zombify,zombifies,zombified,zombifying,zombified
 improv,improvs,improvved,improvving,improvved
 deify,deifies,deified,deifying,deified
@@ -1780,14 +1763,13 @@ potshot,potshots,potshotted,potshotting,potshotted
 reproach,reproaches,reproached,reproaching,reproached
 gnar,gnars,gnarred,gnarring,gnarred
 retrofit,retrofits,retrofitted,retrofitting,retrofitted
-dp,dps,dp'd,dp'ing,dp'd
+dp,dps,dped,dping,dped
 detoxify,detoxifies,detoxified,detoxifying,detoxified
 deter,deters,deterred,deterring,deterred
 domino,dominoes,dominoed,dominoing,dominoed
 brit,brits,britted,britting,britted
 marzipan,marzipans,marzipanned,marzipanning,marzipanned
 tampon,tampons,tamponned,tamponning,tamponned
-dx,dx's,dx'ed,dx'ing,dx'ed
 checksum,checksums,checksummed,checksumming,checksummed
 tapestry,tapestries,tapestried,tapestrying,tapestried
 lump,lumps,lumped,lumping,lumped
@@ -1796,7 +1778,6 @@ lib,libs,libbed,libbing,libbed
 taxicab,taxicabs,taxicabbed,taxicabbing,taxicabbed
 teargas,teargasses,teargassed,teargassing,teargassed
 parry,parries,parried,parrying,parried
-dmca,dmcas,dmca'd,dmcaing,dmca'd
 warranty,warranties,warrantied,warrantying,warrantied
 superset,supersets,supersetted,supersetting,supersetted
 deep-freeze,deep-freezes,deep-froze,deep-freezing,deep-frozen
@@ -1831,7 +1812,6 @@ centenary,centenaries,centenaried,centenarying,centenaried
 shinny,shinnies,shinnied,shinnying,shinnied
 ming,mings,meynt,minging,meynt
 joyride,joyrides,joyrode,joyriding,joyridden
-mic,mics,mic'ed,mic'ing,mic'ed
 blem,blems,blemmed,blemming,blemmed
 zzz,zzzs,zzzed,zzzing,zzzed
 bracelet,bracelets,braceletted,braceletting,braceletted
@@ -1847,7 +1827,6 @@ fortify,fortifies,fortified,fortifying,fortified
 refreeze,refreezes,refroze,refreezing,refrozen
 toboggan,toboggans,tobogganned,tobogganning,tobogganned
 speedy,speedies,speedied,speedying,speedied
-rtu,rtus,rtu'd,rtuing,rtu'd
 rootkit,rootkits,rootkitted,rootkitting,rootkitted
 self-control,self-controls,self-controlled,self-controlling,self-controlled
 bespeak,bespeaks,bespoke,bespeaking,bespoken
@@ -1863,7 +1842,7 @@ foreswear,foreswears,foreswore,foreswearing,foresworn
 indemnify,indemnifies,indemnified,indemnifying,indemnified
 fet,fets,fet,fetting,fet
 vom,voms,vommed,vomming,vommed
-spec,specs,spec'd,spec'ing,spec'd
+spec,specs,specced,speccing,specced
 ump,umps,umped,umping,umped
 welch,welches,welched,welching,welched
 machete,machetes,macheted,macheteing,macheted
@@ -1885,7 +1864,6 @@ backlight,backlights,backlit,backlighting,backlit
 sus,susses,sussed,sussing,sussed
 inventory,inventories,inventoried,inventorying,inventoried
 citify,citifies,citified,citifying,citified
-sb,sbs,sb'd,sbing,sb'd
 gulp,gulps,gulped,gulping,gulped
 ollie,ollies,ollied,ollieing,ollied
 sprat,sprats,spratted,spratting,spratted
@@ -1956,7 +1934,6 @@ prod,prods,prodded,prodding,prodded
 drat,drats,dratted,dratting,dratted
 jut,juts,jutted,jutting,jutted
 enrich,enriches,enriched,enriching,enriched
-vada,vadas,vada'd,vadaing,vada'd
 curtsey,curtsies,curtseyed,curtseying,curtseyed
 debar,debars,debarred,debarring,debarred
 politic,politics,politicked,politicking,politicked
@@ -1989,7 +1966,6 @@ respell,respells,respelt,respelling,respelt
 sidebar,sidebars,sidebarred,sidebarring,sidebarred
 crossbar,crossbars,crossbarred,crossbarring,crossbarred
 crossbreed,crossbreeds,crossbred,crossbreeding,crossbred
-bd,bds,bd'd,bding,bd'd
 flambe,flambes,flambed,flambeing,flambed
 saute,sautes,sauted,sauteing,sauted
 putrify,putrifies,putrified,putrifying,putrified
@@ -2066,7 +2042,6 @@ brevet,brevets,brevetted,brevetting,brevetted
 dyb,dybs,dybbed,dybbing,dybbed
 clothespin,clothespins,clothespinned,clothespinning,clothespinned
 romp,romps,romped,romping,romped
-dm,dms,dm'd,dming,dm'd
 frump,frumps,frumped,frumping,frumped
 fisheye,fisheyes,fisheyed,fisheyeing,fisheyed
 bewitch,bewitches,bewitched,bewitching,bewitched
@@ -2077,7 +2052,6 @@ gratify,gratifies,gratified,gratifying,gratified
 fellowship,fellowships,fellowshiped,fellowshiping,fellowshiped
 sump,sumps,sumped,sumping,sumped
 stucco,stuccoes,stuccoed,stuccoing,stuccoed
-jujitsu,jujitsu's,jujitsu-ed,jujitsu-ing,jujitsu-ed
 chemic,chemics,chemicked,chemicking,chemicked
 disapply,disapplies,disapplied,disapplying,disapplied
 murphy,murphies,murphied,murphying,murphied
@@ -2087,7 +2061,6 @@ timestamp,timestamps,timestamped,timestamping,timestamped
 typeset,typesets,typeset,typesetting,typeset
 bestir,bestirs,bestirred,bestirring,bestirred
 birdie,birdies,birdied,birdying,birdied
-slo-mo,slo-mos,slo-mo'd,slo-moing,slo-mo'd
 sjambok,sjamboks,sjambokked,sjambokking,sjambokked
 stomp,stomps,stomped,stomping,stomped
 crockpot,crockpots,crockpotted,crockpotting,crockpotted
@@ -2115,7 +2088,6 @@ snoop,snoops,snooped,snooping,snooped
 hotshot,hotshots,hotshotted,hotshotting,hotshotted
 jacuzzi,jacuzzies,jacuzzied,jacuzziing,jacuzzied
 handyman,handymans,handymanned,handymanning,handymanned
-vermillion,vermillions,vermillion'd,vermillioning,vermillion'd
 briquet,briquets,briquetted,briquetting,briquetted
 clomp,clomps,clomped,clomping,clomped
 frig,frigs,frigged,frigging,frigged
@@ -2125,7 +2097,7 @@ jigsaw,jigsaws,jigsawed,jigsawing,jigsawn
 fore-give,fore-gives,fore-gave,fore-giving,fore-given
 stymy,stymies,stymied,stymying,stymied
 copywrite,copywrites,copywrote,copywriting,copywritten
-rec,recs,rec'd,rec,rec'd
+rec,recs,reced,rec,reced
 replevy,replevies,replevied,replevying,replevied
 risp,risps,risped,risping,risped
 rowel,rowels,rowelled,rowelling,rowelled
@@ -2199,7 +2171,6 @@ hocus-pocus,hocusses-pocusses,hocussed-pocussed,hocussing-pocussing,hocussed-poc
 bestride,bestrides,bestrode,bestriding,bestrid
 handstand,handstands,handstood,handstanding,handstood
 crosshatch,crosshatches,crosshatched,crosshatching,crosshatched
-piss-take,piss-takes,took the piss,piss-taking,taken the piss
 vag,vags,vagged,vagging,vagged
 curmur,curmurs,curmurred,curmurring,curmurred
 rubify,rubifies,rubified,rubifying,rubified
@@ -2362,7 +2333,6 @@ kayo,kayoes,kayoed,kayoing,kayoed
 kebob,kebobs,kebobbed,kebobbing,kebobbed
 keypunch,keypunches,keypunched,keypunching,keypunched
 kipsy,kipsies,kipsied,kipsying,kipsied
-ki-yi,ki-yis,ki-yi'd,ki-yiing,ki-yi'd
 tappy,tappies,tappied,tappying,tappied
 mattify,mattifies,mattified,mattifying,mattified
 bevvy,bevvies,bevvied,bevvying,bevvied
@@ -2477,7 +2447,6 @@ jetset,jetsets,jetsetted,jetsetting,jetsetted
 hog-tie,hog-ties,hog-tied,hog-tieing,hog-tied
 cwtch,cwtches,cwtched,cwtching,cwtched
 argy-bargy,argy-bargies,argy-bargied,argy-bargying,argy-bargied
-tl;dr,tl;dr's,tl;dr'd,tl;dr'ing,tl;dr'd
 hagride,hagrides,hagrode,hagriding,hagridden
 divvy,divvies,divvied,divvying,divvied
 smirch,smirches,smirched,smirching,smirched
@@ -2831,7 +2800,6 @@ reinter,reinters,reinterred,reinterring,reinterred
 scroop,scroops,scrooped,scrooping,scrooped
 unnerstand,unnerstands,unnerstood,unnerstanding,unnerstood
 sug,sugs,sugged,sugging,sugged
-hb,hbs,hb'd,hbing,hb'd
 frog-march,frog-marches,frog-marched,frog-marching,frog-marched
 validify,validifies,validified,validifying,validified
 astony,astonies,astonied,astonying,astonied
@@ -3185,7 +3153,6 @@ majestify,majestifies,majestified,majestifying,majestified
 requalify,requalifies,requalified,requalifying,requalified
 prematch,prematches,prematched,prematching,prematched
 presell,presells,presold,preselling,presold
-casevac,casevacs,casevac'd,casevacing,casevac'd
 machinegun,machineguns,machinegunned,machinegunning,machinegunned
 laup,laups,lauped,lauping,lauped
 unpretty,unpretties,unprettied,unprettying,unprettied
@@ -3222,7 +3189,6 @@ pre-tin,pre-tins,pre-tinned,pre-tinning,pre-tinned
 derez,derezzes,derezzed,derezzing,derezzed
 strim,strims,strimmed,strimming,strimmed
 cockneyfy,cockneyfies,cockneyfied,cockneyfying,cockneyfied
-bcc,bcc's,bcc'd,bcc'ing,bcc'd
 proove,prooves,prove,prooving,prooven
 overfit,overfits,overfitted,overfitting,overfitted
 stirfry,stirfries,stirfried,stirfrying,stirfried
@@ -3322,7 +3288,6 @@ compromit,compromits,compromitted,compromitting,compromitted
 mixe,mixes,mixt,mixing,mixt
 forthink,forthinks,forthought,forthinking,forthought
 reshave,reshaves,reshaved,reshaving,reshaven
-oprah,oprahs,oprah'd,oprahing,oprah'd
 beleave,beleaves,beleft,beleaving,beleft
 interknot,interknots,interknotted,interknotting,interknotted
 russify,russifies,russified,russifying,russified
@@ -3460,7 +3425,7 @@ begrave,begraves,begrove,begraving,begraven
 behang,behangs,behung,behanging,behung
 tw*t,tw*ts,tw*tted,tw*tting,tw*tted
 kicksled,kicksleds,kicksledded,kicksledding,kicksledded
-keke,kekes,keke'd,kekeing,keke'd
+keke,kekes,keked,kekeing,keked
 placify,placifies,placified,placifying,placified
 merrymake,merrymakes,merrymade,merrymaking,merrymade
 hornify,hornifies,hornified,hornifying,hornified
@@ -3637,7 +3602,6 @@ unchurch,unchurches,unchurched,unchurching,unchurched
 dorkify,dorkifies,dorkified,dorkifying,dorkified
 resyllabify,resyllabifies,resyllabified,resyllabifying,resyllabified
 thaify,thaifies,thaified,thaifying,thaified
-larf,larfs,larfed,larfin',larfed
 hote,hotes,hight,hoting,hoten
 cosleep,cosleeps,coslept,cosleeping,coslept
 insee,insees,insaw,inseeing,inseen
@@ -3685,7 +3649,6 @@ blowe,blowes,blewe,blowing,blowne
 degut,deguts,degutted,degutting,degutted
 rebin,rebins,rebinned,rebinning,rebinned
 restem,restems,restemmed,restemming,restemmed
-arva,arvas,arva’d,arvaing,arva’d
 repen,repens,repenned,repenning,repenned
 overpunch,overpunches,overpunched,overpunching,overpunched
 cratch,cratches,cratched,cratching,cratched
@@ -3734,7 +3697,6 @@ self-study,self-studies,self-studied,self-studying,self-studied
 subinfer,subinfers,subinferred,subinferring,subinferred
 bepat,bepats,bepatted,bepatting,bepatted
 fordrive,fordrives,fordrove,fordriving,fordriven
-nfa,nfas,nfaed,nfa'ing,nfaed
 undraw,undraws,undrew,undrawing,undrawn
 fordry,fordries,fordried,fordrying,fordried
 unstar,unstars,unstarred,unstarring,unstarred
@@ -3818,7 +3780,6 @@ insteep,insteeps,insteeped,insteeping,insteeped
 smit,smits,smitted,smitting,smitted
 overhend,overhends,overhent,overhending,overhent
 desertify,desertifies,desertified,desertifying,desertified
-writh,writh's,writh'd,writhing,writh'd
 underthink,underthinks,underthought,underthinking,underthought
 underhang,underhangs,underhung,underhanging,underhung
 rebegin,rebegins,rebegan,rebeginning,rebegun
@@ -3984,7 +3945,6 @@ hotch,hotches,hotched,hotching,hotched
 squeg,squegs,squegged,squegging,squegged
 rewin,rewins,rewon,rewinning,rewon
 straphang,straphangs,straphung,straphanging,straphung
-raygne,raygnes,raygn'd,raygning,raygn'd
 handmake,handmakes,handmade,handmaking,handmade
 rebreak,rebreaks,rebroke,rebreaking,rebroken
 downbear,downbears,downbore,downbearing,downborne
@@ -4348,7 +4308,6 @@ overslide,overslides,overslid,oversliding,overslid
 roughhew,roughhews,roughhewed,roughhewing,roughhewn
 debosh,deboshes,debosht,deboshing,debosht
 disproperty,disproperties,dispropertied,dispropertying,dispropertied
-mourne,mournes,mourn'd,mourning,mourn'd
 razee,razees,razeed,razeeing,razeed
 double-shot,double-shots,double-shotted,double-shotting,double-shotted
 mercify,mercifies,mercified,mercifying,mercified
@@ -4626,7 +4585,7 @@ scranch,scranches,scranched,scranching,scranched
 clitch,clitches,clitched,clitching,clitched
 nigger-rig,nigger-rigs,nigger-rigged,nigger-rigging,nigger-rigged
 parfry,parfries,parfried,parfrying,parfried
-vfx,vfxs,vfx'd,vfxing,vfx'd
+vfx,vfxs,vfxed,vfxing,vfxed
 beleap,beleaps,beleaped,beleaping,beleaped
 bedrum,bedrums,bedrummed,bedrumming,bedrummed
 foind,foinds,found,foinding,found
@@ -4759,7 +4718,7 @@ underread,underreads,underread,underreading,underread
 forbleed,forbleeds,forbled,forbleeding,forbled
 beta-read,beta-reads,beta-read,beta-reading,beta-read
 cumberbatch,cumberbatches,cumberbatched,cumberbatching,cumberbatched
-fomo,fomos,fomo'd,fomo-ing,fomo'd
+fomo,fomos,fomoed,fomo-ing,fomoed
 redecree,redecrees,redecreed,redecreeing,redecreed
 debus,debusses,debussed,debussing,debussed
 wheelstand,wheelstands,wheelstood,wheelstanding,wheelstood
@@ -4773,7 +4732,6 @@ fingerspell,fingerspells,fingerspelt,fingerspelling,fingerspelt
 headcarry,headcarries,headcarried,headcarrying,headcarried
 reunderstand,reunderstands,reunderstood,reunderstanding,reunderstood
 crosslight,crosslights,crosslit,crosslighting,crosslit
-japa,japas,japa'd,japaing,japa'd
 armbar,armbars,armbarred,armbarring,armbarred
 nutrify,nutrifies,nutrified,nutrifying,nutrified
 phototypeset,phototypesets,phototypeset,phototypesetting,phototypeset
@@ -4833,7 +4791,7 @@ lovelify,lovelifies,lovelified,lovelifying,lovelified
 disidentify,disidentifies,disidentified,disidentifying,disidentified
 bespy,bespies,bespied,bespying,bespied
 smof,smofs,smoffed,smoffing,smoffed
-wuk,wuk,wukked,wukkin',wukked
+wuk,wuk,wukked,wuking,wukked
 photoemit,photoemits,photoemitted,photoemitting,photoemitted
 meet-cute,meets-cute,met-cute,meeting-cute,met-cute
 queue-jump,queue-jumps,queue-jumped,queue-jumping,queue-jumped
@@ -5161,7 +5119,6 @@ preapply,preapplies,preapplied,preapplying,preapplied
 drop-crotch,drop-crotches,drop-crotched,drop-crotching,drop-crotched
 dereify,dereifies,dereified,dereifying,dereified
 regrasp,regrasps,regrasped,regrasping,regrasped
-pisstake,pisstakes,took the piss,pisstaking,taken the piss
 mickey-take,mickey-takes,mickey-took,mickey-taking,mickey-taken
 toe-tag,toe-tags,toe-tagged,toe-tagging,toe-tagged
 autolithify,autolithifies,autolithified,autolithifying,autolithified
@@ -5175,8 +5132,6 @@ retestify,retestifies,retestified,retestifying,retestified
 tehee,tehees,teheed,teheeing,teheed
 foreslay,foreslays,foreslew,foreslaying,foreslain
 comfort-eat,comfort-eats,comfort-ate,comfort-eating,comfort-eaten
-log-in,logs in,logged in,logging in,logged in
-log-on,logs on,logged on,logging on,logged on
 unmean,unmeans,unmeant,unmeaning,unmeant
 unsend,unsends,unsent,unsending,unsent
 sacrify,sacrifies,sacrified,sacrifying,sacrified
@@ -5303,7 +5258,6 @@ paypal,paypals,paypalled,paypalling,paypalled
 plain-saw,plain-saws,plain-sawed,plain-sawing,plain-sawn
 preslug,preslugs,preslugged,preslugging,preslugged
 forthgive,forthgives,forthgave,forthgiving,forthgiven
-memba,membas,memba'd,membaing,memba'd
 recleave,recleaves,reclove,recleaving,recloven
 declog,declogs,declogged,declogging,declogged
 onlay,onlays,onlaid,onlaying,onlaid
@@ -5482,7 +5436,6 @@ biodiversify,biodiversifies,biodiversified,biodiversifying,biodiversified
 mean-mug,mean-mugs,mean-mugged,mean-mugging,mean-mugged
 flimp,flimps,flimped,flimping,flimped
 geach,geaches,geached,geaching,geached
-isekai,isekais,isekai'd,isekaiing,isekai'd
 sicklify,sicklifies,sicklified,sicklifying,sicklified
 uncramp,uncramps,uncramped,uncramping,uncramped
 ooch,ooches,ooched,ooching,ooched
@@ -5500,7 +5453,7 @@ gaunch,gaunches,gaunched,gaunching,gaunched
 torify,torifies,torified,torifying,torified
 groupify,groupifies,groupified,groupifying,groupified
 disyllabify,disyllabifies,disyllabified,disyllabifying,disyllabified
-insta,insta's,insta'ed,insta'ing,insta'ed
+insta,instas,insta-ed,insta-ing,insta-ed
 ram-jam,ram-jams,ram-jammed,ram-jamming,ram-jammed
 defrog,defrogs,defrogged,defrogging,defrogged
 wheel-clamp,wheel-clamps,wheel-clamped,wheel-clamping,wheel-clamped
@@ -5704,7 +5657,6 @@ upspread,upspreads,upspread,upspreading,upspread
 upsteal,upsteals,upstole,upstealing,upstolen
 upswim,upswims,upswam,upswimming,upswum
 broast,broasts,broast,broasting,broast
-slow-mo,slow-mos,slow-mo'd,slow-moing,slow-mo'd
 downsweep,downsweeps,downswept,downsweeping,downswept
 upfly,upflies,upflew,upflying,upflown
 increep,increeps,incrept,increeping,incrept
@@ -5904,7 +5856,6 @@ truthify,truthifies,truthified,truthifying,truthified
 recal,recals,recalled,recalling,recalled
 countermeet,countermeets,countermet,countermeeting,countermet
 counter-meet,counter-meets,counter-met,counter-meeting,counter-met
-kf,kfs,kf'd,kf'ing,kf'd
 sinofy,sinofies,sinofied,sinofying,sinofied
 deossify,deossifies,deossified,deossifying,deossified
 tiktok,tiktoks,tiktokked,tiktok-ing,tiktokked
@@ -5949,7 +5900,6 @@ gozz,gozz,gozzed,gozzing,gozzed
 desimplify,desimplifies,desimplified,desimplifying,desimplified
 re-admit,re-admits,re-admitted,re-admitting,re-admitted
 cobuild,cobuilds,cobuilt,cobuilding,cobuilt
-gvr,gvrs,grv'd,gvring,grv'd
 inspeak,inspeaks,inspoke,inspeaking,inspoken
 freedom-camp,freedom-camps,freedom-camped,freedom-camping,freedom-camped
 vidchat,vidchats,vidchatted,vidchatting,vidchatted
@@ -6031,7 +5981,6 @@ overguarantee,overguarantees,overguaranteed,overguaranteeing,overguaranteed
 repunch,repunches,repunched,repunching,repunched
 operafy,operafies,operafied,operafying,operafied
 backsell,backsells,backsold,backselling,backsold
-kootoo,kootoos,kootoo'd,kootooing,kootoo'd
 actify,actifies,actified,actifying,actified
 regrit,regrits,regritted,regritting,regritted
 areed,areeds,ared,areeds,ared
@@ -6042,7 +5991,6 @@ rebeat,rebeats,rebeat,rebeating,rebeaten
 misdub,misdubs,misdubbed,misdubbing,misdubbed
 quinch,quinches,quinched,quinching,quinched
 authentify,authentifies,authentified,authentifying,authentified
-airbnb,airbnb's,airbnb'd,airbnb'ing,airbnb'd
 clat,clats,clatted,clatting,clatted
 gouch,gouches,gouched,gouching,gouched
 dezombify,dezombifies,dezombified,dezombifying,dezombified
@@ -6060,7 +6008,6 @@ misenrol,misenrols,misenrolled,misenrolling,misenrolled
 yankeefy,yankeefies,yankeefied,yankeefying,yankeefied
 double-hat,double-hats,double-hatted,double-hatting,double-hatted
 triple-hat,triple-hats,triple-hatted,triple-hatting,triple-hatted
-nft,nfts,nft'd,nfting,nft'd
 dechirp,dechirps,dechirped,dechirping,dechirped
 dog-leg,dog-legs,dog-legged,dog-legging,dog-legged
 bioamplify,bioamplifies,bioamplified,bioamplifying,bioamplified
@@ -6127,8 +6074,6 @@ misknot,misknots,misknotted,misknotting,misknotted
 mislaunch,mislaunches,mislaunched,mislaunching,mislaunched
 biomodify,biomodifies,biomodified,biomodifying,biomodified
 mislevel,mislevels,mislevelled,mislevelling,mislevelled
-ctrl-c,ctrl-c's,ctrl-c'ed,ctrl-c'ing,ctrl-c'ed
-ctrl-v,ctrl-v's,ctrl-v'ed,ctrl-v'ing,ctrl-v'ed
 optotag,optotags,optotagged,optotagging,optotagged
 despin,despins,despun,despinning,despun
 multioccupy,multioccupies,multioccupied,multioccupying,multioccupied
@@ -6148,7 +6093,6 @@ virilify,virilifies,virilified,virilifying,virilified
 vousvoie,vousvoies,vousvoied,vousvoying,vousvoied
 soupify,soupifies,soupified,soupifying,soupified
 mismeet,mismeets,mismet,mismeeting,mismet
-self-iso,self-isos,self-iso'd,self-iso'ing,self-iso'd
 rinch,rinches,rinched,rinching,rinched
 transfur,transfurs,transfurred,transfurring,transfurred
 timestomp,timestomps,timestomped,timestomping,timestomped
@@ -6160,7 +6104,7 @@ bletch,bletches,bletched,bletching,bletched
 shelter-in-place,shelters-in-place,sheltered-in-place,sheltering-in-place,sheltered-in-place
 machinify,machinifies,machinified,machinifying,machinified
 splet,splets,spletted,spletting,spletted
-perma,perma's,perma'd,perma-ing,perma'd
+perma,permas,permaed,perma-ing,permaed
 counterswing,counterswings,counterswung,counterswinging,counterswung
 wollop,wollops,wolloped,wolloping,wolloped
 retoxify,retoxifies,retoxified,retoxifying,retoxified
@@ -6207,7 +6151,6 @@ hellban,hellbans,hellbanned,hellbanning,hellbanned
 backpat,backpats,backpatted,backpatting,backpatted
 back-pat,back-pats,back-patted,back-patting,back-patted
 reban,rebans,rebanned,rebanning,rebanned
-deliever,delievers,deliever'd,delievering,deliever'd
 coimmunopurify,coimmunopurifies,coimmunopurified,coimmunopurifying,coimmunopurified
 goalkeep,goalkeeps,goalkept,goalkeeping,goalkept
 pregrab,pregrabs,pregrabbed,pregrabbing,pregrabbed
@@ -6316,7 +6259,6 @@ beat-match,beat-matches,beat-matched,beat-matching,beat-matched
 air-fry,air-fries,air-fried,air-frying,air-fried
 waffle-stomp,waffle-stomps,waffle-stomped,waffle-stomping,waffle-stomped
 cream-skim,cream-skims,cream-skimmed,cream-skimming,cream-skimmed
-lulliloo,lulliloo's,lulliloo'd,lulliloo'ing,lulliloo'd
 adverbify,adverbifies,adverbified,adverbifying,adverbified
 gothify,gothifies,gothified,gothifying,gothified
 sh*t,sh*ts,sh*tted,sh*tting,sh*tted
@@ -6392,7 +6334,7 @@ buckjump,buckjumps,buckjumped,buckjumping,buckjumped
 tradlarp,tradlarps,tradlarped,tradlarping,tradlarped
 manarvel,manarvels,manarvelled,manarvelling,manarvelled
 manavel,manavels,manavelling,manavelling,manavelling
-marie-kondo,marie-kondos,marie-kondoed,marie-kondo'ing,marie-kondoed
+marie-kondo,marie-kondos,marie-kondoed,marie-kondo-ing,marie-kondoed
 reremake,reremakes,reremade,reremaking,reremade
 withold,witholds,witheld,witholding,witheld
 mispump,mispumps,mispumped,mispumping,mispumped
@@ -6400,7 +6342,7 @@ mispunch,mispunches,mispunched,mispunching,mispunched
 misquantify,misquantifies,misquantified,misquantifying,misquantified
 misreach,misreaches,misreached,misreaching,misreached
 out-go,out-goes,out-went,out-going,out-gone
-meean,meeans,meeant,meeanin',meeant
+meean,meeans,meeant,meeaning,meeant
 redump,redumps,redumped,redumping,redumped
 misrectify,misrectifies,misrectified,misrectifying,misrectified
 upstrive,upstrives,upstrove,upstriving,upstriven
@@ -6431,7 +6373,6 @@ beseeke,beseekes,besoughte,beseeking,besoughte
 soogie,soogies,soogied,soogieing,soogied
 recoach,recoaches,recoached,recoaching,recoached
 whoo-hoop,whoo-hoops,whoo-hooped,whoo-hooping,whoo-hooped
-webmd,webmds,webmd'd,webmding,webmd'd
 empleach,empleaches,empleached,empleaching,empleached
 cointer,cointers,cointerred,cointerring,cointerred
 detelecine,detelecines,detelecined,detelecineing,detelecined
@@ -6564,7 +6505,6 @@ reresearch,reresearches,reresearched,reresearching,reresearched
 re-research,re-researches,re-researched,re-researching,re-researched
 misreply,misreplies,misreplied,misreplying,misreplied
 misresearch,misresearches,misresearched,misresearching,misresearched
-alloc,alloc's,alloc'ed,alloc'ing,alloc'ed
 re-wear,re-wears,re-wore,re-wearing,re-worn
 misride,misrides,misrode,misriding,misridden
 misring,misrings,misrang,misringing,misrung
@@ -6578,7 +6518,6 @@ slotch,slotches,slotched,slotching,slotched
 body-build,body-builds,body-built,body-building,body-built
 co-apply,co-applies,co-applied,co-applying,co-applied
 pre-study,pre-studies,pre-studied,pre-studying,pre-studied
-gatso,gatsos,gatso'd,gatsoing,gatso'd
 shralp,shralps,shralped,shralping,shralped
 misshoe,misshoes,misshod,misshoeing,misshod
 nid-nod,nid-nods,nid-nodded,nid-nodding,nid-nodded
@@ -6617,7 +6556,7 @@ mudsling,mudslings,mudslung,mudslinging,mudslung
 redespatch,redespatches,redespatched,redespatching,redespatched
 hand-knit,hand-knits,hand-knit,hand-knitting,hand-knit
 dropset,dropsets,dropsetted,dropsetting,dropsetted
-spaik,spaiks,spoke,spaikin',spoke
+spaik,spaiks,spoke,spaiking,spoke
 fortune-tell,fortune-tells,fortune-told,fortune-telling,fortune-told
 misswing,misswings,misswung,misswinging,misswung
 mis-swing,mis-swings,mis-swung,mis-swinging,mis-swung
@@ -6669,7 +6608,7 @@ smeb,smebs,smebbed,smebbing,smebbed
 misweave,misweaves,miswove,misweaving,miswoven
 miswind,miswinds,miswound,miswinding,miswound
 screenshoot,screenshoots,screenshot,screenshooting,screenshot
-chatgpt,chatgpts,chatgpt'd,chatgpt-ing,chatgpt'd
+chatgpt,chatgpts,chatgpted,chatgpt-ing,chatgpted
 sign-in,signs-in,signed-in,signing-in,signed-in
 hyperacidify,hyperacidifies,hyperacidified,hyperacidifying,hyperacidified
 overacidify,overacidifies,overacidified,overacidifying,overacidified
@@ -6735,7 +6674,6 @@ permban,permbans,permbanned,permbanning,permbanned
 surmit,surmits,surmitted,surmitting,surmitted
 debur,deburs,deburred,deburring,deburred
 test-ride,test-rides,test-rode,test-riding,test-ridden
-prevint,prevints,previnted,previntin',previnted
 serenify,serenifies,serenified,serenifying,serenified
 slavify,slavifies,slavified,slavifying,slavified
 impulse-buy,impulse-buys,impulse-bought,impulse-buying,impulse-bought
@@ -6776,7 +6714,6 @@ f`num`*k,f#*ks,f#*ked,f#*king,f#*ked
 f`num`@k,f#@ks,f#@ked,f#@king,f#@ked
 fu`num`k,fu#ks,fu#ked,fu#king,fu#ked
 outsimp,outsimps,outsimped,outsimping,outsimped
-outpizza,outpizzas,outpizza'd,outpizzaing,outpizza'd
 sports-bet,sports-bets,sports-betted,sports-betting,sports-betted
 equalify,equalifies,equalified,equalifying,equalified
 trash-bin,trash-bins,trash-binned,trash-binning,trash-binned
@@ -6805,7 +6742,6 @@ cratedig,cratedigs,cratedug,cratedigging,cratedug
 re-gram,re-grams,re-grammed,re-gramming,re-grammed
 shopsteal,shopsteals,shopstole,shopstealing,shopstolen
 sex-traffic,sex-traffics,sex-trafficked,sex-trafficking,sex-trafficked
-spnak,spnaks,spnak'd,spnaking,spnak'd
 a-log,a-logs,a-logged,a-logging,a-logged
 tiktokify,tiktokifies,tiktokified,tiktokifying,tiktokified
 yankify,yankifies,yankified,yankifying,yankified
@@ -6829,7 +6765,7 @@ out-throw,out-throws,out-threw,out-throwing,out-thrown
 joozh,joozhes,joozhed,joozhing,joozhed
 juzh,juzhes,juzhed,juzhing,juzhed
 self-dry,self-dries,self-dried,self-drying,self-dried
-konmari,konmaris,konmari'd,konmari-ing,konmari'd
+konmari,konmaris,konmaried,konmari-ing,konmaried
 inrich,inriches,inriched,inriching,inriched
 sherrify,sherrifies,sherrified,sherrifying,sherrified
 voicemog,voicemogs,voicemogged,voicemogging,voicemogged

@@ -195,34 +195,27 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
             for form in &forms {
                 let tags = &form.tags;
                 let entry_form = form.form.to_lowercase();
+                if !word_is_proper(&entry_form) || contains_bad_tag(tags.clone()) {
+                    continue;
+                }
 
                 if tags.contains(&"third-person".into())
                     && tags.contains(&"singular".into())
                     && tags.contains(&"present".into())
-                    && !contains_bad_tag(tags.clone())
                 {
                     has_third = true;
                     forms_map.insert("third_person_singular", entry_form.clone());
                 }
 
-                if tags.contains(&"past".into())
-                    && !tags.contains(&"participle".into())
-                    && !contains_bad_tag(tags.clone())
-                {
+                if tags.contains(&"past".into()) && !tags.contains(&"participle".into()) {
                     forms_map.insert("past", entry_form.clone());
                 }
 
-                if tags.contains(&"participle".into())
-                    && tags.contains(&"present".into())
-                    && !contains_bad_tag(tags.clone())
-                {
+                if tags.contains(&"participle".into()) && tags.contains(&"present".into()) {
                     forms_map.insert("present_participle", entry_form.clone());
                 }
 
-                if tags.contains(&"participle".into())
-                    && tags.contains(&"past".into())
-                    && !contains_bad_tag(tags.clone())
-                {
+                if tags.contains(&"participle".into()) && tags.contains(&"past".into()) {
                     forms_map.insert("past_participle", entry_form.clone());
                 }
             }
