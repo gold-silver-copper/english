@@ -12,7 +12,9 @@ static BAD_TAGS: &[&str] = &[
     "dialectal",
     "alternative",
     "nonstandard",
+    "archaic",
 ];
+static BAD_CHARS: &[&str] = &[".", "/", "&", " "];
 
 fn contains_bad_tag(words: Vec<String>) -> bool {
     for word in words {
@@ -21,6 +23,10 @@ fn contains_bad_tag(words: Vec<String>) -> bool {
         }
     }
     false
+}
+
+fn contains_bad_chars(input: &str) -> bool {
+    BAD_CHARS.iter().any(|&bad| input.contains(bad))
 }
 
 #[derive(Debug, Deserialize)]
@@ -39,12 +45,13 @@ struct Entry {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let input_path = "../../english.jsonl";
-    extract_irregular_noun_plurals(input_path, "nouns_with_plurals.csv")?;
-    extract_verb_conjugations(input_path, "verb_conjugations.csv")?;
-    extract_irregular_adjectives(input_path, "adjectives.csv")?;
-    generate_adjectives_file("adjectives.csv", "adjiki.rs");
+    //   extract_irregular_noun_plurals(input_path, "nouns_with_plurals.csv")?;
+    extract_irregular_nouns(input_path, "nouns_with_plurals.csv")?;
+    // extract_verb_conjugations(input_path, "verb_conjugations.csv")?;
+    // extract_irregular_adjectives(input_path, "adjectives.csv")?;
+    // generate_adjectives_file("adjectives.csv", "adjiki.rs");
     generate_nouns_file("nouns_with_plurals.csv", "nounsiki.rs");
-    generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");
+    //  generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");
     Ok(())
 }
 
@@ -145,13 +152,14 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
             continue;
         }
 
-        if entry.pos != "noun" || entry.word.contains(" ") {
+        if entry.pos != "noun" || contains_bad_chars(&entry.word) || !entry.word.is_ascii() {
             continue;
         }
 
         let mut forms_map = HashMap::new();
 
         let infinitive = entry.word.to_lowercase();
+        let predicted_plural = EnglishCore::pluralize_noun(&infinitive);
 
         if let Some(forms) = entry.forms {
             for form in &forms {
@@ -160,29 +168,24 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
                 if entry_form == "dubious" {
                     continue;
                 }
-
-                if tags.contains(&"comparative".into()) && !contains_bad_tag(tags.clone()) {
-                    forms_map.insert("comparative", entry_form.clone());
+                if entry_form == predicted_plural {
+                    duplicate_map.insert(infinitive.clone());
                 }
 
-                if tags.contains(&"superlative".into()) && !contains_bad_tag(tags.clone()) {
-                    forms_map.insert("superlative", entry_form.clone());
+                if tags.contains(&"plural".into())
+                    && !contains_bad_tag(tags.clone())
+                    && entry_form.is_ascii()
+                {
+                    forms_map.insert("plural", entry_form.clone());
                 }
             }
         }
-        let predicted_comparative = EnglishCore::comparative(&infinitive);
-        let predicted_superlative = EnglishCore::superlative(&infinitive);
 
         let gotten = [
             &infinitive,
-            forms_map
-                .get("comparative")
-                .unwrap_or(&predicted_comparative),
-            forms_map
-                .get("superlative")
-                .unwrap_or(&predicted_superlative),
+            forms_map.get("plural").unwrap_or(&predicted_plural),
         ];
-        let predicted_struct = [&infinitive, &predicted_comparative, &predicted_superlative];
+        let predicted_struct = [&infinitive, &predicted_plural];
 
         if predicted_struct == gotten {
             duplicate_map.insert(infinitive.clone());
