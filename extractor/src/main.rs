@@ -126,6 +126,7 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
             None => infinitive.clone(),
         };
 
+        let mut plural_found = false;
         if let Some(forms) = entry.forms {
             for form in &forms {
                 let tags = &form.tags;
@@ -137,11 +138,12 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
                 if !word_is_proper(&entry_form) || contains_bad_tag(tags.clone()) {
                     continue;
                 }
-                if entry_form == predicted_plural {
-                    duplicate_map.insert(infinitive.clone());
-                }
 
                 if tags.contains(&"plural".into()) {
+                    if entry_form == predicted_plural {
+                        duplicate_map.insert(infinitive.clone());
+                    }
+                    plural_found = true;
                     forms_map.insert("plural", entry_form.clone());
                 }
             }
