@@ -161,7 +161,7 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
                 duplicate_key_set.insert(word_key.clone());
             }
 
-            if !duplicate_key_set.contains(&infinitive) && !duplicate_pairs_set.contains(&gotten) {
+            if !duplicate_key_set.contains(&word_key) && !duplicate_pairs_set.contains(&gotten) {
                 duplicate_key_set.insert(word_key.clone());
                 duplicate_pairs_set.insert(gotten.clone());
                 writer.write_record(&keyd_struct)?;
