@@ -96,7 +96,9 @@ fn base_setup(input_path: &str, output_path: &str) -> (BufReader<File>, Writer<F
 
 /// Extracts irregular noun plurals and writes them to a CSV.
 fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
-    let mut duplicate_map = HashSet::new();
+    let mut duplicate_key_set = HashSet::new();
+    let mut duplicate_pairs_set = HashSet::new();
+
     let (reader, mut writer) = base_setup(input_path, output_path);
     writer.write_record(&["word", "plural"])?;
 
@@ -141,7 +143,7 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
 
                 if tags.contains(&"plural".into()) {
                     if entry_form == predicted_plural {
-                        duplicate_map.insert(infinitive.clone());
+                        duplicate_key_set.insert(word_key.clone());
                     }
                     plural_found = true;
                     forms_map.insert("plural", entry_form.clone());
@@ -157,12 +159,15 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
             let predicted_struct = [&infinitive, &predicted_plural];
 
             if predicted_struct == gotten {
-                duplicate_map.insert(infinitive.clone());
+                duplicate_key_set.insert(word_key.clone());
             }
 
-            if !duplicate_map.contains(&infinitive) {
-                duplicate_map.insert(infinitive.clone());
-                writer.write_record(&gotten)?;
+            if !duplicate_key_set.contains(&infinitive) {
+                duplicate_key_set.insert(word_key.clone());
+                writer.write_record(&[
+                    &word_key,
+                    forms_map.get("plural").unwrap_or(&predicted_plural),
+                ])?;
             }
         }
     }
@@ -174,7 +179,7 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
 
 /// Extracts verb conjugations and writes them to a CSV.
 fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
-    let mut duplicate_map = HashSet::new();
+    let mut duplicate_key_set = HashSet::new();
     let (reader, mut writer) = base_setup(input_path, output_path);
     writer.write_record(&[
         "infinitive",
@@ -271,11 +276,11 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
         ];
 
         if predicted_struct == gotten {
-            duplicate_map.insert(infinitive.clone());
+            duplicate_key_set.insert(infinitive.clone());
         }
 
-        if has_third && !duplicate_map.contains(&infinitive) {
-            duplicate_map.insert(infinitive.clone());
+        if has_third && !duplicate_key_set.contains(&infinitive) {
+            duplicate_key_set.insert(infinitive.clone());
             writer.write_record(&gotten)?;
         }
     }
@@ -287,7 +292,7 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
 
 /// Extracts irregular noun plurals and writes them to a CSV.
 fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
-    let mut duplicate_map = HashSet::new();
+    let mut duplicate_key_set = HashSet::new();
     let (reader, mut writer) = base_setup(input_path, output_path);
     writer.write_record(&["positive", "comparative", "superlative"])?;
 
@@ -334,14 +339,14 @@ fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(
         match forms_map.get("comparative") {
             Some(_) => (),
             None => {
-                duplicate_map.insert(infinitive.clone());
+                duplicate_key_set.insert(infinitive.clone());
                 continue;
             }
         }
         match forms_map.get("superlative") {
             Some(_) => (),
             None => {
-                duplicate_map.insert(infinitive.clone());
+                duplicate_key_set.insert(infinitive.clone());
                 continue;
             }
         }
@@ -354,11 +359,11 @@ fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(
         let predicted_struct = [&infinitive, &predicted_comparative, &predicted_superlative];
 
         if predicted_struct == gotten {
-            duplicate_map.insert(infinitive.clone());
+            duplicate_key_set.insert(infinitive.clone());
         }
 
-        if !duplicate_map.contains(&infinitive) {
-            duplicate_map.insert(infinitive.clone());
+        if !duplicate_key_set.contains(&infinitive) {
+            duplicate_key_set.insert(infinitive.clone());
             writer.write_record(&gotten)?;
         }
     }
