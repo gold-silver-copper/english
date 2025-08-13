@@ -63,7 +63,6 @@ silly,sillier,silliest
 boss,bosser,bossest
 civil,civiler,civilest
 strawberry,strawberrier,strawberriest
-hazel,hazeler,hazelest
 handy,handier,handiest
 bad,worse,worst
 kind,kinder,kindest
@@ -153,7 +152,6 @@ discreet,discreeter,discreetest
 pitch,pitcher,pitchest
 untrustworthy,untrustworthier,untrustworthiest
 dud,more dud,duddest
-better,betterer,betterest
 upstairs,further upstairs,furthest upstairs
 crazy,crazier,craziest
 salty,saltier,saltiest
@@ -164,7 +162,6 @@ twee,tweer,tweest
 jaunty,jauntier,jauntiest
 well,weller,wellest
 lief,liever,lievest
-intelligent,intelligenter,intelligentest
 vague,vaguer,vaguest
 might,mighter,mightest
 holy,holier,holiest
@@ -186,7 +183,6 @@ useless,uselesser,uselessest
 zany,zanier,zaniest
 wacky,wackier,wackiest
 fishy,fishier,fishiest
-ginger,gingerer,gingerest
 quirky,quirkier,quirkiest
 curious,curiouser,curiousest
 lofty,loftier,loftiest
@@ -244,7 +240,6 @@ skinny,skinnier,skinniest
 ample,ampler,amplest
 trace,more trace,tracest
 sketchy,sketchier,sketchiest
-fun,funner,funnest
 ugly,uglier,ugliest
 anxious,anxiouser,anxiousest
 niche,nicher,nichest
@@ -400,7 +395,7 @@ blind,blinder,blindest
 lazy,lazier,laziest
 snobby,snobbier,snobbiest
 gobby,gobbier,gobbiest
-darling,darlinger,darlingest
+darling,more darling,darlingest
 limey,limier,limiest
 mommy,mommier,mommiest
 pongy,pongier,pongiest
@@ -550,7 +545,6 @@ nerdy,nerdier,nerdiest
 purdy,purdier,purdiest
 glurgy,glurgier,glurgiest
 barmy,barmier,barmiest
-spiteful,spitefuller,spitefullest
 crunchy,crunchier,crunchiest
 snarky,snarkier,snarkiest
 squat,squatter,squattest
@@ -638,8 +632,7 @@ jerky,jerkier,jerkiest
 junky,junkier,junkiest
 ditzy,ditzier,ditziest
 ditsy,ditsier,ditsiest
-impudent,impudenter,impudentest
-outer,outermore,outermost
+outer,more outer,outermost
 catchy,catchier,catchiest
 jazzy,jazzier,jazziest
 peachy,peachier,peachiest
@@ -695,7 +688,6 @@ gory,gorier,goriest
 tough,tougher,toughest
 cloudy,cloudier,cloudiest
 spicy,spicier,spiciest
-desperate,desperater,desperatest
 tidy,tidier,tidiest
 squalid,squalider,squalidest
 kingly,kinglier,kingliest
@@ -734,7 +726,7 @@ dumb,dumber,dumbest
 unruly,unrulier,unruliest
 flush,flusher,flushest
 strappy,strappier,strappiest
-uncertain,uncertainer,uncertainest
+uncertain,more uncertain,uncertainest
 unclean,uncleaner,uncleanest
 high-pitched,higher-pitched,highest-pitched
 peaceful,peacefuler,peacefulest
@@ -854,7 +846,6 @@ grotty,grottier,grottiest
 leathery,leatherier,leatheriest
 ghostly,ghostlier,ghostliest
 tubby,tubbier,tubbiest
-worrisome,worrisomer,worrisomest
 winsome,winsomer,winsomest
 ?,most ?,most ?
 zingy,zingier,zingiest
@@ -879,12 +870,10 @@ princely,princelier,princeliest
 sultry,sultrier,sultriest
 motley,motleyer,motleyest
 smexy,smexier,smexiest
-far-fetched,further-fetched,furthest-fetched
 naughty,naughtier,naughtiest
 unearthly,unearthlier,unearthliest
 itsy-bitsy,itsy-bitsier,itsy-bitsiest
 superb,superber,superbest
-fraught,fraughter,fraughtest
 groggy,groggier,groggiest
 dastardly,dastardlier,dastardliest
 trig,trigger,triggest
@@ -944,7 +933,6 @@ gammy,gammier,gammiest
 gamey,gamier,gamiest
 bitchy,bitchier,bitchiest
 ungodly,ungodlier,ungodliest
-conceited,conceiteder,conceitedest
 whitey,whitier,whitiest
 gey,geyer,geyest
 bulky,bulkier,bulkiest
@@ -1262,7 +1250,7 @@ wheezy,wheezier,wheeziest
 itty-bitty,itty-bittier,itty-bittiest
 campy,campier,campiest
 willful,willfuller,willfullest
-darned,darnder,darndest
+darned,more darned,darndest
 fleecy,fleecier,fleeciest
 weensy,weensier,weensiest
 weepy,weepier,weepiest
@@ -1758,7 +1746,6 @@ bangy,bangier,bangiest
 drony,dronier,droniest
 cowy,cowier,cowiest
 cliquy,cliquier,cliquiest
-crystal-clear,crystal-clearer,crystal-clearest
 high-performance,higher-performance,highest-performance
 eath,eather,eathest
 gnatty,gnattier,gnattiest
@@ -2045,7 +2032,6 @@ peart,pearter,peartest
 mixy,mixier,mixiest
 nooby,noobier,noobiest
 crouchy,crouchier,crouchiest
-honey-sweet,honey-sweeter,honey-sweetest
 grunty,gruntier,gruntiest
 snaily,snailier,snailiest
 slow-footed,slower-footed,slowest-footed
@@ -2098,7 +2084,6 @@ beigey,beigier,beigiest
 squealy,squealier,squealiest
 bloaty,bloatier,bloatiest
 fleek,fleeker,fleekest
-cruel-hearted,crueler-hearted,cruelest-hearted
 treey,treeier,treeiest
 blimpy,blimpier,blimpiest
 downcoast,further downcoast,furthest downcoast
@@ -2121,7 +2106,7 @@ limby,limbier,limbiest
 funny-looking,more funny-looking,most
 chirky,chirkier,chirkiest
 debby,debbier,debbiest
-doggoned,doggoneder,doggonedest
+doggoned,more doggoned,doggonedest
 cacky,cackier,cackiest
 finnicky,finnickier,finnickiest
 flaunty,flauntier,flauntiest
@@ -2309,14 +2294,11 @@ beepy,beepier,beepiest
 cheepy,cheepier,cheepiest
 fancy-schmancy,fancy-schmancier,fancy-schmanciest
 fiine,fiiner,fiinest
-undumb,more undumb,undumbest
 coiny,coinier,coiniest
 high-budget,higher-budget,highest-budget
 krazy,krazier,kraziest
 undirty,undirtier,undirtiest
 high-time,higher-time,highest-time
-rootin'-tootin',more rootin'-tootin',rootin'est tootin'est
-rooting-tooting,more rooting-tooting,rootingest-tootingest
 phunny,phunnier,phunniest
 low-quality,lower-quality,lowest-quality
 neckbeardy,neckbeardier,neckbeardiest
