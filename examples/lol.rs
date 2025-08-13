@@ -2,10 +2,6 @@ use english::*;
 
 use std::time::Instant;
 
-fn plural(word: String) -> Option<String> {
-    Some(EnglishCore::noun(&word, &Number::Plural))
-}
-
 fn main() {
     println!("{}", English::noun("thyridium", &Number::Plural));
     benchmark_verb();
