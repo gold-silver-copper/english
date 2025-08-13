@@ -5363,7 +5363,6 @@ stagwatch,stagwatches,stagwatched,stagwatching,stagwatched
 kingmake,kingmakes,kingmade,kingmaking,kingmade
 misblow,misblows,misblew,misblowing,misblown
 nominify,nominifies,nominified,nominifying,nominified
-`num`metoo,#metoos,#metoo,#metooing,#metoo
 detwin,detwins,detwinned,detwinning,detwinned
 oldify,oldifies,oldified,oldifying,oldified
 oddify,oddifies,oddified,oddifying,oddified
@@ -5896,7 +5895,6 @@ chauf,chaufs,chauffed,chauffing,chauffed
 cronch,cronches,cronched,cronching,cronched
 disimpeach,disimpeaches,disimpeached,disimpeaching,disimpeached
 explainify,explainifies,explainified,explainifying,explainified
-f`num``num`k,f##ks,f##ked,f##king,f##ked
 preoutfit,preoutfits,preoutfitted,preoutfitting,preoutfitted
 underlevel,underlevels,underlevelled,underlevelling,underlevelled
 underlye,underlyes,underlay,underlying,underlain
@@ -6228,11 +6226,6 @@ motornap,motornaps,motornaped,motornaping,motornaped
 fansie,fansies,fansied,fansying,fansied
 bikenap,bikenaps,bikenaped,bikenaping,bikenaped
 outsquat,outsquats,outsquatted,outsquatting,outsquatted
-f`num`$k,f#$ks,f#$ked,f#$king,f#$ked
-f`num`%k,f#%ks,f#%ked,f#%king,f#%ked
-f`num`*k,f#*ks,f#*ked,f#*king,f#*ked
-f`num`@k,f#@ks,f#@ked,f#@king,f#@ked
-fu`num`k,fu#ks,fu#ked,fu#king,fu#ked
 outsimp,outsimps,outsimped,outsimping,outsimped
 equalify,equalifies,equalified,equalifying,equalified
 unsandal,unsandals,unsandalled,unsandalling,unsandalled

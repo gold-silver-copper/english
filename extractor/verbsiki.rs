@@ -1,6 +1,5 @@
 /// (3rd person singular, past, present participle, past participle)
 static VERB_MAP: &[(&str, (&str, &str, &str, &str))] = &[
-    ("`num`metoo", ("#metoos", "#metoo", "#metooing", "#metoo")),
     ("ab", ("abs", "abbed", "abbing", "abbed")),
     ("abear", ("abears", "abore", "abearing", "aborne")),
     ("abet", ("abets", "abetted", "abetting", "abetted")),
@@ -1690,11 +1689,6 @@ static VERB_MAP: &[(&str, (&str, &str, &str, &str))] = &[
     ("eyelet", ("eyelets", "eyeletted", "eyeletting", "eyeletted")),
     ("f***", ("f***s", "f***ed", "f******", "f***ed")),
     ("f**k", ("f**ks", "f****d", "f*****g", "f****d")),
-    ("f`num`$k", ("f#$ks", "f#$ked", "f#$king", "f#$ked")),
-    ("f`num`%k", ("f#%ks", "f#%ked", "f#%king", "f#%ked")),
-    ("f`num`*k", ("f#*ks", "f#*ked", "f#*king", "f#*ked")),
-    ("f`num`@k", ("f#@ks", "f#@ked", "f#@king", "f#@ked")),
-    ("f`num``num`k", ("f##ks", "f##ked", "f##king", "f##ked")),
     ("fab", ("fabs", "fabbed", "fabbing", "fabbed")),
     ("fabric", ("fabrics", "fabricked", "fabricking", "fabricked")),
     ("facet", ("facets", "facetted", "facetting", "facetted")),
@@ -2033,7 +2027,6 @@ static VERB_MAP: &[(&str, (&str, &str, &str, &str))] = &[
     ("frutify", ("frutifies", "frutified", "frutifying", "frutified")),
     ("fry", ("fries", "fried", "frying", "fried")),
     ("ftp", ("ftps", "ftped", "ftping", "ftped")),
-    ("fu`num`k", ("fu#ks", "fu#ked", "fu#king", "fu#ked")),
     ("fub", ("fubs", "fubbed", "fubbing", "fubbed")),
     ("fudgel", ("fudgels", "fudgelled", "fudgelling", "fudgelled")),
     ("fuel", ("fuels", "fuelled", "fuelling", "fuelled")),

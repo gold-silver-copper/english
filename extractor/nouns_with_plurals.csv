@@ -3034,7 +3034,6 @@ pictura,picturae
 overproof,overproofs
 iops,iops
 pedicellaria,pedicellariae
-`num`,#s
 fibratus,fibrati
 uncinus,uncini
 spissatus,spissati
@@ -5650,7 +5649,6 @@ trankum,trankums
 akamatsu,akamatsu
 kabosu,kabosu
 womin,wimin
-pin@y,pin@ys
 pachy,pachys
 gyarumoji,gyarumoji
 staphyla,staphylae
@@ -6910,7 +6908,6 @@ youff,youffs
 hexafoos,hexafoos
 neneleau,neneleau
 electroknife,electroknives
-f`num``num`k,f##ks
 shomer,shomrim
 prettikins,prettikins
 melakhah,melakhot
@@ -7421,7 +7418,6 @@ achua,wochua
 colporus,colpori
 popoff,popoffs
 dhrum,dhrums
-g@y,g@ys
 epilogomenon,epilogomena
 seacatch,seacatchie
 shraf,shrafs
@@ -7462,11 +7458,6 @@ madumbi,madumbies
 snapewife,snapewives
 hoppang,hoppang
 tahrif,tahrifs
-f`num`$k,f#$ks
-f`num`%k,f#%ks
-f`num`*k,f#*ks
-f`num`@k,f#@ks
-fu`num`k,fu#ks
 yewzh,yewzhes
 boorana,boorana
 gedeo,gedeo

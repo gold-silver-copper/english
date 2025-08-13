@@ -833,7 +833,6 @@ static ADJECTIVE_MAP: &[(&str, (&str, &str))] = &[
     ("fussy", ("fussier", "fussiest")),
     ("fusty", ("fustier", "fustiest")),
     ("fuzzy", ("fuzzier", "fuzziest")),
-    ("g@y", ("g@yer", "g@yest")),
     ("gabby", ("gabbier", "gabbiest")),
     ("gaggy", ("gaggier", "gaggiest")),
     ("gainly", ("gainlier", "gainliest")),
