@@ -134,7 +134,7 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
 
                 if tags.contains(&"plural".into())
                     && !contains_bad_tag(tags.clone())
-                    && entry_form.is_ascii()
+                    && word_is_proper(&entry_form)
                 {
                     forms_map.insert("plural", entry_form.clone());
                 }
