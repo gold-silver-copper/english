@@ -305,12 +305,15 @@ fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(
                 if entry_form == "dubious" {
                     continue;
                 }
+                if !word_is_proper(&entry_form) || contains_bad_tag(tags.clone()) {
+                    continue;
+                }
 
-                if tags.contains(&"comparative".into()) && !contains_bad_tag(tags.clone()) {
+                if tags.contains(&"comparative".into()) {
                     forms_map.insert("comparative", entry_form.clone());
                 }
 
-                if tags.contains(&"superlative".into()) && !contains_bad_tag(tags.clone()) {
+                if tags.contains(&"superlative".into()) {
                     forms_map.insert("superlative", entry_form.clone());
                 }
             }
@@ -318,14 +321,25 @@ fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(
         let predicted_comparative = EnglishCore::comparative(&infinitive);
         let predicted_superlative = EnglishCore::superlative(&infinitive);
 
+        match forms_map.get("comparative") {
+            Some(_) => (),
+            None => {
+                duplicate_map.insert(infinitive.clone());
+                continue;
+            }
+        }
+        match forms_map.get("superlative") {
+            Some(_) => (),
+            None => {
+                duplicate_map.insert(infinitive.clone());
+                continue;
+            }
+        }
+
         let gotten = [
             &infinitive,
-            forms_map
-                .get("comparative")
-                .unwrap_or(&predicted_comparative),
-            forms_map
-                .get("superlative")
-                .unwrap_or(&predicted_superlative),
+            forms_map.get("comparative").unwrap(),
+            forms_map.get("superlative").unwrap(),
         ];
         let predicted_struct = [&infinitive, &predicted_comparative, &predicted_superlative];
 
