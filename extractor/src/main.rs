@@ -177,6 +177,7 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
 /// Extracts verb conjugations and writes them to a CSV.
 fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
     let mut duplicate_key_set = HashSet::new();
+    let mut duplicate_pairs_set = HashSet::new();
     let (reader, mut writer) = base_setup(input_path, output_path);
     writer.write_record(&[
         "infinitive",
@@ -202,6 +203,11 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
         let mut forms_map = HashMap::new();
         let mut has_third = false;
         let infinitive = entry.word.to_lowercase();
+        let word_key = match entry.etymology_number {
+            Some(1) => infinitive.clone(),
+            Some(x) => format!("{infinitive}{x}"),
+            None => infinitive.clone(),
+        };
 
         if let Some(forms) = entry.forms {
             for form in &forms {
@@ -254,26 +260,48 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
             &Form::Participle,
         );
         let gotten = [
-            &infinitive,
+            infinitive.clone(),
             forms_map
                 .get("third_person_singular")
-                .unwrap_or(&predicted_third),
-            forms_map.get("past").unwrap_or(&predicted_past),
+                .unwrap_or(&predicted_third)
+                .clone(),
+            forms_map.get("past").unwrap_or(&predicted_past).clone(),
             forms_map
                 .get("present_participle")
-                .unwrap_or(&predicted_participle),
-            forms_map.get("past_participle").unwrap_or(&predicted_past),
+                .unwrap_or(&predicted_participle)
+                .clone(),
+            forms_map
+                .get("past_participle")
+                .unwrap_or(&predicted_past)
+                .clone(),
         ];
         let predicted_struct = [
-            &infinitive,
-            &predicted_third,
-            &predicted_past,
-            &predicted_participle,
-            &predicted_past,
+            infinitive.clone(),
+            predicted_third.clone(),
+            predicted_past.clone(),
+            predicted_participle.clone(),
+            predicted_past.clone(),
+        ];
+        let keyd_struct = [
+            word_key.clone(),
+            forms_map
+                .get("third_person_singular")
+                .unwrap_or(&predicted_third)
+                .clone(),
+            forms_map.get("past").unwrap_or(&predicted_past).clone(),
+            forms_map
+                .get("present_participle")
+                .unwrap_or(&predicted_participle)
+                .clone(),
+            forms_map
+                .get("past_participle")
+                .unwrap_or(&predicted_past)
+                .clone(),
         ];
 
         if predicted_struct == gotten {
             duplicate_key_set.insert(infinitive.clone());
+            duplicate_pairs_set.insert(keyd_struct.clone());
         }
 
         if has_third && !duplicate_key_set.contains(&infinitive) {
