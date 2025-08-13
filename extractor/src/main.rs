@@ -54,7 +54,7 @@ struct Entry {
     pos: String,
     forms: Option<Vec<Forms>>,
     lang_code: String,
-    etymology_number: Option<u32>,
+    //  etymology_number: Option<u32>,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -63,9 +63,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     extract_irregular_nouns(input_path, "nouns_with_plurals.csv")?;
     extract_verb_conjugations(input_path, "verb_conjugations.csv")?;
     extract_irregular_adjectives(input_path, "adjectives.csv")?;
-    // generate_adjectives_file("adjectives.csv", "adjiki.rs");
-    //generate_nouns_file("nouns_with_plurals.csv", "nounsiki.rs");
-    //generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");
+    generate_adjectives_file("adjectives.csv", "adjiki.rs");
+    generate_nouns_file("nouns_with_plurals.csv", "nounsiki.rs");
+    generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");
     Ok(())
 }
 
