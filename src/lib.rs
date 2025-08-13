@@ -9,20 +9,43 @@ pub use verbsiki::*;
 mod adjiki;
 pub use adjiki::*;
 
+fn strip_trailing_number(word: &str) -> Option<String> {
+    if let Some(last_char) = word.chars().last() {
+        if last_char.is_ascii_digit() {
+            return Some(word[..word.len() - 1].to_string());
+        }
+    }
+    None
+}
+
 pub struct English {}
 impl English {
     pub fn noun(word: &str, number: &Number) -> String {
-        match number {
-            Number::Singular => {
-                return word.to_string();
-            }
-            Number::Plural => {
-                if let Some(x) = get_plural(word) {
-                    return x.to_string();
-                } else {
-                    return EnglishCore::noun(word, number);
+        match strip_trailing_number(word) {
+            Some(stripped_word) => match number {
+                Number::Singular => {
+                    return stripped_word;
                 }
-            }
+                Number::Plural => {
+                    if let Some(x) = get_plural(word) {
+                        return x.to_string();
+                    } else {
+                        return EnglishCore::noun(&stripped_word, number);
+                    }
+                }
+            },
+            None => match number {
+                Number::Singular => {
+                    return word.to_string();
+                }
+                Number::Plural => {
+                    if let Some(x) = get_plural(word) {
+                        return x.to_string();
+                    } else {
+                        return EnglishCore::noun(word, number);
+                    }
+                }
+            },
         }
     }
     pub fn adj(word: &str, degree: &Degree) -> String {
