@@ -7,29 +7,6 @@ fn plural(word: String) -> Option<String> {
 }
 
 fn main() {
-    println!(
-        "{:#?}",
-        EnglishCore::verb(
-            "eat",
-            &Person::Third,
-            &Number::Singular,
-            &Tense::Past,
-            &Form::Finite
-        )
-    );
-
-    let noun1 = Noun {
-        word: "man".to_string(),
-        number: Number::Singular,
-    };
-    let verb1 = Verb {
-        word: "eat".to_string(),
-        tense: Tense::Past,
-        person: Person::Third,
-        form: Form::Finite,
-    };
-    println!("{:#?}", English::simple_sentence(&noun1, &noun1, &verb1));
-
     println!("{}", English::noun("thyridium", &Number::Plural));
     benchmark_verb();
 }

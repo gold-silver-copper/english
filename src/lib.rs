@@ -8,7 +8,7 @@ mod verbsiki;
 pub use verbsiki::*;
 mod adjiki;
 pub use adjiki::*;
-mod sentence;
+
 pub struct English {}
 impl English {
     pub fn noun(word: &str, number: &Number) -> String {
