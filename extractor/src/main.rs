@@ -61,11 +61,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let input_path = "../../english.jsonl";
 
     extract_irregular_nouns(input_path, "nouns_with_plurals.csv")?;
-    extract_verb_conjugations(input_path, "verb_conjugations.csv")?;
+    /*   extract_verb_conjugations(input_path, "verb_conjugations.csv")?;
     extract_irregular_adjectives(input_path, "adjectives.csv")?;
     generate_adjectives_file("adjectives.csv", "adjiki.rs");
     generate_nouns_file("nouns_with_plurals.csv", "nounsiki.rs");
-    generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");
+    generate_verbs_file("verb_conjugations.csv", "verbsiki.rs"); */
     Ok(())
 }
 
@@ -96,8 +96,7 @@ fn base_setup(input_path: &str, output_path: &str) -> (BufReader<File>, Writer<F
 
 /// Extracts irregular noun plurals and writes them to a CSV.
 fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
-    let mut duplicate_key_set = HashSet::new();
-    let mut duplicate_pairs_set = HashSet::new();
+    let mut forms_map: HashMap<String, HashSet<String>> = HashMap::new();
 
     let (reader, mut writer) = base_setup(input_path, output_path);
     writer.write_record(&["word", "plural"])?;
@@ -116,18 +115,11 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
             continue;
         }
 
-        let mut forms_map = HashMap::new();
-
         let infinitive = entry.word.to_lowercase();
 
-        let predicted_plural = EnglishCore::pluralize_noun(&infinitive);
-        let predicted_struct = [infinitive.clone(), predicted_plural.clone()];
-
-        let word_key = match entry.etymology_number {
-            Some(1) => infinitive.clone(),
-            Some(x) => format!("{infinitive}{x}"),
-            None => infinitive.clone(),
-        };
+        if !forms_map.contains_key(&infinitive) {
+            forms_map.insert(infinitive.clone(), HashSet::new());
+        }
 
         let mut plural_found = false;
         if let Some(forms) = entry.forms {
@@ -143,28 +135,47 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
                 }
 
                 if tags.contains(&"plural".into()) {
-                    if entry_form == predicted_plural {
-                        duplicate_key_set.insert(word_key.clone());
-                        duplicate_pairs_set.insert(predicted_struct.clone());
-                    }
-                    plural_found = true;
-                    forms_map.insert("plural", entry_form.clone());
+                    forms_map
+                        .get_mut(&infinitive)
+                        .unwrap()
+                        .insert(entry_form.clone());
                 }
             }
         }
+    }
 
-        if plural_found {
-            let gotten = [infinitive.clone(), forms_map.get("plural").unwrap().clone()];
-            let keyd_struct = [word_key.clone(), forms_map.get("plural").unwrap().clone()];
-
-            if predicted_struct == gotten {
-                duplicate_key_set.insert(word_key.clone());
+    for (inf, setik) in forms_map.iter_mut() {
+        let predicted_plural = EnglishCore::pluralize_noun(&inf);
+        if setik.is_empty() {
+            continue;
+        }
+        let alr_cont = setik.remove(&predicted_plural);
+        match alr_cont {
+            true => {
+                let mut index = 2;
+                for thing in setik.iter() {
+                    let word_key = format!("{inf}{index}");
+                    let keyd_struct = [word_key.clone(), thing.clone()];
+                    index += 1;
+                    if index < 10 {
+                        writer.write_record(&keyd_struct)?;
+                    }
+                }
             }
-
-            if !duplicate_key_set.contains(&word_key) && !duplicate_pairs_set.contains(&gotten) {
-                duplicate_key_set.insert(word_key.clone());
-                duplicate_pairs_set.insert(gotten.clone());
-                writer.write_record(&keyd_struct)?;
+            false => {
+                let mut index = 1;
+                for thing in setik.iter() {
+                    let word_key = if index == 1 {
+                        inf.clone()
+                    } else {
+                        format!("{inf}{index}")
+                    };
+                    let keyd_struct = [word_key.clone(), thing.clone()];
+                    index += 1;
+                    if index < 10 {
+                        writer.write_record(&keyd_struct)?;
+                    }
+                }
             }
         }
     }
