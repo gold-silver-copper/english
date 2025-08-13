@@ -153,10 +153,7 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
         }
 
         if plural_found {
-            let gotten = [
-                &infinitive,
-                forms_map.get("plural").unwrap_or(&predicted_plural),
-            ];
+            let gotten = [&infinitive, forms_map.get("plural").unwrap()];
             let predicted_struct = [&infinitive, &predicted_plural];
 
             if predicted_struct == gotten {
@@ -164,16 +161,11 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
             }
 
             if !duplicate_key_set.contains(&infinitive)
-                && !duplicate_pairs_set.contains(&[
-                    infinitive.clone(),
-                    forms_map.get("plural").unwrap_or(&predicted_plural).clone(),
-                ])
+                && !duplicate_pairs_set
+                    .contains(&[infinitive.clone(), forms_map.get("plural").unwrap().clone()])
             {
                 duplicate_key_set.insert(word_key.clone());
-                writer.write_record(&[
-                    &word_key,
-                    forms_map.get("plural").unwrap_or(&predicted_plural),
-                ])?;
+                writer.write_record(&[&word_key, forms_map.get("plural").unwrap()])?;
             }
         }
     }
