@@ -15,6 +15,10 @@ static BAD_TAGS: &[&str] = &[
     "alternative",
     "nonstandard",
     "archaic",
+    "humorous",
+    "feminine",
+    "pronunciation-spelling",
+    "rare",
 ];
 static BAD_CHARS: &[&str] = &[".", "/", "&", " "];
 
@@ -49,11 +53,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let input_path = "../../english.jsonl";
 
     extract_irregular_nouns(input_path, "nouns_with_plurals.csv")?;
-    extract_verb_conjugations(input_path, "verb_conjugations.csv")?;
-    extract_irregular_adjectives(input_path, "adjectives.csv")?;
-    generate_adjectives_file("adjectives.csv", "adjiki.rs");
-    generate_nouns_file("nouns_with_plurals.csv", "nounsiki.rs");
-    generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");
+    // extract_verb_conjugations(input_path, "verb_conjugations.csv")?;
+    // extract_irregular_adjectives(input_path, "adjectives.csv")?;
+    // generate_adjectives_file("adjectives.csv", "adjiki.rs");
+    //generate_nouns_file("nouns_with_plurals.csv", "nounsiki.rs");
+    //generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");
     Ok(())
 }
 
@@ -77,6 +81,8 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
     let mut writer = Writer::from_path(output_path)?;
     writer.write_record(&["word", "plural"])?;
 
+    let mut tag_set = HashSet::new();
+
     for line in reader.lines() {
         let line = line?;
         let entry: Entry = match serde_json::from_str(&line) {
@@ -95,6 +101,7 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
         if let Some(forms) = entry.forms {
             for form in &forms {
                 let tags = &form.tags;
+                tag_set.insert(tags.clone());
                 let entry_form = form.form.to_lowercase();
                 if entry_form == "dubious" {
                     continue;
@@ -128,6 +135,7 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
         }
     }
 
+    println!("TAGSET IS {:#?}", tag_set);
     writer.flush()?;
     println!("Done! Output written to {}", output_path);
     Ok(())
