@@ -100,8 +100,6 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
     let (reader, mut writer) = base_setup(input_path, output_path);
     writer.write_record(&["word", "plural"])?;
 
-    let mut tag_set = HashSet::new();
-
     for line in reader.lines() {
         let line = line?;
         let entry: Entry = match serde_json::from_str(&line) {
@@ -111,8 +109,17 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
                 continue;
             }
         };
+
+        if entry.word == "child" {
+            println!("child - {:#?}", &entry);
+        }
+
         if !entry_is_proper(&entry, "noun") {
             continue;
+        }
+
+        if entry.word == "child" {
+            println!("child is proper");
         }
 
         let mut forms_map = HashMap::new();
@@ -120,22 +127,26 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
         let infinitive = entry.word.to_lowercase();
         let predicted_plural = EnglishCore::pluralize_noun(&infinitive);
 
+        if entry.word == "child" {
+            println!(" predicted child - {:#?}", &predicted_plural);
+        }
+
         if let Some(forms) = entry.forms {
             for form in &forms {
                 let tags = &form.tags;
-                tag_set.insert(tags.clone());
+
                 let entry_form = form.form.to_lowercase();
                 if entry_form == "dubious" {
+                    continue;
+                }
+                if !word_is_proper(&entry_form) || contains_bad_tag(tags.clone()) {
                     continue;
                 }
                 if entry_form == predicted_plural {
                     duplicate_map.insert(infinitive.clone());
                 }
 
-                if tags.contains(&"plural".into())
-                    && !contains_bad_tag(tags.clone())
-                    && word_is_proper(&entry_form)
-                {
+                if tags.contains(&"plural".into()) {
                     forms_map.insert("plural", entry_form.clone());
                 }
             }

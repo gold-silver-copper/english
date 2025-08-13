@@ -27,15 +27,18 @@ welsh,welsh
 danish,danish
 czech,czechs
 quaff,quaffs
+species,species
 px,pxes
 bx,bxes
 wax,waxes
 beeswax,beeswaxes
+child,children
 grandchild,grandchildren
 xerox,xeroxes
 afrikaans,afrikaans
 suffix,suffixes
 plum,plums
+moose,moose
 civics,civics
 equinox,equinoxes
 buff,buffs
@@ -67,12 +70,14 @@ won,won
 begum,begums
 by,bys
 box,boxes
+spacecraft,spacecraft
 lynx,lynxes
 fox,foxes
 if,ifs
 life,lives
 knife,knives
 stomach,stomachs
+vacuum,vacuums
 e,ees
 monarch,monarchs
 rin,rin
@@ -99,6 +104,7 @@ downstairs,downstairs
 upstairs,upstairs
 laryngitis,laryngitides
 plaintiff,plaintiffs
+genus,genera
 gakuran,gakuran
 helium,heliums
 pbs,pbss
@@ -173,8 +179,10 @@ flux,fluxes
 banjax,banjaxes
 knockoff,knockoffs
 treff,treffs
+factotum,factotums
 ax,axes
 oryx,oryx
+mongoose,mongooses
 hyrax,hyraces
 fair,fair
 ox,oxen
@@ -188,8 +196,13 @@ ersatz,ersatzes
 harmonia,harmoniai
 navicula,naviculae
 appendix,appendixes
+criterion,criteria
 ee,een
+fungus,fungi
+phenomenon,phenomenon
+series,series
 urbs,urbes
+pollex,pollices
 pons,pontes
 vulnus,vulnera
 xiphias,xiphias
@@ -254,6 +267,7 @@ gyros,gyros
 nearby,nearbys
 atomus,atomi
 swarf,swarfs
+hero,heroes
 tech,techs
 arco,archi
 unix,unixen
@@ -269,6 +283,7 @@ epoch,epochs
 fix,fixes
 clef,clefs
 ala,alae
+magus,magi
 stella,stellae
 dominus,domini
 zucchino,zucchini
@@ -306,6 +321,7 @@ eques,equites
 odium,odiums
 olf,olf
 caulis,caules
+undead,undead
 dracunculus,dracunculi
 aculeus,aculei
 ageratum,ageratums
@@ -343,6 +359,7 @@ ubermensch,ubermenschen
 unobtanium,unobtaniums
 sony,sonys
 sorghum,sorghums
+mrs,mesdames
 acinaces,acinaces
 acinus,acini
 eff,effs
@@ -358,6 +375,7 @@ lituus,litui
 mix,mixes
 guy,guys
 enteritis,enteritises
+norman,normans
 wootz,wootzes
 burman,burmans
 euphonium,euphoniums
@@ -475,6 +493,7 @@ schoolchild,schoolchildren
 customs,customs
 zampone,zamponi
 cuff,cuffs
+inuit,inuit
 digitus,digiti
 blouse,blouses
 electronics,electronics
@@ -501,6 +520,7 @@ cvs,cvss
 tessera,tesserae
 temenos,temene
 fishwife,fishwives
+innings,innings
 wolof,wolof
 pectus,pectora
 numen,numina
@@ -530,10 +550,12 @@ stipes,stipites
 spoof,spoofs
 smallpox,smallpoxes
 noseeum,noseeums
+smurf,smurfs
 detritus,detritus
 pms,pmss
 coolbox,coolboxes
 litotes,litotes
+afterlife,afterlives
 mls,mlss
 ws,wss
 problema,problemata
@@ -554,6 +576,7 @@ reproof,reproofs
 subspecies,subspecies
 stria,striae
 uguisubari,uguisubari
+gallows,gallows
 oviposition,oviposition
 bunkum,bunkums
 faff,faffs
@@ -643,6 +666,7 @@ lax,laxes
 transhuman,transhumans
 influx,influxes
 midwife,midwives
+modicum,modicums
 mach,machs
 toolbox,toolboxes
 nutgraf,nutgrafs
@@ -665,6 +689,7 @@ fundus,fundi
 puits,puits
 foodstuff,foodstuffs
 cumulus,cumuli
+jedi,jedi
 gregory,gregorys
 psych,psychs
 niveau,niveaus
@@ -695,8 +720,10 @@ pullman,pullmans
 tarsus,tarsi
 carpus,carpi
 sempervivum,sempervivums
+bison,bison
 gruff,gruffs
 decaf,decafs
+xu,xu
 gleba,glebae
 hilus,hili
 pof,pofs
@@ -845,6 +872,7 @@ mentsch,mentschen
 mentsh,mentshen
 ey,eyren
 planta,plantae
+snickers,snickers
 saman,samans
 cis,cises
 puff,puffs
@@ -972,11 +1000,13 @@ eardrum,eardrums
 otitis,otitises
 cystitis,cystitides
 vaginitis,vaginitises
+rendezvous,rendezvous
 tendinitis,tendinites
 slivovitz,slivovitzes
 rhinitis,rhinitides
 cellula,cellulae
 archeus,archei
+coliseum,coliseums
 favus,favi
 mucositis,mucositides
 alef,alefs
@@ -1185,6 +1215,7 @@ waitstaff,waitstaffs
 sphagnum,sphagnums
 sequela,sequelae
 modus,modi
+epiphenomenon,epiphenomena
 shadoof,shadoofs
 shaduf,shadufs
 stratocumulus,stratocumuli
@@ -1426,6 +1457,7 @@ seinen,seinen
 ramus,rami
 uro,uro
 gigahertz,gigahertzes
+putto,putti
 papilla,papillae
 shangaan,shangans
 proteus,protei
@@ -1521,6 +1553,7 @@ silversides,silversides
 escalado,escaladoes
 firman,firmans
 toadflax,toadflaxes
+viburnum,viburnums
 superhuman,superhumans
 sidhe,sidhe
 palea,pales
@@ -1667,6 +1700,7 @@ megamix,megamixes
 communitas,communitates
 macronucleus,macronuclei
 fisticuff,fisticuffs
+colosseum,colosseums
 paperknife,paperknives
 lubritorium,lubritoriums
 ateji,ateji
@@ -1721,6 +1755,7 @@ herma,hermai
 boombox,boomboxes
 ludus,ludi
 tribrach,tribrachs
+mentalese,mentaleses
 bocconcino,bocconcini
 canaliculus,canaliculi
 dolman,dolmans
@@ -2182,6 +2217,7 @@ provisorium,n
 cortissimo,cortissimi
 tenuis,tenues
 bps,bps
+mirepoix,mirepoix
 dactylus,dactyli
 glycocalyx,glycocalyxes
 corbicula,corbiculae
@@ -2228,6 +2264,7 @@ angiitis,angiitides
 arteritis,arteritides
 pneumothorax,pneumothoraces
 aidoru,aidoru
+otherkin,otherkin
 superphenomenon,superphenomena
 periodontitis,periodontitides
 superpremium,superpremiums
@@ -3130,6 +3167,7 @@ solicitrix,solicitrixes
 latebra,latebrae
 latissimus,latissimi
 longissimus,longissimi
+cestuy,cestuys
 porrectus,porrecti
 gazoon,gazoons
 severum,severums
@@ -4840,6 +4878,7 @@ gaokao,gaokao
 flaouna,flaounes
 apfsds,apfsdss
 biospecies,biospecies
+pokemon,pokemon
 thaumarchaea,thaumarchaea
 plf,plfs
 subcoxa,subcoxae
@@ -5058,6 +5097,7 @@ killoff,killoffs
 gonostylus,gonostyli
 hyperbox,hyperboxes
 protarsus,protarsi
+courtmartial,courtsmartial
 parasyntheton,parasyntheta
 smirnoff,smirnoffs
 bdrf,bdrfs
@@ -5125,6 +5165,7 @@ chicanx,chicanxs
 jariya,jawari
 kalpis,kalpides
 empasma,empasmata
+alytarch,alytarchs
 parencephalon,parencephala
 gunworks,gunworks
 heretoch,heretochs
@@ -6995,6 +7036,7 @@ giyoret,giyurot
 geoethics,geoethics
 nlf,nlfs
 peshkabz,peshkabz
+forschungsstipendium,forschungsstipendien
 mch,mchs
 bossypants,bossypants
 ashkephardi,ashkephardim
