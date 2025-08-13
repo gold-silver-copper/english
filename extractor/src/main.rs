@@ -38,6 +38,9 @@ fn contains_bad_tag(words: Vec<String>) -> bool {
 fn contains_bad_chars(input: &str) -> bool {
     BAD_CHARS.iter().any(|&bad| input.contains(bad))
 }
+fn contains_number(s: &str) -> bool {
+    s.chars().any(|c| c.is_numeric())
+}
 
 #[derive(Debug, Deserialize)]
 struct Forms {
@@ -51,7 +54,7 @@ struct Entry {
     pos: String,
     forms: Option<Vec<Forms>>,
     lang_code: String,
-    //etymology_number: Option<u32>,
+    etymology_number: Option<u32>,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -71,7 +74,11 @@ fn entry_is_proper(entry: &Entry, pos: &str) -> bool {
         return false;
     }
 
-    if entry.pos != pos || contains_bad_chars(&entry.word) || !entry.word.is_ascii() {
+    if entry.pos != pos
+        || contains_bad_chars(&entry.word)
+        || !entry.word.is_ascii()
+        || contains_number(&entry.word)
+    {
         return false;
     }
     true
@@ -153,11 +160,8 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
 
 /// Extracts verb conjugations and writes them to a CSV.
 fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
-    let input = File::open(input_path)?;
-    let reader = BufReader::new(input);
     let mut duplicate_map = HashSet::new();
-
-    let mut writer = Writer::from_path(output_path)?;
+    let (reader, mut writer) = base_setup(input_path, output_path);
     writer.write_record(&[
         "infinitive",
         "third_person_singular",
@@ -170,7 +174,10 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
         let line = line?;
         let entry: Entry = match serde_json::from_str(&line) {
             Ok(e) => e,
-            Err(_) => continue,
+            Err(e) => {
+                println!("{:#?}", e);
+                continue;
+            }
         };
         if !entry_is_proper(&entry, "verb") {
             continue;
@@ -273,18 +280,18 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
 
 /// Extracts irregular noun plurals and writes them to a CSV.
 fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
-    let input = File::open(input_path)?;
-    let reader = BufReader::new(input);
     let mut duplicate_map = HashSet::new();
-
-    let mut writer = Writer::from_path(output_path)?;
+    let (reader, mut writer) = base_setup(input_path, output_path);
     writer.write_record(&["positive", "comparative", "superlative"])?;
 
     for line in reader.lines() {
         let line = line?;
         let entry: Entry = match serde_json::from_str(&line) {
             Ok(e) => e,
-            Err(_) => continue,
+            Err(e) => {
+                println!("{:#?}", e);
+                continue;
+            }
         };
         if !entry_is_proper(&entry, "adj") {
             continue;
