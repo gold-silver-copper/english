@@ -176,7 +176,7 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
     println!("Done! Output written to {}", output_path);
     Ok(())
 }
-#[derive(Debug, Default, Eq, Hash, PartialEq, Clone)]
+#[derive(Debug, Default, Eq, Hash, PartialEq, Clone, Ord, PartialOrd)]
 struct VerbParts {
     inf: String,
     third: String,
@@ -249,13 +249,7 @@ fn extract_verb_conjugations_new(
                 }
             }
         }
-        let predicted_third = EnglishCore::verb(
-            &infinitive,
-            &Person::Third,
-            &Number::Singular,
-            &Tense::Present,
-            &Form::Finite,
-        );
+
         let predicted_past = EnglishCore::verb(
             &infinitive,
             &Person::Third,
@@ -325,8 +319,9 @@ fn extract_verb_conjugations_new(
             true => 2,
             false => 1,
         };
-
-        for thing in setik.iter() {
+        let mut sorted_vec: Vec<VerbParts> = setik.clone().into_iter().collect();
+        sorted_vec.sort(); // uses Ord for sorting
+        for thing in sorted_vec.iter() {
             let word_key = if index == 1 {
                 inf.clone()
             } else {
@@ -341,14 +336,7 @@ fn extract_verb_conjugations_new(
                 thing.past_part.clone(),
             ];
             index += 1;
-            if index < 3 {
-                writer.write_record(&keyd_struct)?;
-            }
-            // Cannot sort alphabetically verbparts, but right now each verb has only 2 forms max so its okay,
-            //  but if there are more it will break
-            if index == 4 {
-                panic!("NEW VERB FORMS WHAT");
-            }
+            writer.write_record(&keyd_struct)?;
         }
     }
 
