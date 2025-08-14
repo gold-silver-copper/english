@@ -36,20 +36,21 @@ impl English {
     }
 
     pub fn adj(word: &str, degree: &Degree) -> String {
+        let base_word = strip_trailing_number(word).unwrap_or(word.to_string());
         match degree {
-            Degree::Positive => word.to_string(),
+            Degree::Positive => base_word.to_string(),
             Degree::Comparative => {
                 if let Some((comp, _)) = get_adjective_forms(word) {
                     comp.to_string()
                 } else {
-                    EnglishCore::comparative(word)
+                    EnglishCore::comparative(base_word)
                 }
             }
             Degree::Superlative => {
                 if let Some((_, sup)) = get_adjective_forms(word) {
                     sup.to_string()
                 } else {
-                    EnglishCore::superlative(word)
+                    EnglishCore::superlative(base_word)
                 }
             }
         }
