@@ -165,10 +165,11 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
                 format!("{inf}{index}")
             };
             let keyd_struct = [word_key.clone(), thing.clone()];
-            index += 1;
+
             if index < 10 {
                 writer.write_record(&keyd_struct)?;
             }
+            index += 1;
         }
     }
 
