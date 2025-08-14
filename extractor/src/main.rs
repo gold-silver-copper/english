@@ -54,7 +54,6 @@ struct Entry {
     pos: String,
     forms: Option<Vec<Forms>>,
     lang_code: String,
-    etymology_number: Option<u32>,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -151,32 +150,20 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
             continue;
         }
         let alr_cont = setik.remove(&predicted_plural);
-        match alr_cont {
-            true => {
-                let mut index = 2;
-                for thing in setik.iter() {
-                    let word_key = format!("{inf}{index}");
-                    let keyd_struct = [word_key.clone(), thing.clone()];
-                    index += 1;
-                    if index < 10 {
-                        writer.write_record(&keyd_struct)?;
-                    }
-                }
-            }
-            false => {
-                let mut index = 1;
-                for thing in setik.iter() {
-                    let word_key = if index == 1 {
-                        inf.clone()
-                    } else {
-                        format!("{inf}{index}")
-                    };
-                    let keyd_struct = [word_key.clone(), thing.clone()];
-                    index += 1;
-                    if index < 10 {
-                        writer.write_record(&keyd_struct)?;
-                    }
-                }
+        let mut index = match alr_cont {
+            true => 2,
+            false => 1,
+        };
+        for thing in setik.iter() {
+            let word_key = if index == 1 {
+                inf.clone()
+            } else {
+                format!("{inf}{index}")
+            };
+            let keyd_struct = [word_key.clone(), thing.clone()];
+            index += 1;
+            if index < 10 {
+                writer.write_record(&keyd_struct)?;
             }
         }
     }
@@ -215,11 +202,6 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
         let mut forms_map = HashMap::new();
         let mut has_third = false;
         let infinitive = entry.word.to_lowercase();
-        let word_key = match entry.etymology_number {
-            Some(1) => infinitive.clone(),
-            Some(x) => format!("{infinitive}{x}"),
-            None => infinitive.clone(),
-        };
 
         if let Some(forms) = entry.forms {
             for form in &forms {
@@ -295,7 +277,7 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
             predicted_past.clone(),
         ];
         let keyd_struct = [
-            word_key.clone(),
+            infinitive.clone(),
             forms_map
                 .get("third_person_singular")
                 .unwrap_or(&predicted_third)
