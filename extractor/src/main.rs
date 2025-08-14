@@ -156,7 +156,9 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
             true => 2,
             false => 1,
         };
-        for thing in setik.iter() {
+        let mut sorted_vec: Vec<String> = setik.clone().into_iter().collect();
+        sorted_vec.sort(); // uses Ord for sorting
+        for thing in sorted_vec.iter() {
             let word_key = if index == 1 {
                 inf.clone()
             } else {
@@ -323,6 +325,7 @@ fn extract_verb_conjugations_new(
             true => 2,
             false => 1,
         };
+
         for thing in setik.iter() {
             let word_key = if index == 1 {
                 inf.clone()
@@ -338,7 +341,7 @@ fn extract_verb_conjugations_new(
                 thing.past_part.clone(),
             ];
             index += 1;
-            if index < 10 {
+            if index < 3 {
                 writer.write_record(&keyd_struct)?;
             }
         }
