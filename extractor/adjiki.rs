@@ -1647,7 +1647,6 @@ static ADJECTIVE_MAP: &[(&str, (&str, &str))] = &[
     ("pushy", ("pushier", "pushiest")),
     ("pussy", ("pussier", "pussiest")),
     ("pwetty", ("pwettier", "pwettiest")),
-    ("q***r", ("q***rer", "q***rest")),
     ("qool", ("qooler", "qoolest")),
     ("quack", ("quacker", "quackest")),
     ("quacky", ("quackier", "quackiest")),

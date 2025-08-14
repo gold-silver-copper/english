@@ -24,7 +24,7 @@ static BAD_TAGS: &[&str] = &[
     "sometimes",
     "colloquial",
 ];
-static BAD_CHARS: &[&str] = &[".", "/", "&", " ", "'", "-", "#", "@", "`"];
+static BAD_CHARS: &[&str] = &[".", "/", "&", " ", "'", "-", "#", "@", "`", "*"];
 
 fn contains_bad_tag(words: Vec<String>) -> bool {
     for word in words {
