@@ -10385,6 +10385,7 @@ static PLURAL_MAP: &[(&str, &str)] = &[
     ("parashah6", "parashiyoth"),
     ("parashah7", "parashot"),
     ("parashah8", "parashoth"),
+    ("parashah9", "parshioth"),
     ("parasitofauna2", "parasitofauna"),
     ("parasperm", "parasperm"),
     ("parastigma2", "parastigmata"),
