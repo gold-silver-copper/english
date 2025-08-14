@@ -59,13 +59,14 @@ struct Entry {
 fn main() -> Result<(), Box<dyn Error>> {
     let input_path = "../../english.jsonl";
 
-    extract_irregular_nouns(input_path, "nouns_with_plurals.csv")?;
-    extract_verb_conjugations(input_path, "verb_conjugations.csv")?;
+    extract_verb_conjugations_new(input_path, "verb_conjugations.csv")?;
+
+    /*  extract_irregular_nouns(input_path, "nouns_with_plurals.csv")?;
+
     extract_irregular_adjectives(input_path, "adjectives.csv")?;
     generate_adjectives_file("adjectives.csv", "adjiki.rs");
     generate_nouns_file("nouns_with_plurals.csv", "nounsiki.rs");
-    generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");
-    /*    */
+    generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");  */
     Ok(())
 }
 
@@ -172,11 +173,21 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
     println!("Done! Output written to {}", output_path);
     Ok(())
 }
+#[derive(Debug, Default, Eq, Hash, PartialEq, Clone)]
+struct VerbParts {
+    inf: String,
+    third: String,
+    past: String,
+    present_part: String,
+    past_part: String,
+}
 
 /// Extracts verb conjugations and writes them to a CSV.
-fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
-    let mut duplicate_key_set = HashSet::new();
-    let mut duplicate_pairs_set = HashSet::new();
+fn extract_verb_conjugations_new(
+    input_path: &str,
+    output_path: &str,
+) -> Result<(), Box<dyn Error>> {
+    let mut forms_map: HashMap<String, HashSet<VerbParts>> = HashMap::new();
     let (reader, mut writer) = base_setup(input_path, output_path);
     writer.write_record(&[
         "infinitive",
@@ -199,10 +210,13 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
             continue;
         }
 
-        let mut forms_map = HashMap::new();
         let mut has_third = false;
         let infinitive = entry.word.to_lowercase();
-
+        if !forms_map.contains_key(&infinitive) {
+            forms_map.insert(infinitive.clone(), HashSet::new());
+        }
+        let mut verbik = VerbParts::default();
+        verbik.inf = infinitive.clone();
         if let Some(forms) = entry.forms {
             for form in &forms {
                 let tags = &form.tags;
@@ -216,19 +230,19 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
                     && tags.contains(&"present".into())
                 {
                     has_third = true;
-                    forms_map.insert("third_person_singular", entry_form.clone());
+                    verbik.third = entry_form.clone();
                 }
 
                 if tags.contains(&"past".into()) && !tags.contains(&"participle".into()) {
-                    forms_map.insert("past", entry_form.clone());
+                    verbik.past = entry_form.clone();
                 }
 
                 if tags.contains(&"participle".into()) && tags.contains(&"present".into()) {
-                    forms_map.insert("present_participle", entry_form.clone());
+                    verbik.present_part = entry_form.clone();
                 }
 
                 if tags.contains(&"participle".into()) && tags.contains(&"past".into()) {
-                    forms_map.insert("past_participle", entry_form.clone());
+                    verbik.past_part = entry_form.clone();
                 }
             }
         }
@@ -253,54 +267,79 @@ fn extract_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), 
             &Tense::Present,
             &Form::Participle,
         );
-        let gotten = [
-            infinitive.clone(),
-            forms_map
-                .get("third_person_singular")
-                .unwrap_or(&predicted_third)
-                .clone(),
-            forms_map.get("past").unwrap_or(&predicted_past).clone(),
-            forms_map
-                .get("present_participle")
-                .unwrap_or(&predicted_participle)
-                .clone(),
-            forms_map
-                .get("past_participle")
-                .unwrap_or(&predicted_past)
-                .clone(),
-        ];
-        let predicted_struct = [
-            infinitive.clone(),
-            predicted_third.clone(),
-            predicted_past.clone(),
-            predicted_participle.clone(),
-            predicted_past.clone(),
-        ];
-        let keyd_struct = [
-            infinitive.clone(),
-            forms_map
-                .get("third_person_singular")
-                .unwrap_or(&predicted_third)
-                .clone(),
-            forms_map.get("past").unwrap_or(&predicted_past).clone(),
-            forms_map
-                .get("present_participle")
-                .unwrap_or(&predicted_participle)
-                .clone(),
-            forms_map
-                .get("past_participle")
-                .unwrap_or(&predicted_past)
-                .clone(),
-        ];
 
-        if predicted_struct == gotten {
-            duplicate_key_set.insert(infinitive.clone());
-            duplicate_pairs_set.insert(keyd_struct.clone());
+        if verbik.past == "" {
+            verbik.past = predicted_past.clone();
+        }
+        if verbik.past_part == "" {
+            verbik.past_part = predicted_past.clone();
+        }
+        if verbik.present_part == "" {
+            verbik.present_part = predicted_participle.clone();
         }
 
-        if has_third && !duplicate_key_set.contains(&infinitive) {
-            duplicate_key_set.insert(infinitive.clone());
-            writer.write_record(&gotten)?;
+        if has_third {
+            forms_map
+                .get_mut(&infinitive)
+                .unwrap()
+                .insert(verbik.clone());
+        }
+    }
+    for (inf, setik) in forms_map.iter_mut() {
+        let predicted_third = EnglishCore::verb(
+            &inf,
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Present,
+            &Form::Finite,
+        );
+        let predicted_past = EnglishCore::verb(
+            &inf,
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Past,
+            &Form::Finite,
+        );
+        let predicted_participle = EnglishCore::verb(
+            &inf,
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Present,
+            &Form::Participle,
+        );
+
+        let mut predicted_verb = VerbParts::default();
+        predicted_verb.inf = inf.clone();
+        predicted_verb.third = predicted_third.clone();
+        predicted_verb.past = predicted_past.clone();
+        predicted_verb.past_part = predicted_past.clone();
+        predicted_verb.present_part = predicted_participle.clone();
+        if setik.is_empty() {
+            continue;
+        }
+
+        let mut index = match setik.remove(&predicted_verb) {
+            true => 2,
+            false => 1,
+        };
+        for thing in setik.iter() {
+            let word_key = if index == 1 {
+                inf.clone()
+            } else {
+                format!("{inf}{index}")
+            };
+            //infinitive,third_person_singular,past,present_participle,past_participle
+            let keyd_struct = [
+                word_key.clone(),
+                thing.third.clone(),
+                thing.past.clone(),
+                thing.present_part.clone(),
+                thing.past_part.clone(),
+            ];
+            index += 1;
+            if index < 10 {
+                writer.write_record(&keyd_struct)?;
+            }
         }
     }
 
