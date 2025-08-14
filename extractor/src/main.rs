@@ -186,7 +186,7 @@ struct AdjParts {
 }
 
 fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
-    let mut duplicate_key_set = HashSet::new();
+    let mut forms_map: HashMap<String, HashSet<AdjParts>> = HashMap::new();
     let (reader, mut writer) = base_setup(input_path, output_path);
     writer.write_record(&["positive", "comparative", "superlative"])?;
 
@@ -203,9 +203,12 @@ fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(
             continue;
         }
 
-        let mut forms_map = HashMap::new();
-
         let infinitive = entry.word.to_lowercase();
+        if !forms_map.contains_key(&infinitive) {
+            forms_map.insert(infinitive.clone(), HashSet::new());
+        }
+        let mut adjik = AdjParts::default();
+        adjik.positive = infinitive.clone();
 
         if let Some(forms) = entry.forms {
             for form in &forms {
@@ -219,49 +222,63 @@ fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(
                 }
 
                 if tags.contains(&"comparative".into()) {
-                    forms_map.insert("comparative", entry_form.clone());
+                    adjik.comparative = entry_form.clone();
                 }
 
                 if tags.contains(&"superlative".into()) {
-                    forms_map.insert("superlative", entry_form.clone());
+                    adjik.superlative = entry_form.clone();
                 }
             }
         }
+
         let predicted_comparative = EnglishCore::comparative(&infinitive);
         let predicted_superlative = EnglishCore::superlative(&infinitive);
-
-        match forms_map.get("comparative") {
-            Some(_) => (),
-            None => {
-                duplicate_key_set.insert(infinitive.clone());
-                continue;
-            }
+        if adjik.comparative == "" {
+            adjik.comparative = predicted_comparative.clone();
         }
-        match forms_map.get("superlative") {
-            Some(_) => (),
-            None => {
-                duplicate_key_set.insert(infinitive.clone());
-                continue;
-            }
+        if adjik.superlative == "" {
+            adjik.superlative = predicted_superlative.clone();
         }
 
-        let gotten = [
-            &infinitive,
-            forms_map.get("comparative").unwrap(),
-            forms_map.get("superlative").unwrap(),
-        ];
-        let predicted_struct = [&infinitive, &predicted_comparative, &predicted_superlative];
+        forms_map
+            .get_mut(&infinitive)
+            .unwrap()
+            .insert(adjik.clone());
+    }
+    for (inf, setik) in forms_map.iter_mut() {
+        let predicted_comparative = EnglishCore::comparative(&inf);
+        let predicted_superlative = EnglishCore::superlative(&inf);
 
-        if predicted_struct == gotten {
-            duplicate_key_set.insert(infinitive.clone());
+        let mut predicted_adj = AdjParts::default();
+        predicted_adj.positive = inf.clone();
+        predicted_adj.comparative = predicted_comparative.clone();
+        predicted_adj.superlative = predicted_superlative.clone();
+        if setik.is_empty() {
+            continue;
         }
 
-        if !duplicate_key_set.contains(&infinitive) {
-            duplicate_key_set.insert(infinitive.clone());
-            writer.write_record(&gotten)?;
+        let mut index = match setik.remove(&predicted_adj) {
+            true => 2,
+            false => 1,
+        };
+        let mut sorted_vec: Vec<AdjParts> = setik.clone().into_iter().collect();
+        sorted_vec.sort(); // uses Ord for sorting
+        for thing in sorted_vec.iter() {
+            let word_key = if index == 1 {
+                inf.clone()
+            } else {
+                format!("{inf}{index}")
+            };
+            //positive,comparative,superlative
+            let keyd_struct = [
+                word_key.clone(),
+                thing.comparative.clone(),
+                thing.superlative.clone(),
+            ];
+            index += 1;
+            writer.write_record(&keyd_struct)?;
         }
     }
-
     writer.flush()?;
     println!("Done! Output written to {}", output_path);
     Ok(())
