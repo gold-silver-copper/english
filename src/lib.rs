@@ -43,14 +43,14 @@ impl English {
                 if let Some((comp, _)) = get_adjective_forms(word) {
                     comp.to_string()
                 } else {
-                    EnglishCore::comparative(base_word)
+                    EnglishCore::comparative(&base_word)
                 }
             }
             Degree::Superlative => {
                 if let Some((_, sup)) = get_adjective_forms(word) {
                     sup.to_string()
                 } else {
-                    EnglishCore::superlative(base_word)
+                    EnglishCore::superlative(&base_word)
                 }
             }
         }

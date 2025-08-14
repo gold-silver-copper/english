@@ -8,7 +8,7 @@ fn main() {
 }
 
 pub fn benchmark_verb() {
-    let words = ["tango", "dance", "ziknik"]; //"yak", "yandex", "zebra"
+    let words = ["tango", "dance", "zygopetalum"]; //"yak", "yandex", "zebra"
     let person = Person::Third;
     let number = Number::Singular;
     let tense = Tense::Present;

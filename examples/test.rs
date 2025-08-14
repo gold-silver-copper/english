@@ -10,6 +10,13 @@ fn main() {
     println!("die (plural) -> {}", plural); // children
     let plural = English::noun("die2", &Number::Plural);
     println!("die2 (plural) -> {}", plural); // children
+    //for adjs do bad2 bad3
+    let plural = English::adj("bad", &Degree::Comparative);
+    println!("bad (plural) -> {}", plural);
+    let plural = English::adj("bad2", &Degree::Comparative);
+    println!("bad2 (plural) -> {}", plural); // children
+    let plural = English::adj("bad3", &Degree::Comparative);
+    println!("bad3 (plural) -> {}", plural); // children
 
     // Regular forms
     assert_eq!(English::noun("cat", &Number::Plural), "cats");
