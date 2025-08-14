@@ -344,6 +344,11 @@ fn extract_verb_conjugations_new(
             if index < 3 {
                 writer.write_record(&keyd_struct)?;
             }
+            // Cannot sort alphabetically verbparts, but right now each verb has only 2 forms max so its okay,
+            //  but if there are more it will break
+            if index == 4 {
+                panic!("NEW VERB FORMS WHAT");
+            }
         }
     }
 
