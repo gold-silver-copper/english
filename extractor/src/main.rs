@@ -177,6 +177,96 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
     println!("Done! Output written to {}", output_path);
     Ok(())
 }
+
+#[derive(Debug, Default, Eq, Hash, PartialEq, Clone, Ord, PartialOrd)]
+struct AdjParts {
+    positive: String,
+    comparative: String,
+    superlative: String,
+}
+
+fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
+    let mut duplicate_key_set = HashSet::new();
+    let (reader, mut writer) = base_setup(input_path, output_path);
+    writer.write_record(&["positive", "comparative", "superlative"])?;
+
+    for line in reader.lines() {
+        let line = line?;
+        let entry: Entry = match serde_json::from_str(&line) {
+            Ok(e) => e,
+            Err(e) => {
+                println!("{:#?}", e);
+                continue;
+            }
+        };
+        if !entry_is_proper(&entry, "adj") {
+            continue;
+        }
+
+        let mut forms_map = HashMap::new();
+
+        let infinitive = entry.word.to_lowercase();
+
+        if let Some(forms) = entry.forms {
+            for form in &forms {
+                let tags = &form.tags;
+                let entry_form = form.form.to_lowercase();
+                if entry_form == "dubious" {
+                    continue;
+                }
+                if !word_is_proper(&entry_form) || contains_bad_tag(tags.clone()) {
+                    continue;
+                }
+
+                if tags.contains(&"comparative".into()) {
+                    forms_map.insert("comparative", entry_form.clone());
+                }
+
+                if tags.contains(&"superlative".into()) {
+                    forms_map.insert("superlative", entry_form.clone());
+                }
+            }
+        }
+        let predicted_comparative = EnglishCore::comparative(&infinitive);
+        let predicted_superlative = EnglishCore::superlative(&infinitive);
+
+        match forms_map.get("comparative") {
+            Some(_) => (),
+            None => {
+                duplicate_key_set.insert(infinitive.clone());
+                continue;
+            }
+        }
+        match forms_map.get("superlative") {
+            Some(_) => (),
+            None => {
+                duplicate_key_set.insert(infinitive.clone());
+                continue;
+            }
+        }
+
+        let gotten = [
+            &infinitive,
+            forms_map.get("comparative").unwrap(),
+            forms_map.get("superlative").unwrap(),
+        ];
+        let predicted_struct = [&infinitive, &predicted_comparative, &predicted_superlative];
+
+        if predicted_struct == gotten {
+            duplicate_key_set.insert(infinitive.clone());
+        }
+
+        if !duplicate_key_set.contains(&infinitive) {
+            duplicate_key_set.insert(infinitive.clone());
+            writer.write_record(&gotten)?;
+        }
+    }
+
+    writer.flush()?;
+    println!("Done! Output written to {}", output_path);
+    Ok(())
+}
+
 #[derive(Debug, Default, Eq, Hash, PartialEq, Clone, Ord, PartialOrd)]
 struct VerbParts {
     inf: String,
@@ -338,89 +428,6 @@ fn extract_verb_conjugations_new(
             ];
             index += 1;
             writer.write_record(&keyd_struct)?;
-        }
-    }
-
-    writer.flush()?;
-    println!("Done! Output written to {}", output_path);
-    Ok(())
-}
-
-/// Extracts irregular noun plurals and writes them to a CSV.
-fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
-    let mut duplicate_key_set = HashSet::new();
-    let (reader, mut writer) = base_setup(input_path, output_path);
-    writer.write_record(&["positive", "comparative", "superlative"])?;
-
-    for line in reader.lines() {
-        let line = line?;
-        let entry: Entry = match serde_json::from_str(&line) {
-            Ok(e) => e,
-            Err(e) => {
-                println!("{:#?}", e);
-                continue;
-            }
-        };
-        if !entry_is_proper(&entry, "adj") {
-            continue;
-        }
-
-        let mut forms_map = HashMap::new();
-
-        let infinitive = entry.word.to_lowercase();
-
-        if let Some(forms) = entry.forms {
-            for form in &forms {
-                let tags = &form.tags;
-                let entry_form = form.form.to_lowercase();
-                if entry_form == "dubious" {
-                    continue;
-                }
-                if !word_is_proper(&entry_form) || contains_bad_tag(tags.clone()) {
-                    continue;
-                }
-
-                if tags.contains(&"comparative".into()) {
-                    forms_map.insert("comparative", entry_form.clone());
-                }
-
-                if tags.contains(&"superlative".into()) {
-                    forms_map.insert("superlative", entry_form.clone());
-                }
-            }
-        }
-        let predicted_comparative = EnglishCore::comparative(&infinitive);
-        let predicted_superlative = EnglishCore::superlative(&infinitive);
-
-        match forms_map.get("comparative") {
-            Some(_) => (),
-            None => {
-                duplicate_key_set.insert(infinitive.clone());
-                continue;
-            }
-        }
-        match forms_map.get("superlative") {
-            Some(_) => (),
-            None => {
-                duplicate_key_set.insert(infinitive.clone());
-                continue;
-            }
-        }
-
-        let gotten = [
-            &infinitive,
-            forms_map.get("comparative").unwrap(),
-            forms_map.get("superlative").unwrap(),
-        ];
-        let predicted_struct = [&infinitive, &predicted_comparative, &predicted_superlative];
-
-        if predicted_struct == gotten {
-            duplicate_key_set.insert(infinitive.clone());
-        }
-
-        if !duplicate_key_set.contains(&infinitive) {
-            duplicate_key_set.insert(infinitive.clone());
-            writer.write_record(&gotten)?;
         }
     }
 
