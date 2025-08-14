@@ -21,33 +21,20 @@ fn strip_trailing_number(word: &str) -> Option<String> {
 pub struct English {}
 impl English {
     pub fn noun(word: &str, number: &Number) -> String {
-        match strip_trailing_number(word) {
-            Some(stripped_word) => match number {
-                Number::Singular => {
-                    return stripped_word;
+        let base_word = strip_trailing_number(word).unwrap_or(word.to_string());
+
+        match number {
+            Number::Singular => base_word,
+            Number::Plural => {
+                if let Some(x) = get_plural(word) {
+                    x.to_string()
+                } else {
+                    EnglishCore::noun(&base_word, number)
                 }
-                Number::Plural => {
-                    if let Some(x) = get_plural(word) {
-                        return x.to_string();
-                    } else {
-                        return EnglishCore::noun(&stripped_word, number);
-                    }
-                }
-            },
-            None => match number {
-                Number::Singular => {
-                    return word.to_string();
-                }
-                Number::Plural => {
-                    if let Some(x) = get_plural(word) {
-                        return x.to_string();
-                    } else {
-                        return EnglishCore::noun(word, number);
-                    }
-                }
-            },
+            }
         }
     }
+
     pub fn adj(word: &str, degree: &Degree) -> String {
         match degree {
             Degree::Positive => word.to_string(),
@@ -75,24 +62,25 @@ impl English {
         tense: &Tense,
         form: &Form,
     ) -> String {
+        let base_word = strip_trailing_number(word).unwrap_or(word.to_string());
         match get_verb_forms(word) {
             Some(wordik) => match (person, number, tense, form) {
                 (_, _, _, Form::Infinitive) => {
-                    return word.to_string();
+                    return base_word.to_string();
                 }
 
                 (Person::Third, Number::Singular, Tense::Present, Form::Finite) => {
                     wordik.0.to_string()
                 }
                 (_, _, Tense::Present, Form::Finite) => {
-                    return word.to_string();
+                    return base_word.to_string();
                 }
                 (_, _, Tense::Present, Form::Participle) => wordik.2.to_string(),
                 (_, _, Tense::Past, Form::Participle) => wordik.3.to_string(),
 
                 (_, _, Tense::Past, Form::Finite) => wordik.1.to_string(),
             },
-            None => EnglishCore::verb(word, person, number, tense, form),
+            None => EnglishCore::verb(&base_word, person, number, tense, form),
         }
     }
     pub fn pronoun(person: &Person, number: &Number, gender: &Gender, case: &Case) -> &'static str {
