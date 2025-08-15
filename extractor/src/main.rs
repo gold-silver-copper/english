@@ -59,15 +59,15 @@ struct Entry {
 fn main() -> Result<(), Box<dyn Error>> {
     let input_path = "../../english.jsonl";
 
-    extract_verb_conjugations_new(input_path, "verb_conjugations.csv")?;
+    check_noun_plurals("../../english.jsonl", "noun_plural_check.csv")?;
+
+    /* extract_verb_conjugations_new(input_path, "verb_conjugations.csv")?;
     extract_irregular_nouns(input_path, "nouns_with_plurals.csv")?;
 
     extract_irregular_adjectives(input_path, "adjectives.csv")?;
     generate_adjectives_file("adjectives.csv", "adjiki.rs");
     generate_nouns_file("nouns_with_plurals.csv", "nounsiki.rs");
-    generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");
-
-    /*   */
+    generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");  */
     Ok(())
 }
 
@@ -450,5 +450,74 @@ fn extract_verb_conjugations_new(
 
     writer.flush()?;
     println!("Done! Output written to {}", output_path);
+    Ok(())
+}
+
+pub fn check_noun_plurals(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
+    use english::*;
+    let (reader, mut writer) = base_setup(input_path, output_path);
+    writer.write_record(&["word", "wiktionary_plural", "generated_plural", "match"])?;
+
+    let mut total_counter = 0;
+    let mut match_counter = 0;
+
+    for line in reader.lines() {
+        let line = line?;
+        let entry: Entry = match serde_json::from_str(&line) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+
+        // Only proper English nouns
+        if !entry_is_proper(&entry, "noun") {
+            continue;
+        }
+
+        // Gather all plural forms from Wiktionary
+        let mut wiktionary_plurals = Vec::new();
+        if let Some(forms) = entry.forms {
+            for form in forms {
+                if form.tags.contains(&"plural".into())
+                    && !contains_bad_tag(form.tags.clone())
+                    && word_is_proper(&form.form)
+                {
+                    wiktionary_plurals.push(form.form.to_lowercase());
+                }
+            }
+        }
+        if wiktionary_plurals.is_empty() {
+            continue;
+        }
+
+        // Try base word and numbered variants
+        let mut variants = vec![entry.word.clone()];
+        for i in 2..=9 {
+            variants.push(format!("{}{}", entry.word, i));
+        }
+
+        for variant in variants {
+            let generated_plural = English::noun(&variant, &Number::Plural);
+            for wiki_plural in &wiktionary_plurals {
+                let is_match = &generated_plural == wiki_plural;
+
+                if !is_match {
+                    writer.write_record(&[
+                        variant.clone(),
+                        wiki_plural.clone(),
+                        generated_plural.clone(),
+                        is_match.to_string(),
+                    ])?;
+                } else {
+                    match_counter += 1;
+                }
+
+                total_counter += 1;
+            }
+        }
+    }
+
+    writer.flush()?;
+    println!("Done! Output written to {}", output_path);
+    println!("total match amount: {} / {}", match_counter, total_counter);
     Ok(())
 }
