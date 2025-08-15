@@ -119,3 +119,5 @@ https://github.com/monolithpl/verb.forms.dictionary
 
 
 mention how to get wiktionary data from the finnish guy
+
+I am happy to anounce english, a library 8 months in the making. It allows you to nearly perfectly inflect any word in the english language, noun, adjective, or verb.
