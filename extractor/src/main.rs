@@ -60,6 +60,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let input_path = "../../english.jsonl";
 
     check_noun_plurals("../../english.jsonl", "noun_plural_check.csv")?;
+    check_verb_conjugations("../../english.jsonl", "verbs_check.csv")?;
 
     /* extract_verb_conjugations_new(input_path, "verb_conjugations.csv")?;
     extract_irregular_nouns(input_path, "nouns_with_plurals.csv")?;
@@ -479,8 +480,8 @@ pub fn check_noun_plurals(input_path: &str, output_path: &str) -> Result<(), Box
         if let Some(forms) = entry.forms {
             for form in forms {
                 if form.tags.contains(&"plural".into())
-                    && !contains_bad_tag(form.tags.clone())
-                    && word_is_proper(&form.form)
+                //    && !contains_bad_tag(form.tags.clone())
+                //   && word_is_proper(&form.form)
                 {
                     wiktionary_plurals.push(form.form.to_lowercase());
                 }
@@ -496,12 +497,12 @@ pub fn check_noun_plurals(input_path: &str, output_path: &str) -> Result<(), Box
             variants.push(format!("{}{}", lowercased_entry, i));
         }
 
-        for variant in variants {
-            let generated_plural = English::noun(&variant, &Number::Plural);
-            for wiki_plural in &wiktionary_plurals {
-                let wiki_plural = wiki_plural.to_lowercase();
+        for wiki_plural in &wiktionary_plurals {
+            let wiki_plural = wiki_plural.to_lowercase();
+            total_counter += 1;
+            for variant in &variants {
+                let generated_plural = English::noun(&variant, &Number::Plural);
                 let is_match = generated_plural == wiki_plural;
-
                 if !is_match {
                     writer.write_record(&[
                         variant.clone(),
@@ -511,9 +512,150 @@ pub fn check_noun_plurals(input_path: &str, output_path: &str) -> Result<(), Box
                     ])?;
                 } else {
                     match_counter += 1;
+                    break;
+                }
+            }
+        }
+    }
+
+    writer.flush()?;
+    println!("Done! Output written to {}", output_path);
+    println!("total match amount: {} / {}", match_counter, total_counter);
+    Ok(())
+}
+
+pub fn check_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
+    use english::*;
+    let (reader, mut writer) = base_setup(input_path, output_path);
+
+    writer.write_record(&[
+        "word",
+        "wiktionary_form",
+        "generated_form",
+        "person",
+        "number",
+        "tense",
+        "form",
+        "match",
+    ])?;
+
+    let mut total_counter = 0;
+    let mut match_counter = 0;
+
+    for line in reader.lines() {
+        let line = line?;
+        let entry: Entry = match serde_json::from_str(&line) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+
+        // Only proper English verbs
+        if !entry_is_proper(&entry, "verb") {
+            continue;
+        }
+
+        let lowercased_entry = entry.word.to_lowercase();
+
+        // Collect (form, person, number, tense, form_type) from Wiktionary
+        let mut wiktionary_forms = Vec::new();
+        if let Some(forms) = entry.forms {
+            for form in forms {
+                let tags = form
+                    .tags
+                    .iter()
+                    .map(|t| t.to_lowercase())
+                    .collect::<Vec<_>>();
+                let form_str = form.form.to_lowercase();
+
+                // Skip bad data
+                if form_str == "dubious"
+                    || !contains_bad_tag(form.tags.clone())
+                    || word_is_proper(&form.form)
+                {
+                    continue;
                 }
 
-                total_counter += 1;
+                // Determine grammatical properties
+                let person = if tags.contains(&"first-person".into()) {
+                    Person::First
+                } else if tags.contains(&"second-person".into()) {
+                    Person::Second
+                } else if tags.contains(&"third-person".into()) {
+                    Person::Third
+                } else {
+                    // Default to third person if unspecified (common in base forms)
+                    Person::Third
+                };
+
+                let number = if tags.contains(&"plural".into()) {
+                    Number::Plural
+                } else if tags.contains(&"singular".into()) {
+                    Number::Singular
+                } else {
+                    Number::Singular
+                };
+
+                let tense = if tags.contains(&"present".into()) {
+                    Tense::Present
+                } else if tags.contains(&"past".into()) {
+                    Tense::Past
+                } else {
+                    Tense::Present
+                };
+
+                let form_type = if tags.contains(&"participle".into()) {
+                    if tense == Tense::Past {
+                        Form::Participle
+                    } else {
+                        Form::Participle
+                    }
+                } else if tags.contains(&"infinitive".into()) {
+                    Form::Infinitive
+                } else {
+                    Form::Finite
+                };
+
+                wiktionary_forms.push((form_str, person, number, tense, form_type));
+            }
+        }
+
+        if wiktionary_forms.is_empty() {
+            continue;
+        }
+
+        // Try base and numbered variants
+        let mut variants = vec![lowercased_entry.clone()];
+        for i in 2..=9 {
+            variants.push(format!("{}{}", lowercased_entry, i));
+        }
+
+        for (wiki_form, person, number, tense, form_type) in wiktionary_forms {
+            total_counter += 1;
+            let mut matched = false;
+
+            for variant in &variants {
+                let generated_form = English::verb(variant, &person, &number, &tense, &form_type);
+                let is_match = generated_form == wiki_form;
+                if is_match {
+                    match_counter += 1;
+                    matched = true;
+                    break;
+                } else {
+                    writer.write_record(&[
+                        variant.clone(),
+                        wiki_form.clone(),
+                        generated_form.clone(),
+                        format!("{:?}", person),
+                        format!("{:?}", number),
+                        format!("{:?}", tense),
+                        format!("{:?}", form_type),
+                        is_match.to_string(),
+                    ])?;
+                }
+            }
+
+            if matched {
+                continue;
             }
         }
     }
