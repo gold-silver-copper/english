@@ -59,9 +59,9 @@ struct Entry {
 fn main() -> Result<(), Box<dyn Error>> {
     let input_path = "../../english.jsonl";
 
-    check_noun_plurals("../../english.jsonl", "noun_plural_check.csv")?;
-    check_verb_conjugations("../../english.jsonl", "verbs_check.csv")?;
-    check_adjective_forms("../../english.jsonl", "adj_check.csv")?;
+    check_noun_plurals(input_path, "noun_plural_check.csv")?;
+    check_verb_conjugations(input_path, "verbs_check.csv")?;
+    check_adjective_forms(input_path, "adj_check.csv")?;
 
     extract_verb_conjugations_new(input_path, "verb_conjugations.csv")?;
     extract_irregular_nouns(input_path, "nouns_with_plurals.csv")?;
