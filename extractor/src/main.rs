@@ -472,6 +472,7 @@ pub fn check_noun_plurals(input_path: &str, output_path: &str) -> Result<(), Box
         if !entry_is_proper(&entry, "noun") {
             continue;
         }
+        let lowercased_entry = entry.word.to_lowercase();
 
         // Gather all plural forms from Wiktionary
         let mut wiktionary_plurals = Vec::new();
@@ -490,15 +491,16 @@ pub fn check_noun_plurals(input_path: &str, output_path: &str) -> Result<(), Box
         }
 
         // Try base word and numbered variants
-        let mut variants = vec![entry.word.clone()];
+        let mut variants = vec![lowercased_entry.clone()];
         for i in 2..=9 {
-            variants.push(format!("{}{}", entry.word, i));
+            variants.push(format!("{}{}", lowercased_entry, i));
         }
 
         for variant in variants {
             let generated_plural = English::noun(&variant, &Number::Plural);
             for wiki_plural in &wiktionary_plurals {
-                let is_match = &generated_plural == wiki_plural;
+                let wiki_plural = wiki_plural.to_lowercase();
+                let is_match = generated_plural == wiki_plural;
 
                 if !is_match {
                     writer.write_record(&[
