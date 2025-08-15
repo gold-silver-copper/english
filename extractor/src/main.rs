@@ -61,6 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     check_noun_plurals("../../english.jsonl", "noun_plural_check.csv")?;
     check_verb_conjugations("../../english.jsonl", "verbs_check.csv")?;
+    check_adjective_forms("../../english.jsonl", "adj_check.csv")?;
 
     /* extract_verb_conjugations_new(input_path, "verb_conjugations.csv")?;
     extract_irregular_nouns(input_path, "nouns_with_plurals.csv")?;
@@ -457,7 +458,7 @@ fn extract_verb_conjugations_new(
 pub fn check_noun_plurals(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
     use english::*;
     let (reader, mut writer) = base_setup(input_path, output_path);
-    writer.write_record(&["word", "wiktionary_plural", "generated_plural", "match"])?;
+    writer.write_record(&["wiki_single", "wiktionary_plural"])?;
 
     let mut total_counter = 0;
     let mut match_counter = 0;
@@ -500,20 +501,17 @@ pub fn check_noun_plurals(input_path: &str, output_path: &str) -> Result<(), Box
         for wiki_plural in &wiktionary_plurals {
             let wiki_plural = wiki_plural.to_lowercase();
             total_counter += 1;
+            let mut matched = false;
             for variant in &variants {
                 let generated_plural = English::noun(&variant, &Number::Plural);
-                let is_match = generated_plural == wiki_plural;
-                if !is_match {
-                    writer.write_record(&[
-                        variant.clone(),
-                        wiki_plural.clone(),
-                        generated_plural.clone(),
-                        is_match.to_string(),
-                    ])?;
-                } else {
+                matched = generated_plural == wiki_plural;
+                if matched {
                     match_counter += 1;
                     break;
                 }
+            }
+            if !matched {
+                writer.write_record(&[lowercased_entry.clone(), wiki_plural.clone()])?;
             }
         }
     }
@@ -528,16 +526,7 @@ pub fn check_verb_conjugations(input_path: &str, output_path: &str) -> Result<()
     use english::*;
     let (reader, mut writer) = base_setup(input_path, output_path);
 
-    writer.write_record(&[
-        "word",
-        "wiktionary_form",
-        "generated_form",
-        "person",
-        "number",
-        "tense",
-        "form",
-        "match",
-    ])?;
+    writer.write_record(&["wiktionary_form", "person", "number", "tense", "form"])?;
 
     let mut total_counter = 0;
     let mut match_counter = 0;
@@ -569,28 +558,25 @@ pub fn check_verb_conjugations(input_path: &str, output_path: &str) -> Result<()
 
                 // Skip bad data
                 if form_str == "dubious"
-                    || !contains_bad_tag(form.tags.clone())
-                    || word_is_proper(&form.form)
+                    || contains_bad_tag(form.tags.clone())
+                    || !word_is_proper(&form.form)
                 {
                     continue;
                 }
 
                 // Determine grammatical properties
+                //Only check third person, first and second are always the infinitive
                 let person = if tags.contains(&"first-person".into()) {
-                    Person::First
+                    continue;
                 } else if tags.contains(&"second-person".into()) {
-                    Person::Second
-                } else if tags.contains(&"third-person".into()) {
-                    Person::Third
+                    continue;
                 } else {
-                    // Default to third person if unspecified (common in base forms)
                     Person::Third
                 };
 
+                //only check singular, plural is always same as singular except for third singular present
                 let number = if tags.contains(&"plural".into()) {
-                    Number::Plural
-                } else if tags.contains(&"singular".into()) {
-                    Number::Singular
+                    continue;
                 } else {
                     Number::Singular
                 };
@@ -604,13 +590,9 @@ pub fn check_verb_conjugations(input_path: &str, output_path: &str) -> Result<()
                 };
 
                 let form_type = if tags.contains(&"participle".into()) {
-                    if tense == Tense::Past {
-                        Form::Participle
-                    } else {
-                        Form::Participle
-                    }
+                    Form::Participle
                 } else if tags.contains(&"infinitive".into()) {
-                    Form::Infinitive
+                    continue;
                 } else {
                     Form::Finite
                 };
@@ -635,27 +617,115 @@ pub fn check_verb_conjugations(input_path: &str, output_path: &str) -> Result<()
 
             for variant in &variants {
                 let generated_form = English::verb(variant, &person, &number, &tense, &form_type);
-                let is_match = generated_form == wiki_form;
-                if is_match {
+                let matched = generated_form == wiki_form;
+                if matched {
                     match_counter += 1;
-                    matched = true;
+
                     break;
-                } else {
-                    writer.write_record(&[
-                        variant.clone(),
-                        wiki_form.clone(),
-                        generated_form.clone(),
-                        format!("{:?}", person),
-                        format!("{:?}", number),
-                        format!("{:?}", tense),
-                        format!("{:?}", form_type),
-                        is_match.to_string(),
-                    ])?;
                 }
             }
 
-            if matched {
-                continue;
+            if !matched {
+                writer.write_record(&[
+                    wiki_form.clone(),
+                    format!("{:?}", person),
+                    format!("{:?}", number),
+                    format!("{:?}", tense),
+                    format!("{:?}", form_type),
+                ])?;
+            }
+        }
+    }
+
+    writer.flush()?;
+    println!("Done! Output written to {}", output_path);
+    println!("total match amount: {} / {}", match_counter, total_counter);
+    Ok(())
+}
+
+pub fn check_adjective_forms(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
+    use english::*;
+    let (reader, mut writer) = base_setup(input_path, output_path);
+    writer.write_record(&["wiktionary_form", "degree"])?;
+
+    let mut total_counter = 0;
+    let mut match_counter = 0;
+
+    for line in reader.lines() {
+        let line = line?;
+        let entry: Entry = match serde_json::from_str(&line) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+
+        // Only proper English adjectives
+        if !entry_is_proper(&entry, "adj") {
+            continue;
+        }
+
+        let lowercased_entry = entry.word.to_lowercase();
+
+        // Gather all adjective forms from Wiktionary
+        let mut wiki_comparative: Option<String> = None;
+        let mut wiki_superlative: Option<String> = None;
+
+        if let Some(forms) = entry.forms {
+            for form in forms {
+                let form_str = form.form.to_lowercase();
+                let tags_lower: Vec<String> = form.tags.iter().map(|t| t.to_lowercase()).collect();
+
+                if tags_lower.contains(&"comparative".into()) {
+                    wiki_comparative = Some(form_str);
+                } else if tags_lower.contains(&"superlative".into()) {
+                    wiki_superlative = Some(form_str);
+                }
+            }
+        }
+
+        // If Wiktionary has no comparative or superlative, skip
+        if wiki_comparative.is_none() && wiki_superlative.is_none() {
+            continue;
+        }
+
+        // Try base and numbered variants
+        let mut variants = vec![lowercased_entry.clone()];
+        for i in 2..=9 {
+            variants.push(format!("{}{}", lowercased_entry, i));
+        }
+
+        // Comparative
+        if let Some(wiki_comp) = &wiki_comparative {
+            let wiki_comp = wiki_comp.to_lowercase();
+            total_counter += 1;
+            let mut matched = false;
+            for variant in &variants {
+                let generated_comp = English::adj(variant, &Degree::Comparative);
+                if generated_comp == wiki_comp {
+                    match_counter += 1;
+                    matched = true;
+                    break;
+                }
+            }
+            if !matched {
+                writer.write_record(&[wiki_comp.clone(), "Comparative".into()])?;
+            }
+        }
+
+        // Superlative
+        if let Some(wiki_sup) = &wiki_superlative {
+            let wiki_sup = wiki_sup.to_lowercase();
+            total_counter += 1;
+            let mut matched = false;
+            for variant in &variants {
+                let generated_sup = English::adj(variant, &Degree::Superlative);
+                if generated_sup == wiki_sup {
+                    match_counter += 1;
+                    matched = true;
+                    break;
+                }
+            }
+            if !matched {
+                writer.write_record(&[wiki_sup.clone(), "Superlative".into()])?;
             }
         }
     }
