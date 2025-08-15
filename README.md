@@ -47,8 +47,8 @@ This repository contains multiple tightly integrated crates working together to 
 * 🚀 Extremely fast: uses pre-sorted static arrays with binary search
 * ⚙️ Metaprogrammed: static sorted arrays generated at compile time
 * 🧩 Zero external dependencies — fully self-contained
-* 📦 Tiny, embeddable, and ready for production
-* 🧠 Ideal for NLP pipelines and game dialogue engines
+* 📦 Tiny and embeddable
+* 🧠 Ideal for procedural text generation
 
 ---
 
@@ -91,12 +91,12 @@ fn main() {
 
 ## ⚡ Performance
 
-* Compile-time macro expansion ensures no runtime penalty.
-* Irregular forms stored in compact static slices.
+* Code generation ensures no runtime penalty.
+* Irregular forms stored in static slices.
 * Binary search over pre-sorted data: `O(log n)` lookup.
 * Minimal memory usage and no heap allocation.
 
-This makes `english` suitable for high-performance or embedded environments like:
+This makes `english` suitable for high-performance tasks like:
 
 * Procedural text generation for games or other interactive media
 * NLP or AI pipelines
@@ -107,6 +107,7 @@ This makes `english` suitable for high-performance or embedded environments like
 ## 📄 License
 
 MIT License © 2024 [gold-silver-copper](https://github.com/gold-silver-copper)
+Apache too sure
 
 
 ## Inspirations
