@@ -17,7 +17,7 @@ This repository contains multiple tightly integrated crates working together to 
 > The public API for verb conjugation and noun/adjective declension.
 
 * Combines optimized data generated from `extractor` with inflection logic from `english-core`
-* Pure Rust, no dependencies
+* Pure Rust, no external dependencies
 * Fast binary search and compact data structures
 * Tiny binary footprint, perfect for embedded usage
 
@@ -26,7 +26,7 @@ This repository contains multiple tightly integrated crates working together to 
 > The core engine for English inflection — pure algorithmic logic.
 
 * Implements the core rules for conjugation/declension
-* Used to classify forms as regular or irregular
+* Used to classify forms as regular or irregular for the extractor
 * Has no data dependency — logic-only
 * Can be used stand alone for an even smaller footprint (at the cost of some accuracy)
 
@@ -37,7 +37,7 @@ This repository contains multiple tightly integrated crates working together to 
 * Parses large English Wiktionary dumps
 * Extracts all verb, noun, and adjective forms
 * Uses `english-core` to filter out regular forms, preserving only irregulars
-* Generates compact tables for use in `english`
+* Generates sorted static arrays for use in `english`
 
 ---
 
@@ -98,9 +98,8 @@ fn main() {
 
 This makes `english` suitable for high-performance or embedded environments like:
 
-* Dialogue trees in games
-* Procedural text generators
-* Edge devices or WASM
+* Procedural text generation for games or other interactive media
+* NLP or AI pipelines
 
 
 ---
@@ -116,3 +115,6 @@ https://github.com/atteo/evo-inflector
 
 ## Benchmarks
 https://github.com/monolithpl/verb.forms.dictionary
+
+
+mention how to get wiktionary data from the finnish guy
