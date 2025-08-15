@@ -617,7 +617,7 @@ pub fn check_verb_conjugations(input_path: &str, output_path: &str) -> Result<()
 
             for variant in &variants {
                 let generated_form = English::verb(variant, &person, &number, &tense, &form_type);
-                let matched = generated_form == wiki_form;
+                matched = generated_form == wiki_form;
                 if matched {
                     match_counter += 1;
 
