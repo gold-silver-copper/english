@@ -1,11 +1,11 @@
 [package]
 name = "english"
-version = "0.0.4"
+version = "0.0.5"
 authors = ["gold-silver-copper"]
 edition = "2024"
 include = ["LICENSE-APACHE", "LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
-description = "English language inflector"
+description = "English inflector decliner conjugator from wiktionary data"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/gold-silver-copper/english"
 
@@ -22,5 +22,5 @@ opt-level = 2 # fast and small wasm
 opt-level = 2
 
 [dependencies]
-english-core = { path = "english-core" }
-# english-core = "0.0.4"
+#english-core = { path = "english-core" }
+english-core = "0.0.5"
