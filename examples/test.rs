@@ -1,49 +1,126 @@
 use english::*;
-
 fn main() {
-    test_all_verb_conjugations();
-
-    // Decline a noun (handles irregulars)
-    let plural = English::noun("child", &Number::Plural);
-    println!("child (plural) -> {}", plural); // children
-    let plural = English::noun("die", &Number::Plural);
-    println!("die (plural) -> {}", plural); // children
-    let plural = English::noun("die2", &Number::Plural);
-    println!("die2 (plural) -> {}", plural); // children
-    //for adjs do bad2 bad3
-    let plural = English::adj("bad", &Degree::Comparative);
-    println!("bad (plural) -> {}", plural);
-    let plural = English::adj("bad2", &Degree::Comparative);
-    println!("bad2 (plural) -> {}", plural); // children
-    let plural = English::adj("bad3", &Degree::Comparative);
-    println!("bad3 (plural) -> {}", plural); // children
-
-    // Regular forms
+    // --- Nouns ---
+    // Regular plurals
     assert_eq!(English::noun("cat", &Number::Plural), "cats");
-}
+    assert_eq!(English::noun("bus", &Number::Plural), "buses");
+    assert_eq!(English::noun("box", &Number::Plural), "boxes");
 
-fn test_all_verb_conjugations() {
-    let verbs = vec!["walk", "run", "be", "eat", "lie", "lie2"];
+    // Irregular plurals
+    // Add a number 2-9 to the end of the word to try different forms.
+    assert_eq!(English::noun("child", &Number::Plural), "children");
+    assert_eq!(English::noun("mouse", &Number::Plural), "mice");
+    assert_eq!(English::noun("die", &Number::Plural), "dies");
+    assert_eq!(English::noun("die2", &Number::Plural), "dice");
 
-    let persons = vec![Person::First, Person::Second, Person::Third];
-    let numbers = vec![Number::Singular, Number::Plural];
-    let tenses = vec![Tense::Present, Tense::Past];
-    let forms = vec![Form::Finite, Form::Participle, Form::Infinitive];
+    // Invariant nouns
+    assert_eq!(English::noun("sheep", &Number::Plural), "sheep");
+    assert_eq!(English::noun("fish", &Number::Plural), "fish");
 
-    for verb_word in verbs {
-        println!("Testing verb: {}", verb_word);
-        for person in &persons {
-            for number in &numbers {
-                for tense in &tenses {
-                    for form in &forms {
-                        let result = English::verb(verb_word, person, number, tense, form);
-                        println!(
-                            "{:?} {:?} {:?} {:?} -> {}",
-                            person, number, tense, form, result
-                        );
-                    }
-                }
-            }
-        }
-    }
+    // --- Adjectives ---
+    // Regular adjectives
+    assert_eq!(English::adj("fast", &Degree::Comparative), "faster");
+    assert_eq!(English::adj("fast", &Degree::Superlative), "fastest");
+
+    // Irregular adjectives
+    // Add a number 2-9 to the end of the word to try different forms.
+    assert_eq!(English::adj("bad", &Degree::Comparative), "more bad");
+    assert_eq!(English::adj("bad", &Degree::Superlative), "most bad");
+    assert_eq!(English::adj("bad2", &Degree::Comparative), "badder");
+    assert_eq!(English::adj("bad2", &Degree::Superlative), "baddest");
+    assert_eq!(English::adj("bad3", &Degree::Comparative), "worse");
+    assert_eq!(English::adj("bad3", &Degree::Superlative), "worst");
+
+    // --- Verbs ---
+    // Regular verbs
+    assert_eq!(
+        English::verb(
+            "walk",
+            &Person::First,
+            &Number::Singular,
+            &Tense::Present,
+            &Form::Participle
+        ),
+        "walking"
+    );
+
+    // Irregular verbs
+    assert_eq!(
+        English::verb(
+            "be",
+            &Person::First,
+            &Number::Singular,
+            &Tense::Present,
+            &Form::Finite
+        ),
+        "am"
+    );
+    assert_eq!(
+        English::verb(
+            "go",
+            &Person::Third,
+            &Number::Plural,
+            &Tense::Past,
+            &Form::Participle
+        ),
+        "gone"
+    );
+    assert_eq!(
+        English::verb(
+            "lie",
+            &Person::First,
+            &Number::Singular,
+            &Tense::Past,
+            &Form::Finite
+        ),
+        "lay"
+    );
+    assert_eq!(
+        English::verb(
+            "lie2",
+            &Person::First,
+            &Number::Singular,
+            &Tense::Past,
+            &Form::Finite
+        ),
+        "lied"
+    );
+
+    // --- Pronouns ---
+    assert_eq!(
+        English::pronoun(
+            &Person::First,
+            &Number::Singular,
+            &Gender::Neuter,
+            &Case::PersonalPossesive
+        ),
+        "my"
+    );
+    assert_eq!(
+        English::pronoun(
+            &Person::First,
+            &Number::Singular,
+            &Gender::Neuter,
+            &Case::Possessive
+        ),
+        "mine"
+    );
+
+    // --- Possessives ---
+    assert_eq!(English::add_possessive("dog"), "dog's");
+    assert_eq!(English::add_possessive("dogs"), "dogs'");
+
+    // --- Mixed Sentence Example ---
+    let subject = English::noun("child", &Number::Plural);
+    let verb = English::verb(
+        "play",
+        &Person::Third,
+        &Number::Plural,
+        &Tense::Past,
+        &Form::Finite,
+    );
+    let object = English::noun("die2", &Number::Plural);
+
+    let sentence = format!("The {} {} with {}.", subject, verb, object);
+    assert_eq!(sentence, "The children played with dice.");
 }
