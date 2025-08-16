@@ -6,21 +6,27 @@
 
 **english** is a blazing fast English morphology library written in Rust with zero external dependencies. It provides accurate verb conjugation and noun/adjective declension based on processed Wiktionary data, making it ideal for procedural text generation.
 
-## Speed and Accuracy
-In-sample evaluation reveals the following accuracy of the english inflector (extractor/main/check_*):
+## ⚡ Speed and Accuracy
 
-Nouns: 235719 / 236150 plurals correctly guessed (99.82%)
+### Accuracy
+In-sample evaluation of the English inflector (`extractor/main/check_*`) shows:
 
-Verbs: 154711 / 156474 distinct verb forms correctly guessed (98.87%)
+| Part of Speech | Correct / Total | Accuracy |
+|----------------|-----------------|-----------|
+| **Nouns**      | 235,719 / 236,150 | **99.82%** |
+| **Verbs**      | 154,711 / 156,474 | **98.87%** |
+| **Adjectives** | 118,136 / 118,221 | **99.92%** |
 
-Adjectives: 118136 / 118221 comparative and superlative forms correctly guessed (99.92%)
+---
 
-Preliminary performance benchmarking reveals the following speeds of the english inflector (examples/speedmark.rs):
+### Performance
+Preliminary benchmarking (`examples/speedmark.rs`) yields the following speeds:
 
-[verb] Throughput: 8949672 calls/sec | Time per call: 111.74 ns
-[noun] Throughput: 6245139 calls/sec | Time per call: 160.12 ns
-[adjective] Throughput: 9448375 calls/sec | Time per call: 105.84 ns
-
+| Part of Speech | Throughput (calls/sec) | Time per Call |
+|----------------|-------------------------|---------------|
+| **Verbs**      | 8,949,672               | 111.74 ns     |
+| **Nouns**      | 6,245,139               | 160.12 ns     |
+| **Adjectives** | 9,448,375               | 105.84 ns     |
 
 
 ## 📦 Installation
