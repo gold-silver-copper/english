@@ -3,11 +3,11 @@ use core::fmt;
 use english_core::EnglishCore;
 pub use english_core::grammar::*;
 mod nounsiki;
-pub use nounsiki::*;
+use nounsiki::*;
 mod verbsiki;
-pub use verbsiki::*;
+use verbsiki::*;
 mod adjiki;
-pub use adjiki::*;
+use adjiki::*;
 
 fn strip_trailing_number(word: &str) -> Option<String> {
     if let Some(last_char) = word.chars().last() {

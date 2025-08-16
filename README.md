@@ -25,24 +25,19 @@ fn main() {
     // --- Nouns ---
     // Regular plurals
     assert_eq!(English::noun("cat", &Number::Plural), "cats");
-    assert_eq!(English::noun("bus", &Number::Plural), "buses");
-    assert_eq!(English::noun("box", &Number::Plural), "boxes");
 
     // Irregular plurals
     // Add a number 2-9 to the end of the word to try different forms.
     assert_eq!(English::noun("child", &Number::Plural), "children");
-    assert_eq!(English::noun("mouse", &Number::Plural), "mice");
     assert_eq!(English::noun("die", &Number::Plural), "dies");
     assert_eq!(English::noun("die2", &Number::Plural), "dice");
 
     // Invariant nouns
     assert_eq!(English::noun("sheep", &Number::Plural), "sheep");
-    assert_eq!(English::noun("fish", &Number::Plural), "fish");
 
     // --- Adjectives ---
     // Regular adjectives
     assert_eq!(English::adj("fast", &Degree::Comparative), "faster");
-    assert_eq!(English::adj("fast", &Degree::Superlative), "fastest");
 
     // Irregular adjectives
     // Add a number 2-9 to the end of the word to try different forms.
@@ -146,8 +141,6 @@ fn main() {
     let sentence = format!("The {} {} with {}.", subject, verb, object);
     assert_eq!(sentence, "The children played with dice.");
 }
-
-
 ```
 
 ---
