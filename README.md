@@ -4,12 +4,12 @@
 [![Docs.rs](https://docs.rs/english/badge.svg)](https://docs.rs/english)
 ![License](https://img.shields.io/crates/l/english)
 
-**english** is a blazing fast English morphology library written in Rust with zero external dependencies. It provides accurate verb conjugation and noun/adjective declension based on processed Wiktionary data, making it ideal for procedural text generation.
+**english** is a blazing fast English morphology library written in Rust with zero external dependencies. It provides accurate verb conjugation and noun/adjective declension based on processed Wiktionary data, making it ideal for real-time procedural text generation.
 
 ## ⚡ Speed and Accuracy
 
 ### Accuracy
-In-sample evaluation of the English inflector (`extractor/main/check_*`) shows:
+In-sample evaluation of the English inflector (`extractor/main.rs/check_*`) shows:
 
 | Part of Speech | Correct / Total | Accuracy |
 |----------------|-----------------|-----------|
@@ -174,8 +174,8 @@ fn main() {
 
 * Combines optimized data generated from `extractor` with inflection logic from `english-core`
 * Pure Rust, no external dependencies
-* Fast binary search and compact data structures
-* Tiny binary footprint, perfect for embedded usage
+* Fast Binary search over pre-sorted arrays: `O(log n)` lookup.
+* Code generation ensures no runtime penalty.
 
 ### `english-core`
 
@@ -197,36 +197,10 @@ fn main() {
 
 ---
 
-## ✨ Features
-
-* ✅ High-accuracy inflection from real-world Wiktionary data
-* 🚀 Extremely fast: uses pre-sorted static arrays with binary search
-* ⚙️ Metaprogrammed: static sorted arrays generated at compile time
-* 🧩 Zero external dependencies — fully self-contained
-* 📦 Tiny and embeddable
-* 🧠 Ideal for procedural text generation
-
-## ⚡ Performance
-
-* Code generation ensures no runtime penalty.
-* Irregular forms stored in static slices.
-* Binary search over pre-sorted arrays: `O(log n)` lookup.
-
-This makes `english` suitable for high-performance tasks like:
-
-* Procedural text generation for games or other interactive media
-* NLP or AI pipelines
-
 ## Benchmarks
-In-sample evaluation reveals the following accuracy of the english inflector.
+Performance benchmarks were run on my M2 Max Macbook.
 
-Nouns: 235719 / 236150 plurals correctly guessed (99.82%)
-
-Verbs: 154711 / 156474 distinct verb forms correctly guessed (98.87%)
-
-Adjectives: 118136 / 118221 comparative and superlative forms correctly guessed (99.92%)
-
-Writing benchmarks for such a project is rather difficult and required opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of words may be inconsistent. This library includes a few uncountable words in its dataset, but not all. Uncountable words require special handling anyway. Any suggestions to improve the benchmarking are highly appreciated.
+Writing benchmarks and tests for such a project is rather difficult and required opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of words may be inconsistent. This library includes a few uncountable words in its dataset, but not all. Uncountable words require special handling anyway. Any suggestions to improve the benchmarking are highly appreciated.
 
 ## Obtaining Wiktionary Data and running the extractor
 https://github.com/tatuylonen/wiktextract
