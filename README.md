@@ -47,9 +47,6 @@ fn main() {
 
 ---
 
-
----
-
 ## 🔧 Crate Overview
 
 ### `english`
@@ -119,12 +116,21 @@ https://kaikki.org/dictionary/rawdata.html
 
 Download the raw wiktextract data from the kaikki website. In the extractor file point the functions to use the raw data.
 
-I am happy to anounce english, a library 8 months in the making. It allows you to nearly perfectly inflect any word in the english language, noun, adjective, or verb.
-
 ## Inspirations
 https://github.com/atteo/evo-inflector
 
 ## 📄 License
 
-MIT License © 2024 [gold-silver-copper](https://github.com/gold-silver-copper)
-Apache too sure
+- Code: Dual licensed under MIT and Apache © 2024 [gold-silver-copper](https://github.com/gold-silver-copper)
+  - [MIT](LICENSE-MIT)
+  - [Apache-2.0](LICENSE-APACHE)
+
+- Data: Wiktionary content is dual-licensed under
+  - [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+  - [GNU FDL](https://www.gnu.org/licenses/fdl-1.3.html)
+
+
+
+
+
+I am happy to anounce english, a library 8 months in the making. It allows you to nearly perfectly inflect any word in the english language, noun, adjective, or verb.
