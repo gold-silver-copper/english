@@ -10,6 +10,46 @@ This repository contains multiple tightly integrated crates working together to 
 
 ---
 
+## 📦 Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+english = "0.0.4"
+```
+
+Then in your code:
+
+```rust
+use english::*;
+
+fn main() {
+    // Conjugate a verb (handles irregulars)
+    let past = English::verb(
+        "eat",
+        &Person::Third,
+        &Number::Singular,
+        &Tense::Past,
+        &Form::Finite,
+    );
+    println!("eat (past) -> {}", past); // ate
+
+    // Decline a noun (handles irregulars)
+    let plural = English::noun("child", &Number::Plural);
+    println!("child (plural) -> {}", plural); // children
+
+    // Regular forms
+    assert_eq!(English::noun("cat", &Number::Plural), "cats");
+}
+
+```
+
+---
+
+
+---
+
 ## 🔧 Crate Overview
 
 ### `english`
@@ -50,45 +90,6 @@ This repository contains multiple tightly integrated crates working together to 
 * 📦 Tiny and embeddable
 * 🧠 Ideal for procedural text generation
 
----
-
-## 📦 Installation
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-english = "0.0.4"
-```
-
-Then in your code:
-
-```rust
-use english::*;
-
-fn main() {
-    // Conjugate a verb (handles irregulars)
-    let past = English::verb(
-        "eat",
-        &Person::Third,
-        &Number::Singular,
-        &Tense::Past,
-        &Form::Finite,
-    );
-    println!("eat (past) -> {}", past); // ate
-
-    // Decline a noun (handles irregulars)
-    let plural = English::noun("child", &Number::Plural);
-    println!("child (plural) -> {}", plural); // children
-
-    // Regular forms
-    assert_eq!(English::noun("cat", &Number::Plural), "cats");
-}
-
-```
-
----
-
 ## ⚡ Performance
 
 * Code generation ensures no runtime penalty.
@@ -101,34 +102,27 @@ This makes `english` suitable for high-performance tasks like:
 * Procedural text generation for games or other interactive media
 * NLP or AI pipelines
 
-
-
-
----
 ## Benchmarks
 In-sample evaluation reveals the following accuracy of the english inflector.
 
 Nouns: 235719 / 236150 plurals correctly guessed (99.82%)
+
 Verbs: 154711 / 156474 distinct verb forms correctly guessed (98.87%)
+
 Adjectives: 118136 / 118221 comparative and superlative forms correctly guessed (99.92%)
 
 Writing benchmarks for such a project is rather difficult and required opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of some uncountable words may be inconsistent. This library includes a few uncountable words in its dataset, but no where close to all. Uncountable words require special handling anyway. Any suggestions to improve the benchmarking are highly appreciated.
 
----
-# Obtaining Wiktionary Data and running the extractor
+## Obtaining Wiktionary Data and running the extractor
 https://github.com/tatuylonen/wiktextract
 https://kaikki.org/dictionary/rawdata.html
 
 Download the raw wiktextract data from the kaikki website. In the extractor file point the functions to use the raw data.
 
-
 I am happy to anounce english, a library 8 months in the making. It allows you to nearly perfectly inflect any word in the english language, noun, adjective, or verb.
 
----
 ## Inspirations
 https://github.com/atteo/evo-inflector
-
----
 
 ## 📄 License
 
