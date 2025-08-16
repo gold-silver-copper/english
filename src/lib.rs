@@ -18,8 +18,26 @@ fn strip_trailing_number(word: &str) -> Option<String> {
     None
 }
 
+/// Entry point for English inflection and morphology.
+///
+/// This struct provides high-level methods for handling English
+/// nouns, verbs, adjectives, pronouns, and possessives.
+/// It delegates irregular forms to internal lookup tables
+/// and falls back on `EnglishCore` for regular inflection rules.
 pub struct English {}
 impl English {
+    /// Inflects a noun into singular or plural form.
+    ///
+    /// Handles irregular nouns (e.g., `"child" -> "children"`) and
+    /// falls back to regular pluralization rules when no override is found.
+    /// Strips trailing numbers used for sense disambiguation (`"die2" -> "dice"`).
+    ///
+    /// # Examples
+    /// ```rust
+    /// assert_eq!(English::noun("cat", &Number::Plural), "cats");
+    /// assert_eq!(English::noun("child", &Number::Plural), "children");
+    /// assert_eq!(English::noun("die2", &Number::Plural), "dice");
+    /// ```
     pub fn noun(word: &str, number: &Number) -> String {
         let base_word = strip_trailing_number(word).unwrap_or(word.to_string());
 
@@ -35,6 +53,19 @@ impl English {
         }
     }
 
+    /// Inflects an adjective into positive, comparative, or superlative form.
+    ///
+    /// Handles irregular adjectives (e.g., `"good" -> "better"/"best"`)
+    /// and falls back to regular periphrastic forms
+    /// (e.g., `"fun" -> "more fun"/"most fun"`).
+    /// Strips trailing numbers used for disambiguation (`"bad3"` -> `"worse"`).
+    ///
+    /// # Examples
+    /// ```rust
+    /// assert_eq!(English::adj("fast", &Degree::Comparative), "faster");
+    /// assert_eq!(English::adj("good", &Degree::Superlative), "best");
+    /// assert_eq!(English::adj("fun", &Degree::Comparative), "more fun");
+    /// ```
     pub fn adj(word: &str, degree: &Degree) -> String {
         let base_word = strip_trailing_number(word).unwrap_or(word.to_string());
         match degree {
@@ -56,6 +87,32 @@ impl English {
         }
     }
 
+    /// Conjugates a verb into the requested form.
+    ///
+    /// Handles irregular verbs (e.g., `"go" -> "went"`, `"eat" -> "ate"`)
+    /// and falls back to regular conjugation rules when no override is found.
+    /// Strips trailing numbers used for sense disambiguation (`"lie2"` -> `"lied"`).
+    ///
+    /// # Examples
+    /// ```rust
+    /// // Regular verb
+    /// assert_eq!(
+    ///     English::verb("walk", &Person::Third, &Number::Singular, &Tense::Present, &Form::Finite),
+    ///     "walks"
+    /// );
+    ///
+    /// // Irregular verb
+    /// assert_eq!(
+    ///     English::verb("eat", &Person::Third, &Number::Singular, &Tense::Past, &Form::Finite),
+    ///     "ate"
+    /// );
+    ///
+    /// // Participle
+    /// assert_eq!(
+    ///     English::verb("go", &Person::Third, &Number::Plural, &Tense::Past, &Form::Participle),
+    ///     "gone"
+    /// );
+    /// ```
     pub fn verb(
         word: &str,
         person: &Person,
@@ -84,9 +141,33 @@ impl English {
             None => EnglishCore::verb(&base_word, person, number, tense, form),
         }
     }
+    /// Returns the correct English pronoun for the given grammatical features.
+    ///
+    /// # Examples
+    /// ```rust
+    /// assert_eq!(
+    ///     English::pronoun(&Person::First, &Number::Singular, &Gender::Neutral, &Case::Nominative),
+    ///     "I"
+    /// );
+    /// assert_eq!(
+    ///     English::pronoun(&Person::Third, &Number::Singular, &Gender::Feminine, &Case::Nominative),
+    ///     "she"
+    /// );
+    /// assert_eq!(
+    ///     English::pronoun(&Person::Third, &Number::Plural, &Gender::Neutral, &Case::Nominative),
+    ///     "they"
+    /// );
+    /// ```
     pub fn pronoun(person: &Person, number: &Number, gender: &Gender, case: &Case) -> &'static str {
         EnglishCore::pronoun(person, number, gender, case)
     }
+    /// Adds an English possessive suffix (`'s` or `'`) to a word.
+    ///
+    /// # Examples
+    /// ```rust
+    /// assert_eq!(English::add_possessive("dog"), "dog's");
+    /// assert_eq!(English::add_possessive("dogs"), "dogs'");
+    /// ```
     pub fn add_possessive(word: &str) -> String {
         EnglishCore::add_possessive(word)
     }
