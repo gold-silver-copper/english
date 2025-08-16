@@ -102,22 +102,35 @@ This makes `english` suitable for high-performance tasks like:
 * NLP or AI pipelines
 
 
+
+
+---
+## Benchmarks
+In-sample evaluation reveals the following accuracy of the english inflector.
+
+Nouns: 235719 / 236150 plurals correctly guessed (99.82%)
+Verbs: 154711 / 156474 distinct verb forms correctly guessed (98.87%)
+Adjectives: 118136 / 118221 comparative and superlative forms correctly guessed (99.92%)
+
+Writing benchmarks for such a project is rather difficult and required opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of some uncountable words may be inconsistent. This library includes a few uncountable words in its dataset, but no where close to all. Uncountable words require special handling anyway. Any suggestions to improve the benchmarking are highly appreciated.
+
+---
+# Obtaining Wiktionary Data and running the extractor
+https://github.com/tatuylonen/wiktextract
+https://kaikki.org/dictionary/rawdata.html
+
+Download the raw wiktextract data from the kaikki website. In the extractor file point the functions to use the raw data.
+
+
+I am happy to anounce english, a library 8 months in the making. It allows you to nearly perfectly inflect any word in the english language, noun, adjective, or verb.
+
+---
+## Inspirations
+https://github.com/atteo/evo-inflector
+
 ---
 
 ## 📄 License
 
 MIT License © 2024 [gold-silver-copper](https://github.com/gold-silver-copper)
 Apache too sure
-
-
-## Inspirations
-https://github.com/atteo/evo-inflector
-
-
-## Benchmarks
-https://github.com/monolithpl/verb.forms.dictionary
-
-
-mention how to get wiktionary data from the finnish guy
-
-I am happy to anounce english, a library 8 months in the making. It allows you to nearly perfectly inflect any word in the english language, noun, adjective, or verb.
