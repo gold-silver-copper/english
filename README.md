@@ -4,7 +4,7 @@
 [![Docs.rs](https://docs.rs/english/badge.svg)](https://docs.rs/english)
 ![License](https://img.shields.io/crates/l/english)
 
-**english** is a blazing fast English morphology library written in Rust. It provides accurate verb conjugation and noun/adjective declension based on processed Wiktionary data, making it ideal for language processing and game development.
+**english** is a blazing fast English morphology library written in Rust with zero external dependencies. It provides accurate verb conjugation and noun/adjective declension based on processed Wiktionary data, making it ideal for procedural text generation.
 
 This repository contains multiple tightly integrated crates working together to deliver an efficient, dependency-free inflection engine. It was built by processing large English Wiktionary datasets to capture nearly all irregular forms. The implementation heavily uses Rust’s **metaprogramming (macros)** to generate efficient, data-driven code at compile time. Internally, it stores inflection rules in pre-sorted arrays and uses binary search for fast lookup. Importantly, it has **no external dependencies**, making it extremely lightweight and easy to embed in other projects.
 
@@ -122,8 +122,8 @@ https://github.com/atteo/evo-inflector
 ## 📄 License
 
 - Code: Dual licensed under MIT and Apache © 2024 [gold-silver-copper](https://github.com/gold-silver-copper)
-  - [MIT](LICENSE-MIT)
-  - [Apache-2.0](LICENSE-APACHE)
+  - [MIT](https://opensource.org/licenses/MIT)
+  - [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)
 
 - Data: Wiktionary content is dual-licensed under
   - [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
