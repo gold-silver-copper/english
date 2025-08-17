@@ -34,6 +34,15 @@ impl From<String> for Noun {
         }
     }
 }
+impl From<&String> for Noun {
+    fn from(s: &String) -> Self {
+        Noun {
+            head: s.clone(),
+            specifier: None,
+            complement: None,
+        }
+    }
+}
 
 impl From<&str> for Noun {
     fn from(s: &str) -> Self {
@@ -42,5 +51,10 @@ impl From<&str> for Noun {
             specifier: None,
             complement: None,
         }
+    }
+}
+impl From<&Noun> for Noun {
+    fn from(s: &Noun) -> Self {
+        s.clone()
     }
 }

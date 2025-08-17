@@ -10,6 +10,8 @@ mod adj_array;
 use adj_array::*;
 mod noun;
 pub use noun::*;
+mod verb;
+pub use verb::*;
 
 fn strip_trailing_number(word: &str) -> Option<String> {
     if let Some(last_char) = word.chars().last() {
@@ -128,32 +130,34 @@ impl English {
     ///     "gone"
     /// );
     /// ```
-    pub fn verb(
-        word: &str,
+    pub fn verb<T: Into<Verb>>(
+        wordish: T,
         person: &Person,
         number: &Number,
         tense: &Tense,
         form: &Form,
     ) -> String {
-        let base_word = strip_trailing_number(word).unwrap_or(word.to_string());
-        match get_verb_forms(word) {
+        let verb: Verb = wordish.into();
+        let base_word = strip_trailing_number(&verb.head).unwrap_or(verb.head.clone());
+        // Conjugate the head verb
+        let conjugated_head = match get_verb_forms(&verb.head) {
             Some(wordik) => match (person, number, tense, form) {
-                (_, _, _, Form::Infinitive) => {
-                    return base_word.to_string();
-                }
-
+                (_, _, _, Form::Infinitive) => base_word.clone(),
                 (Person::Third, Number::Singular, Tense::Present, Form::Finite) => {
                     wordik.0.to_string()
                 }
-                (_, _, Tense::Present, Form::Finite) => {
-                    return base_word.to_string();
-                }
+                (_, _, Tense::Present, Form::Finite) => base_word.clone(),
                 (_, _, Tense::Present, Form::Participle) => wordik.2.to_string(),
                 (_, _, Tense::Past, Form::Participle) => wordik.3.to_string(),
-
                 (_, _, Tense::Past, Form::Finite) => wordik.1.to_string(),
             },
             None => EnglishCore::verb(&base_word, person, number, tense, form),
+        };
+        // Reassemble phrasal verb with particle
+        if let Some(particle) = verb.particle {
+            format!("{} {}", conjugated_head, particle)
+        } else {
+            conjugated_head
         }
     }
     /// Returns the correct English pronoun for the given grammatical features.
@@ -194,7 +198,7 @@ impl English {
     /// assert_eq!(English::count("cat", 1), "cat");
     /// assert_eq!(English::count("cat", 2), "cats");
     /// ```
-    pub fn count(word: &str, count: u32) -> String {
+    pub fn count<T: Into<Noun>>(word: T, count: u32) -> String {
         if count == 1 {
             English::noun(word, &Number::Singular)
         } else {
@@ -209,7 +213,7 @@ impl English {
     /// assert_eq!(English::count("cat", 1), "1 cat");
     /// assert_eq!(English::count("cat", 2), "2 cats");
     /// ```
-    pub fn count_with_number(word: &str, count: u32) -> String {
+    pub fn count_with_number<T: Into<Noun>>(word: T, count: u32) -> String {
         format!("{} {}", count, English::count(word, count))
     }
 }

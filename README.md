@@ -25,7 +25,7 @@ Preliminary benchmarking (`examples/speedmark.rs`) yields the following speeds:
 | Part of Speech | Throughput (calls/sec) | Time per Call |
 |----------------|-------------------------|---------------|
 | **Verbs**      | 8,949,672               | 111.74 ns     |
-| **Nouns**      | 6,245,139               | 160.12 ns     |
+| **Nouns**      | 4,623,280               | 216.30 ns     |
 | **Adjectives** | 9,448,375               | 105.84 ns     |
 
 
@@ -205,7 +205,7 @@ fn main() {
 ## Benchmarks
 Performance benchmarks were run on my M2 Max Macbook.
 
-Writing benchmarks and tests for such a project is rather difficult and required opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of words may be inconsistent. This library includes a few uncountable words in its dataset, but not all. Uncountable words require special handling anyway. Any suggestions to improve the benchmarking are highly appreciated.
+Writing benchmarks and tests for such a project is rather difficult and requires opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of words may be inconsistent. This library includes a few uncountable words in its dataset, but not all. Uncountable words require special handling anyway. Take all benchmarks with a pound of salt, write your own tests for your own usecases. Any suggestions to improve the benchmarking are highly appreciated.
 
 ## 📦 Obtaining Wiktionary Data & Running the Extractor
 
@@ -219,7 +219,7 @@ This project relies on raw data extracted from Wiktionary.
 1. Download the **raw Wiktextract JSONL dump** (~20 GB) from [Kaikki.org](https://kaikki.org/dictionary/rawdata.html).
 2. Place the file somewhere accessible (e.g. `../rawwiki.jsonl`).
 3. From the `extractor` folder, run: `cargo run --release ../rawwiki.jsonl`
-4. Move the generated files adjiki.rs, nounsiki.rs, verbsiki.rs into the /src of english
+4. Move the generated files adj_array.rs, noun_array.rs, verb_array.rs into the /src of english
 
 ## Inspirations
 - https://github.com/atteo/evo-inflector

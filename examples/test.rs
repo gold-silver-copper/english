@@ -18,9 +18,10 @@ fn main() {
     // Invariant nouns
     assert_eq!(English::noun("sheep", &Number::Plural), "sheep");
 
-    // Complex nouns
-    let n = Noun::from("pair").with_complement("of jeans");
-    assert_eq!(English::count_with_number(n, 3), "3 pairs of jeans");
+    // Complex nouns, note that From<&str> is impl'd for Noun
+    // Note that noun(), count(), etc can work on both strings and Noun struct
+    let jeans = Noun::from("pair").with_complement("of jeans");
+    assert_eq!(English::count_with_number(jeans, 3), "3 pairs of jeans");
 
     // --- Adjectives ---
     // Regular adjectives
@@ -35,8 +36,23 @@ fn main() {
     assert_eq!(English::adj("bad3", &Degree::Comparative), "worse");
     assert_eq!(English::adj("bad3", &Degree::Superlative), "worst");
 
+    // Complex verbs, note that From<&str> is impl'd for Verb
+    let pick_up = Verb::from("pick").with_particle("up");
+
+    // Past tense, third person singular
+    assert_eq!(
+        English::verb(
+            &pick_up,
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Past,
+            &Form::Finite
+        ),
+        "picked up"
+    );
+
     // --- Verbs ---
-    // Regular verbs
+    // Regular verbs, note that verb() can be used on both strings and Verb struct
     assert_eq!(
         English::verb(
             "walk",
