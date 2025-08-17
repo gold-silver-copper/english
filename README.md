@@ -229,7 +229,7 @@ Writing benchmarks and tests for such a project is rather difficult and requires
 
 ## 📦 Obtaining Wiktionary Data & Running the Extractor
 
-This project relies on raw data extracted from Wiktionary. THE FOLLOWING STEPS ARE ONLY REQUIRED IF BUILDING COMPLETELY FROM SCRATCH.
+This project relies on raw data extracted from Wiktionary.
 
 - [Wiktextract (GitHub)](https://github.com/tatuylonen/wiktextract)
 - [Kaikki.org raw data](https://kaikki.org/dictionary/rawdata.html)
