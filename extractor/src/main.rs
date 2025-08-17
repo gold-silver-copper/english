@@ -67,16 +67,20 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let input_path = &args[1];
 
+    let filtered_json_path = "english_filtered.jsonl";
+
+    filter_english_entries(input_path, filtered_json_path);
+
     //let input_path = "../../english.jsonl";
 
-    check_noun_plurals(input_path, "noun_plural_check.csv")?;
-    check_verb_conjugations(input_path, "verbs_check.csv")?;
-    check_adjective_forms(input_path, "adj_check.csv")?;
+    check_noun_plurals(filtered_json_path, "noun_plural_check.csv")?;
+    check_verb_conjugations(filtered_json_path, "verbs_check.csv")?;
+    check_adjective_forms(filtered_json_path, "adj_check.csv")?;
 
-    extract_verb_conjugations_new(input_path, "verb_conjugations.csv")?;
-    extract_irregular_nouns(input_path, "nouns_with_plurals.csv")?;
+    extract_verb_conjugations_new(filtered_json_path, "verb_conjugations.csv")?;
+    extract_irregular_nouns(filtered_json_path, "nouns_with_plurals.csv")?;
 
-    extract_irregular_adjectives(input_path, "adjectives.csv")?;
+    extract_irregular_adjectives(filtered_json_path, "adjectives.csv")?;
     generate_adjectives_file("adjectives.csv", "adj_array.rs");
     generate_nouns_file("nouns_with_plurals.csv", "noun_array.rs");
     generate_verbs_file("verb_conjugations.csv", "verb_array.rs");
@@ -743,5 +747,31 @@ pub fn check_adjective_forms(input_path: &str, output_path: &str) -> Result<(), 
     writer.flush()?;
     println!("Done! Output written to {}", output_path);
     println!("total match amount: {} / {}", match_counter, total_counter);
+    Ok(())
+}
+
+pub fn filter_english_entries(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
+    let input = File::open(input_path)?;
+    let reader = BufReader::new(input);
+
+    let mut output = File::create(output_path)?;
+
+    for line in reader.lines() {
+        let line = line?;
+        let entry: Entry = match serde_json::from_str(&line) {
+            Ok(e) => e,
+            Err(_) => continue, // skip bad lines
+        };
+
+        // Keep only English words
+        if entry.lang_code != "en" {
+            continue;
+        }
+
+        // Write valid entry back as JSON
+        writeln!(output, "{}", serde_json::to_string(&entry)?)?;
+    }
+
+    println!("Filtered dataset saved to {}", output_path);
     Ok(())
 }
