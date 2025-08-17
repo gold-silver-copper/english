@@ -61,7 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
 
     if args.len() != 2 {
-        eprintln!("Usage: {} <rawwiki.jsonl> ", args[0]);
+        eprintln!("Usage: cargo run --release rawwiki.jsonl", args[0]);
         std::process::exit(1);
     }
 
@@ -77,9 +77,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     extract_irregular_nouns(input_path, "nouns_with_plurals.csv")?;
 
     extract_irregular_adjectives(input_path, "adjectives.csv")?;
-    generate_adjectives_file("adjectives.csv", "adjiki.rs");
-    generate_nouns_file("nouns_with_plurals.csv", "nounsiki.rs");
-    generate_verbs_file("verb_conjugations.csv", "verbsiki.rs");
+    generate_adjectives_file("adjectives.csv", "adj_array.rs");
+    generate_nouns_file("nouns_with_plurals.csv", "noun_array.rs");
+    generate_verbs_file("verb_conjugations.csv", "verb_array.rs");
     Ok(())
 }
 
