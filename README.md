@@ -206,11 +206,10 @@ Performance benchmarks were run on my M2 Max Macbook.
 Writing benchmarks and tests for such a project is rather difficult and required opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of words may be inconsistent. This library includes a few uncountable words in its dataset, but not all. Uncountable words require special handling anyway. Any suggestions to improve the benchmarking are highly appreciated.
 
 ## Obtaining Wiktionary Data and running the extractor
-https://github.com/tatuylonen/wiktextract
+- https://github.com/tatuylonen/wiktextract
+- https://kaikki.org/dictionary/rawdata.html
 
-https://kaikki.org/dictionary/rawdata.html
-
-Download the raw wiktextract data from the kaikki website. In the extractor file point the functions to use the raw data.
+Download the raw wiktextract data (20GB~) from the kaikki website. In the extractor file point the functions to use the raw data.
 
 ## Inspirations
 - https://github.com/atteo/evo-inflector

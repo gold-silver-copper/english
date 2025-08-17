@@ -2,6 +2,7 @@ use csv::Writer;
 use english_core::*;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
@@ -57,7 +58,16 @@ struct Entry {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let input_path = "../../english.jsonl";
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() != 2 {
+        eprintln!("Usage: {} <rawwiki.jsonl> ", args[0]);
+        std::process::exit(1);
+    }
+
+    let input_path = &args[1];
+
+    //let input_path = "../../english.jsonl";
 
     check_noun_plurals(input_path, "noun_plural_check.csv")?;
     check_verb_conjugations(input_path, "verbs_check.csv")?;
