@@ -10,6 +10,9 @@ fn main() {
     assert_eq!(English::noun("die", &Number::Plural), "dies");
     assert_eq!(English::noun("die2", &Number::Plural), "dice");
 
+    // Use count function for better ergonomics if needed
+    assert_eq!(English::count("man", 2), "men");
+
     // Invariant nouns
     assert_eq!(English::noun("sheep", &Number::Plural), "sheep");
 

@@ -171,4 +171,30 @@ impl English {
     pub fn add_possessive(word: &str) -> String {
         EnglishCore::add_possessive(word)
     }
+
+    /// Returns a noun inflected according to the count. Wrapper around English::noun()
+    ///
+    /// # Examples
+    /// ```rust
+    /// assert_eq!(English::count("cat", 1), "cat");
+    /// assert_eq!(English::count("cat", 2), "cats");
+    /// ```
+    pub fn count(word: &str, count: u32) -> String {
+        if count == 1 {
+            English::noun(word, &Number::Singular)
+        } else {
+            English::noun(word, &Number::Plural)
+        }
+    }
+
+    /// Returns a noun inflected according to the count, preserves the number in output
+    ///
+    /// # Examples
+    /// ```rust
+    /// assert_eq!(English::count("cat", 1), "1 cat");
+    /// assert_eq!(English::count("cat", 2), "2 cats");
+    /// ```
+    pub fn count_with_number(word: &str, count: u32) -> String {
+        format!("{} {}", count, English::count(word, count))
+    }
 }
