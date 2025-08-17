@@ -229,7 +229,7 @@ Writing benchmarks and tests for such a project is rather difficult and requires
 
 ## 📦 Obtaining Wiktionary Data & Running the Extractor
 
-This project relies on raw data extracted from Wiktionary.
+This project relies on raw data extracted from Wiktionary. Current version built with data from 8/17/2025.
 
 - [Wiktextract (GitHub)](https://github.com/tatuylonen/wiktextract)
 - [Kaikki.org raw data](https://kaikki.org/dictionary/rawdata.html)

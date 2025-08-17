@@ -69,13 +69,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let filtered_json_path = "english_filtered.jsonl";
 
-    filter_english_entries(input_path, filtered_json_path);
+    // filter_english_entries(input_path, filtered_json_path);
 
     //let input_path = "../../english.jsonl";
-
+    /*
     check_noun_plurals(filtered_json_path, "noun_plural_check.csv")?;
     check_verb_conjugations(filtered_json_path, "verbs_check.csv")?;
-    check_adjective_forms(filtered_json_path, "adj_check.csv")?;
+    check_adjective_forms(filtered_json_path, "adj_check.csv")?; */
 
     extract_verb_conjugations_new(filtered_json_path, "verb_conjugations.csv")?;
     extract_irregular_nouns(filtered_json_path, "nouns_with_plurals.csv")?;
@@ -344,6 +344,11 @@ fn extract_verb_conjugations_new(
         }
         let mut verbik = VerbParts::default();
         verbik.inf = infinitive.clone();
+
+        if verbik.inf == "can" {
+            println!("{:#?}", entry);
+        }
+
         if let Some(forms) = entry.forms {
             for form in &forms {
                 let tags = &form.tags;
@@ -393,7 +398,7 @@ fn extract_verb_conjugations_new(
             verbik.past = predicted_past.clone();
         }
         if verbik.past_part == "" {
-            verbik.past_part = predicted_past.clone();
+            verbik.past_part = verbik.past.clone();
         }
         if verbik.present_part == "" {
             verbik.present_part = predicted_participle.clone();
