@@ -8,6 +8,8 @@ mod verb_array;
 use verb_array::*;
 mod adj_array;
 use adj_array::*;
+mod noun;
+pub use noun::*;
 
 fn strip_trailing_number(word: &str) -> Option<String> {
     if let Some(last_char) = word.chars().last() {
@@ -16,74 +18,6 @@ fn strip_trailing_number(word: &str) -> Option<String> {
         }
     }
     None
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Noun {
-    head: String,
-    pre_mod: Option<String>,
-    post_mod: Option<String>,
-}
-
-impl Noun {
-    pub fn new(head: impl Into<String>) -> Self {
-        Noun {
-            head: head.into(),
-            pre_mod: None,
-            post_mod: None,
-        }
-    }
-
-    pub fn with_pre_mod(mut self, pre: impl Into<String>) -> Self {
-        self.pre_mod = Some(pre.into());
-        self
-    }
-
-    pub fn with_post_mod(mut self, post: impl Into<String>) -> Self {
-        self.post_mod = Some(post.into());
-        self
-    }
-
-    /// Returns the singular phrase.
-    pub fn singular(&self) -> String {
-        format!(
-            "{}{}{}",
-            self.pre_mod
-                .as_ref()
-                .map(|p| format!("{} ", p))
-                .unwrap_or_default(),
-            self.head,
-            self.post_mod
-                .as_ref()
-                .map(|p| format!(" {}", p))
-                .unwrap_or_default()
-        )
-    }
-
-    /// Returns the plural phrase.
-    pub fn plural(&self) -> String {
-        let plural_head = English::noun(&self.head, &Number::Plural);
-        format!(
-            "{}{}{}",
-            self.pre_mod
-                .as_ref()
-                .map(|p| format!("{} ", p))
-                .unwrap_or_default(),
-            plural_head,
-            self.post_mod
-                .as_ref()
-                .map(|p| format!(" {}", p))
-                .unwrap_or_default()
-        )
-    }
-
-    /// Returns the noun phrase with the correct number (singular/plural).
-    pub fn inflect(&self, number: &Number) -> String {
-        match number {
-            Number::Singular => self.singular(),
-            Number::Plural => self.plural(),
-        }
-    }
 }
 
 /// Entry point for English inflection and morphology.
@@ -106,19 +40,32 @@ impl English {
     /// assert_eq!(English::noun("child", &Number::Plural), "children");
     /// assert_eq!(English::noun("die2", &Number::Plural), "dice");
     /// ```
-    pub fn noun(word: &str, number: &Number) -> String {
-        let base_word = strip_trailing_number(word).unwrap_or(word.to_string());
+    pub fn noun<T: Into<Noun>>(word: T, number: &Number) -> String {
+        let noun: Noun = word.into();
+        let base_word = strip_trailing_number(&noun.head).unwrap_or(noun.head.clone());
 
-        match number {
+        let head_inflected = match number {
             Number::Singular => base_word,
             Number::Plural => {
-                if let Some(x) = get_plural(word) {
+                if let Some(x) = get_plural(&noun.head) {
                     x.to_string()
                 } else {
                     EnglishCore::noun(&base_word, number)
                 }
             }
-        }
+        };
+        format!(
+            "{}{}{}",
+            noun.specifier
+                .as_ref()
+                .map(|s| format!("{} ", s))
+                .unwrap_or_default(),
+            head_inflected,
+            noun.complement
+                .as_ref()
+                .map(|c| format!(" {}", c))
+                .unwrap_or_default()
+        )
     }
 
     /// Inflects an adjective into positive, comparative, or superlative form.

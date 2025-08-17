@@ -18,6 +18,10 @@ fn main() {
     // Invariant nouns
     assert_eq!(English::noun("sheep", &Number::Plural), "sheep");
 
+    // Complex nouns
+    let n = Noun::from("pair").with_complement("of jeans");
+    assert_eq!(English::count_with_number(n, 3), "3 pairs of jeans");
+
     // --- Adjectives ---
     // Regular adjectives
     assert_eq!(English::adj("fast", &Degree::Comparative), "faster");
