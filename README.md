@@ -205,11 +205,19 @@ Performance benchmarks were run on my M2 Max Macbook.
 
 Writing benchmarks and tests for such a project is rather difficult and required opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of words may be inconsistent. This library includes a few uncountable words in its dataset, but not all. Uncountable words require special handling anyway. Any suggestions to improve the benchmarking are highly appreciated.
 
-## Obtaining Wiktionary Data and running the extractor
-- https://github.com/tatuylonen/wiktextract
-- https://kaikki.org/dictionary/rawdata.html
+## 📦 Obtaining Wiktionary Data & Running the Extractor
 
-Download the raw wiktextract data (20GB~) from the kaikki website. In the extractor file point the functions to use the raw data.
+This project relies on raw data extracted from Wiktionary.
+
+- [Wiktextract (GitHub)](https://github.com/tatuylonen/wiktextract)
+- [Kaikki.org raw data](https://kaikki.org/dictionary/rawdata.html)
+
+### Steps
+
+1. Download the **raw Wiktextract JSONL dump** (~20 GB) from [Kaikki.org](https://kaikki.org/dictionary/rawdata.html).
+2. Place the file somewhere accessible (e.g. `../rawwiki.jsonl`).
+3. From the `extractor` folder, run:
+   `cargo run --release ../rawwiki.jsonl`
 
 ## Inspirations
 - https://github.com/atteo/evo-inflector
