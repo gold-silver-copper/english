@@ -55,6 +55,8 @@ fn main() {
 
     // Use count function for better ergonomics if needed
     assert_eq!(English::count("man", 2), "men");
+    // Use count_with_number function to preserve the number
+    assert_eq!(English::count_with_number("nickel", 3), "3 nickels");
 
     // Invariant nouns
     assert_eq!(English::noun("sheep", &Number::Plural), "sheep");
@@ -216,8 +218,8 @@ This project relies on raw data extracted from Wiktionary.
 
 1. Download the **raw Wiktextract JSONL dump** (~20 GB) from [Kaikki.org](https://kaikki.org/dictionary/rawdata.html).
 2. Place the file somewhere accessible (e.g. `../rawwiki.jsonl`).
-3. From the `extractor` folder, run:
-   `cargo run --release ../rawwiki.jsonl`
+3. From the `extractor` folder, run: `cargo run --release ../rawwiki.jsonl`
+4. Move the generated files adjiki.rs, nounsiki.rs, verbsiki.rs into the /src of english
 
 ## Inspirations
 - https://github.com/atteo/evo-inflector

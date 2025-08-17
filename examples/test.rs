@@ -12,6 +12,8 @@ fn main() {
 
     // Use count function for better ergonomics if needed
     assert_eq!(English::count("man", 2), "men");
+    // Use count_with_number function to preserve the number
+    assert_eq!(English::count_with_number("nickel", 3), "3 nickels");
 
     // Invariant nouns
     assert_eq!(English::noun("sheep", &Number::Plural), "sheep");
