@@ -61,7 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
 
     if args.len() != 2 {
-        eprintln!("Usage: cargo run --release rawwiki.jsonl", args[0]);
+        eprintln!("Usage: cargo run --release rawwiki.jsonl");
         std::process::exit(1);
     }
 
@@ -513,7 +513,7 @@ pub fn check_noun_plurals(input_path: &str, output_path: &str) -> Result<(), Box
             total_counter += 1;
             let mut matched = false;
             for variant in &variants {
-                let generated_plural = English::noun(&variant, &Number::Plural);
+                let generated_plural = English::noun(variant, &Number::Plural);
                 matched = generated_plural == wiki_plural;
                 if matched {
                     match_counter += 1;
