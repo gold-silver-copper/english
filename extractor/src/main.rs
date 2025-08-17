@@ -769,7 +769,7 @@ pub fn filter_english_entries(input_path: &str, output_path: &str) -> Result<(),
         }
 
         // Write valid entry back as JSON
-        writeln!(output, "{}", serde_json::to_string(&entry)?)?;
+        writeln!(output, "{}", line)?;
     }
 
     println!("Filtered dataset saved to {}", output_path);
