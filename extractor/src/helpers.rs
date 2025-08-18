@@ -23,7 +23,9 @@ pub static BAD_TAGS: &[&str] = &[
     "sometimes",
     "colloquial",
 ];
-//pub static BAD_CHARS: &[&str] = &[".", "/", "&", " ", "'", "-", "#", "@", "`", "*", "%", "("];
+pub static BAD_CHARS: &[&str] = &[
+    ".", "/", "&", " ", "'", "-", "#", "@", "`", "*", "%", "(", "!",
+];
 
 pub fn contains_bad_tag(words: Vec<String>) -> bool {
     for word in words {
@@ -36,6 +38,11 @@ pub fn contains_bad_tag(words: Vec<String>) -> bool {
 
 /// Returns true if the input contains any non-alphabetic character.
 pub fn contains_bad_chars(input: &str) -> bool {
+    for x in BAD_CHARS.iter() {
+        if input.contains(x) {
+            return true;
+        }
+    }
     !input.chars().all(|c| c.is_alphabetic())
 }
 
@@ -110,7 +117,7 @@ pub fn common_prefix_len(a: &str, b: &str) -> usize {
 pub fn suffix_rule(singular: &str, plural: &str) -> (String, String) {
     let prefix_len = common_prefix_len(singular, plural);
     let (singular_suffix, plural_suffix) = if prefix_len > 0 {
-        (&singular[prefix_len..], &plural[prefix_len..])
+        (&singular[prefix_len - 1..], &plural[prefix_len - 1..])
     } else {
         (&singular[prefix_len..], &plural[prefix_len..])
     };

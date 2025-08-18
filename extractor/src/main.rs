@@ -23,14 +23,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let filtered_json_path = "english_filtered.jsonl";
 
-    insane_noun(filtered_json_path, "insane_noun.csv")?;
-
-    // filter_english_entries(input_path, filtered_json_path);
+    //filter_english_entries(input_path, filtered_json_path);
 
     //let input_path = "../../english.jsonl";
-    /* check_noun_plurals(filtered_json_path, "noun_plural_check.csv")?;
+    check_noun_plurals(filtered_json_path, "noun_plural_check.csv")?;
     check_verb_conjugations(filtered_json_path, "verbs_check.csv")?;
-    check_adjective_forms(filtered_json_path, "adj_check.csv")?; */
+    check_adjective_forms(filtered_json_path, "adj_check.csv")?;
 
     extract_verb_conjugations_new(filtered_json_path, "verb_conjugations.csv")?;
     extract_irregular_nouns(filtered_json_path, "nouns_with_plurals.csv")?;
@@ -692,60 +690,5 @@ pub fn filter_english_entries(input_path: &str, output_path: &str) -> Result<(),
     }
 
     println!("Filtered dataset saved to {}", output_path);
-    Ok(())
-}
-
-/// Extracts irregular noun plurals and writes them to a CSV.
-fn insane_noun(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
-    let mut freq: HashMap<(String, String), usize> = HashMap::new();
-    let (reader, mut writer) = base_setup(input_path, output_path);
-    writer.write_record(&["word", "plural", "frequency"])?;
-
-    for line in reader.lines() {
-        let line = line?;
-        let entry: Entry = match serde_json::from_str(&line) {
-            Ok(e) => e,
-            Err(e) => {
-                println!("{:#?}", e);
-                continue;
-            }
-        };
-
-        if !entry_is_proper(&entry, "noun") {
-            continue;
-        }
-
-        let infinitive = entry.word.to_lowercase();
-
-        if let Some(forms) = entry.forms {
-            for form in &forms {
-                let tags = &form.tags;
-
-                let entry_form = form.form.to_lowercase();
-                if entry_form == "dubious" {
-                    continue;
-                }
-                if !word_is_proper(&entry_form) || contains_bad_tag(tags.clone()) {
-                    continue;
-                }
-
-                if tags.contains(&"plural".into()) {
-                    let rule = suffix_rule(&infinitive, &entry_form);
-                    *freq.entry(rule).or_insert(0) += 1;
-                }
-            }
-        }
-    }
-
-    // Collect into Vec and sort by frequency (descending)
-    let mut freq_vec: Vec<((String, String), usize)> = freq.into_iter().collect();
-    freq_vec.sort_by(|a, b| b.1.cmp(&a.1));
-
-    for ((singular_suffix, plural_suffix), count) in freq_vec {
-        writer.write_record(&[singular_suffix, plural_suffix, count.to_string()])?;
-    }
-
-    writer.flush()?;
-    println!("Done! Output written to {}", output_path);
     Ok(())
 }

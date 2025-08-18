@@ -131,11 +131,12 @@ fn main() {
     assert_eq!(English::add_possessive("dogs"), "dogs'");
 
     // --- Mixed Sentence Example ---
-    let subject = English::noun("child", &Number::Plural);
+    let subject_number = Number::Plural;
+    let subject = English::noun("child", &subject_number);
     let verb = English::verb(
         "play",
         &Person::Third,
-        &Number::Plural,
+        &subject_number,
         &Tense::Past,
         &Form::Finite,
     );
