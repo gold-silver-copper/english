@@ -2,13 +2,13 @@ use english::*;
 fn main() {
     // --- Nouns ---
     // Regular plurals
-    assert_eq!(English::insane_noun("cat", &Number::Plural), "cats");
+    assert_eq!(English::noun("cat", &Number::Plural), "cats");
 
     // Irregular plurals
     // Add a number  to the end of the word to try different forms.
-    assert_eq!(English::insane_noun("child3", &Number::Plural), "children");
-    assert_eq!(English::insane_noun("die", &Number::Plural), "dies");
-    assert_eq!(English::insane_noun("die17", &Number::Plural), "dice");
+    assert_eq!(English::noun("child3", &Number::Plural), "children");
+    assert_eq!(English::noun("die", &Number::Plural), "dies");
+    assert_eq!(English::noun("die17", &Number::Plural), "dice");
 
     // Use count function for better ergonomics if needed
     assert_eq!(English::count("man2", 2), "men");
@@ -16,7 +16,7 @@ fn main() {
     assert_eq!(English::count_with_number("nickel", 3), "3 nickels");
 
     // Invariant nouns
-    assert_eq!(English::insane_noun("sheep2", &Number::Plural), "sheep");
+    assert_eq!(English::noun("sheep2", &Number::Plural), "sheep");
 
     // Complex nouns, note that From<&str> is impl'd for Noun
     // Note that noun(), count(), etc can work on both strings and Noun struct
@@ -131,7 +131,7 @@ fn main() {
     assert_eq!(English::add_possessive("dogs"), "dogs'");
 
     // --- Mixed Sentence Example ---
-    let subject = English::insane_noun("child", &Number::Plural);
+    let subject = English::noun("child", &Number::Plural);
     let verb = English::verb(
         "play",
         &Person::Third,
@@ -139,7 +139,7 @@ fn main() {
         &Tense::Past,
         &Form::Finite,
     );
-    let object = English::insane_noun("die2", &Number::Plural);
+    let object = English::noun("die2", &Number::Plural);
 
     let sentence = format!("The {} {} with {}.", subject, verb, object);
     assert_eq!(sentence, "The children played with dice.");

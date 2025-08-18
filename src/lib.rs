@@ -15,32 +15,7 @@ pub use noun::*;
 mod verb;
 pub use verb::*;
 
-//could make this not an option
-fn strip_trailing_number(word: &str) -> Option<String> {
-    if let Some(last_char) = word.chars().last() {
-        if last_char.is_ascii_digit() {
-            return Some(word[..word.len() - 1].to_string());
-        }
-    }
-    None
-}
-
-/// Strips a trailing ASCII digit from a word, if present.
-///
-/// Returns a tuple `(word_without_number, Some(number))` if a trailing digit exists,
-/// otherwise `(original_word, None)`.
-pub fn strip_trailing_number2(word: &str) -> (String, Option<u32>) {
-    if let Some(last_char) = word.chars().last() {
-        if last_char.is_ascii_digit() {
-            let number = last_char.to_digit(10);
-            let stripped = word[..word.len() - last_char.len_utf8()].to_string();
-            return (stripped, number);
-        }
-    }
-    (word.to_string(), None)
-}
-
-pub fn strip_trailing_number3(word: &str) -> (String, Option<u32>) {
+pub fn strip_trailing_number(word: &str) -> (String, Option<u32>) {
     let mut chars = word.char_indices().rev();
     let mut end = word.len();
 
@@ -84,9 +59,9 @@ impl English {
     /// assert_eq!(English::noun("child", &Number::Plural), "children");
     /// assert_eq!(English::noun("die2", &Number::Plural), "dice");
     /// ```
-    pub fn insane_noun<T: Into<Noun>>(word: T, number: &Number) -> String {
+    pub fn noun<T: Into<Noun>>(word: T, number: &Number) -> String {
         let noun: Noun = word.into();
-        let (base_word, num) = strip_trailing_number3(&noun.head);
+        let (base_word, num) = strip_trailing_number(&noun.head);
         let mut num = num.unwrap_or(1);
 
         let head_inflected = match number {
@@ -138,7 +113,7 @@ impl English {
     /// assert_eq!(English::adj("fun", &Degree::Comparative), "more fun");
     /// ```
     pub fn adj(word: &str, degree: &Degree) -> String {
-        let base_word = strip_trailing_number(word).unwrap_or(word.to_string());
+        let (base_word, _) = strip_trailing_number(word);
         match degree {
             Degree::Positive => base_word.to_string(),
             Degree::Comparative => {
@@ -192,7 +167,8 @@ impl English {
         form: &Form,
     ) -> String {
         let verb: Verb = wordish.into();
-        let base_word = strip_trailing_number(&verb.head).unwrap_or(verb.head.clone());
+        let (base_word, _) = strip_trailing_number(&verb.head);
+
         // Conjugate the head verb
         let conjugated_head = match get_verb_forms(&verb.head) {
             Some(wordik) => match (person, number, tense, form) {
@@ -254,9 +230,9 @@ impl English {
     /// ```
     pub fn count<T: Into<Noun>>(word: T, count: u32) -> String {
         if count == 1 {
-            English::insane_noun(word, &Number::Singular)
+            English::noun(word, &Number::Singular)
         } else {
-            English::insane_noun(word, &Number::Plural)
+            English::noun(word, &Number::Plural)
         }
     }
 
