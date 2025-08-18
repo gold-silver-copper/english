@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     insane_noun(filtered_json_path, "insane_noun.csv")?;
     generate_insane_file("insane_noun.csv", "insane_array.rs")?;
-    // check_noun_plurals(filtered_json_path, "noun_plural_check.csv")?;
+    check_noun_plurals(filtered_json_path, "noun_plural_check.csv")?;
     check_insane_plurals(filtered_json_path, "insane_check.csv")?;
 
     // filter_english_entries(input_path, filtered_json_path);
@@ -42,6 +42,88 @@ fn main() -> Result<(), Box<dyn Error>> {
     generate_adjectives_file("adjectives.csv", "adj_array.rs")?;
     generate_nouns_file("nouns_with_plurals.csv", "noun_array.rs")?;
     generate_verbs_file("verb_conjugations.csv", "verb_array.rs")?;*/
+    Ok(())
+}
+
+/// Extracts irregular noun plurals and writes them to a CSV.
+fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
+    let mut forms_map: HashMap<String, HashSet<String>> = HashMap::new();
+
+    let (reader, mut writer) = base_setup(input_path, output_path);
+    writer.write_record(&["word", "plural"])?;
+
+    for line in reader.lines() {
+        let line = line?;
+        let entry: Entry = match serde_json::from_str(&line) {
+            Ok(e) => e,
+            Err(e) => {
+                println!("{:#?}", e);
+                continue;
+            }
+        };
+
+        if !entry_is_proper(&entry, "noun") {
+            continue;
+        }
+
+        let infinitive = entry.word.to_lowercase();
+
+        if !forms_map.contains_key(&infinitive) {
+            forms_map.insert(infinitive.clone(), HashSet::new());
+        }
+
+        let mut plural_found = false;
+        if let Some(forms) = entry.forms {
+            for form in &forms {
+                let tags = &form.tags;
+
+                let entry_form = form.form.to_lowercase();
+                if entry_form == "dubious" {
+                    continue;
+                }
+                if !word_is_proper(&entry_form) || contains_bad_tag(tags.clone()) {
+                    continue;
+                }
+
+                if tags.contains(&"plural".into()) {
+                    forms_map
+                        .get_mut(&infinitive)
+                        .unwrap()
+                        .insert(entry_form.clone());
+                }
+            }
+        }
+    }
+
+    for (inf, setik) in forms_map.iter_mut() {
+        let predicted_plural = EnglishCore::pluralize_noun(&inf);
+        if setik.is_empty() {
+            continue;
+        }
+        let alr_cont = setik.remove(&predicted_plural);
+        let mut index = match alr_cont {
+            true => 2,
+            false => 1,
+        };
+        let mut sorted_vec: Vec<String> = setik.clone().into_iter().collect();
+        sorted_vec.sort(); // uses Ord for sorting
+        for thing in sorted_vec.iter() {
+            let word_key = if index == 1 {
+                inf.clone()
+            } else {
+                format!("{inf}{index}")
+            };
+            let keyd_struct = [word_key.clone(), thing.clone()];
+
+            if index < 10 {
+                writer.write_record(&keyd_struct)?;
+            }
+            index += 1;
+        }
+    }
+
+    writer.flush()?;
+    println!("Done! Output written to {}", output_path);
     Ok(())
 }
 
@@ -306,6 +388,73 @@ fn extract_verb_conjugations_new(
 
     writer.flush()?;
     println!("Done! Output written to {}", output_path);
+    Ok(())
+}
+
+pub fn check_noun_plurals(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
+    use english::*;
+    let (reader, mut writer) = base_setup(input_path, output_path);
+    writer.write_record(&["wiki_single", "wiktionary_plural"])?;
+
+    let mut total_counter = 0;
+    let mut match_counter = 0;
+
+    for line in reader.lines() {
+        let line = line?;
+        let entry: Entry = match serde_json::from_str(&line) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+
+        // Only proper English nouns
+        if !entry_is_proper(&entry, "noun") {
+            continue;
+        }
+        let lowercased_entry = entry.word.to_lowercase();
+
+        // Gather all plural forms from Wiktionary
+        let mut wiktionary_plurals = Vec::new();
+        if let Some(forms) = entry.forms {
+            for form in forms {
+                if form.tags.contains(&"plural".into())
+                //    && !contains_bad_tag(form.tags.clone())
+                //   && word_is_proper(&form.form)
+                {
+                    wiktionary_plurals.push(form.form.to_lowercase());
+                }
+            }
+        }
+        if wiktionary_plurals.is_empty() {
+            continue;
+        }
+
+        // Try base word and numbered variants
+        let mut variants = vec![lowercased_entry.clone()];
+        for i in 2..=9 {
+            variants.push(format!("{}{}", lowercased_entry, i));
+        }
+
+        for wiki_plural in &wiktionary_plurals {
+            let wiki_plural = wiki_plural.to_lowercase();
+            total_counter += 1;
+            let mut matched = false;
+            for variant in &variants {
+                let generated_plural = English::noun(variant, &Number::Plural);
+                matched = generated_plural == wiki_plural;
+                if matched {
+                    match_counter += 1;
+                    break;
+                }
+            }
+            if !matched {
+                writer.write_record(&[lowercased_entry.clone(), wiki_plural.clone()])?;
+            }
+        }
+    }
+
+    writer.flush()?;
+    println!("Done! Output written to {}", output_path);
+    println!("total match amount: {} / {}", match_counter, total_counter);
     Ok(())
 }
 
@@ -652,7 +801,7 @@ pub fn check_insane_plurals(input_path: &str, output_path: &str) -> Result<(), B
             total_counter += 1;
             let mut matched = false;
             for variant in &variants {
-                let generated_plural = English::noun(variant, &Number::Plural);
+                let generated_plural = English::insane_noun(variant, &Number::Plural);
                 matched = generated_plural == wiki_plural;
                 if matched {
                     match_counter += 1;
