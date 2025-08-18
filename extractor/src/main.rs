@@ -274,15 +274,24 @@ fn extract_verb_conjugations_new(
                     verbik.third = entry_form.clone();
                 }
 
-                if tags.contains(&"past".into()) && !tags.contains(&"participle".into()) {
+                if tags.contains(&"past".into())
+                    && !tags.contains(&"participle".into())
+                    && verbik.past == ""
+                {
                     verbik.past = entry_form.clone();
                 }
 
-                if tags.contains(&"participle".into()) && tags.contains(&"present".into()) {
+                if tags.contains(&"participle".into())
+                    && tags.contains(&"present".into())
+                    && verbik.present_part == ""
+                {
                     verbik.present_part = entry_form.clone();
                 }
 
-                if tags.contains(&"participle".into()) && tags.contains(&"past".into()) {
+                if tags.contains(&"participle".into())
+                    && tags.contains(&"past".into())
+                    && verbik.past_part == ""
+                {
                     verbik.past_part = entry_form.clone();
                 }
             }
