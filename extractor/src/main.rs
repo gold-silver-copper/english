@@ -158,11 +158,11 @@ fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(
                     continue;
                 }
 
-                if tags.contains(&"comparative".into()) {
+                if tags.contains(&"comparative".into()) && adjik.comparative == "" {
                     adjik.comparative = entry_form.clone();
                 }
 
-                if tags.contains(&"superlative".into()) {
+                if tags.contains(&"superlative".into()) && adjik.superlative == "" {
                     adjik.superlative = entry_form.clone();
                 }
             }
