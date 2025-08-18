@@ -272,6 +272,7 @@ fn extract_verb_conjugations_new(
                 if tags.contains(&"third-person".into())
                     && tags.contains(&"singular".into())
                     && tags.contains(&"present".into())
+                    && !has_third
                 {
                     has_third = true;
                     verbik.third = entry_form.clone();
