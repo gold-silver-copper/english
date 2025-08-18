@@ -110,7 +110,7 @@ pub fn common_prefix_len(a: &str, b: &str) -> usize {
 pub fn suffix_rule(singular: &str, plural: &str) -> (String, String) {
     let prefix_len = common_prefix_len(singular, plural);
     let (singular_suffix, plural_suffix) = if prefix_len > 0 {
-        (&singular[prefix_len - 1..], &plural[prefix_len - 1..])
+        (&singular[prefix_len..], &plural[prefix_len..])
     } else {
         (&singular[prefix_len..], &plural[prefix_len..])
     };
