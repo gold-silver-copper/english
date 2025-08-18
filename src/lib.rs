@@ -2,7 +2,8 @@ use core::fmt;
 
 use english_core::EnglishCore;
 pub use english_core::grammar::*;
-
+mod noun_array;
+use noun_array::*;
 mod insane_array;
 use insane_array::*;
 mod verb_array;
