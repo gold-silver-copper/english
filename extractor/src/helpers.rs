@@ -23,7 +23,7 @@ pub static BAD_TAGS: &[&str] = &[
     "sometimes",
     "colloquial",
 ];
-pub static BAD_CHARS: &[&str] = &[".", "/", "&", " ", "'", "-", "#", "@", "`", "*"];
+//pub static BAD_CHARS: &[&str] = &[".", "/", "&", " ", "'", "-", "#", "@", "`", "*", "%", "("];
 
 pub fn contains_bad_tag(words: Vec<String>) -> bool {
     for word in words {
@@ -34,9 +34,11 @@ pub fn contains_bad_tag(words: Vec<String>) -> bool {
     false
 }
 
+/// Returns true if the input contains any non-alphabetic character.
 pub fn contains_bad_chars(input: &str) -> bool {
-    BAD_CHARS.iter().any(|&bad| input.contains(bad))
+    !input.chars().all(|c| c.is_alphabetic())
 }
+
 pub fn contains_number(s: &str) -> bool {
     s.chars().any(|c| c.is_numeric())
 }
