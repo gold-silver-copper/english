@@ -5,6 +5,7 @@ fn main() {
     benchmark_verb();
     benchmark_noun();
     benchmark_adj();
+    benchmark_insane();
 }
 use std::hint::black_box;
 use std::time::Instant;
@@ -25,6 +26,13 @@ pub fn benchmark_noun() {
     let words = ["cat", "child", "mouse", "bus", "sheep", "fish"];
 
     run_benchmark("noun", &words, |w| English::noun(w, &Number::Plural));
+}
+pub fn benchmark_insane() {
+    let words = ["cat", "child", "mouse", "bus", "sheep", "fish"];
+
+    run_benchmark("insane", &words, |w| {
+        English::insane_noun(w, &Number::Plural)
+    });
 }
 
 pub fn benchmark_adj() {
