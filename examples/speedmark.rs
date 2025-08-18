@@ -28,7 +28,7 @@ pub fn benchmark_noun() {
     run_benchmark("noun", &words, |w| English::noun(w, &Number::Plural));
 } */
 pub fn benchmark_insane() {
-    let words = ["cat3", "child3", "mouse3", "bus3", "sheep3", "fish3"];
+    let words = ["cat", "child", "mouse", "bus", "sheep", "fish"];
 
     run_benchmark("insane", &words, |w| English::noun(w, &Number::Plural));
 }
