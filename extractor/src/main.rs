@@ -23,12 +23,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let filtered_json_path = "english_filtered.jsonl";
 
-    //insane_noun(filtered_json_path, "insane_noun.csv")?;
-
+    insane_noun(filtered_json_path, "insane_noun.csv")?;
+    // generate_insane_file("insane_noun.csv", "insane_array.rs")?;
     insane_noun_grouped(filtered_json_path, "insane_noun.csv")?;
     // check_noun_plurals(filtered_json_path, "noun_plural_check.csv")?;
-    //check_insane_plurals(filtered_json_path, "insane_check.csv")?;
-    generate_insane_file2("insane_noun.csv", "insane_array.rs")?;
+    check_insane_plurals(filtered_json_path, "insane_check.csv")?;
+
     // filter_english_entries(input_path, filtered_json_path);
 
     //let input_path = "../../english.jsonl";
