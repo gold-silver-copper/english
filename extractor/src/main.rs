@@ -24,7 +24,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let filtered_json_path = "english_filtered.jsonl";
 
     insane_noun(filtered_json_path, "insane_noun.csv")?;
-    generate_insane_file("insane_noun.csv", "insane_array.rs")?;
+    // generate_insane_file("insane_noun.csv", "insane_array.rs")?;
+    insane_noun_grouped(filtered_json_path, "insane_noun.csv")?;
     // check_noun_plurals(filtered_json_path, "noun_plural_check.csv")?;
     check_insane_plurals(filtered_json_path, "insane_check.csv")?;
 
@@ -600,6 +601,85 @@ fn insane_noun(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>
 
     for ((singular_suffix, plural_suffix), _) in freq_vec {
         writer.write_record(&[singular_suffix, plural_suffix])?;
+    }
+
+    writer.flush()?;
+    println!("Done! Output written to {}", output_path);
+    Ok(())
+}
+
+/// Extracts irregular noun plurals and writes them grouped by final letter of the singular.
+fn insane_noun_grouped(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
+    use std::collections::BTreeMap;
+
+    // Step 1: Collect all singular -> plural rules with frequency
+    let mut freq: HashMap<(String, String), usize> = HashMap::new();
+    let (reader, mut writer) = base_setup(input_path, output_path);
+    writer.write_record(&["letter", "singular_plural_list"])?;
+
+    for line in reader.lines() {
+        let line = line?;
+        let entry: Entry = match serde_json::from_str(&line) {
+            Ok(e) => e,
+            Err(e) => {
+                println!("{:#?}", e);
+                continue;
+            }
+        };
+
+        if !entry_is_proper(&entry, "noun") {
+            continue;
+        }
+
+        let infinitive = entry.word.to_lowercase();
+
+        if let Some(forms) = entry.forms {
+            for form in &forms {
+                let tags = &form.tags;
+
+                let entry_form = form.form.to_lowercase();
+                if entry_form == "dubious" {
+                    continue;
+                }
+                if !word_is_proper(&entry_form) || contains_bad_tag(tags.clone()) {
+                    continue;
+                }
+
+                if tags.contains(&"plural".into()) {
+                    let rule = suffix_rule(&infinitive, &entry_form);
+                    *freq.entry(rule).or_insert(0) += 1;
+                }
+            }
+        }
+    }
+
+    // Step 2: Group by last letter of singular suffix and keep frequency
+    let mut letter_map: BTreeMap<char, Vec<((String, String), usize)>> = BTreeMap::new();
+    for (rule, count) in freq.into_iter() {
+        let sing = &rule.0;
+        if let Some(last_char) = sing.chars().last() {
+            letter_map.entry(last_char).or_default().push((rule, count));
+        }
+    }
+
+    // Step 3: Sort each list by frequency descending, then singular, then plural
+    for vec in letter_map.values_mut() {
+        vec.sort_by(|a, b| {
+            b.1.cmp(&a.1) // frequency descending
+                .then(a.0.0.cmp(&b.0.0)) // singular ascending
+                .then(a.0.1.cmp(&b.0.1)) // plural ascending
+        });
+    }
+
+    // Step 4: Write to CSV
+    for (letter, pairs) in letter_map {
+        // Format pairs as a single string list: e.g., "(e,s),(e,es),(y,ies)"
+        let pair_str = pairs
+            .into_iter()
+            .map(|((s, p), _count)| format!("({}, {})", s, p))
+            .collect::<Vec<_>>()
+            .join(";");
+        writer.write_record(&[letter.to_string(), pair_str])?;
     }
 
     writer.flush()?;
