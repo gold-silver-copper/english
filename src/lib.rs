@@ -65,23 +65,35 @@ impl English {
 
         let head_inflected = match number {
             Number::Singular => base_word.clone(),
-            Number::Plural => INSANE_MAP
-                .iter()
-                .find_map(|(sing, plural)| {
-                    if base_word.ends_with(sing) {
-                        num -= 1;
-                        if num == 0 {
-                            Some(EnglishCore::replace_last_occurence(
-                                &base_word, sing, plural,
-                            ))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                })
-                .unwrap_or_else(|| EnglishCore::noun(&base_word, number)),
+            Number::Plural => {
+                // Get last char of base_word
+                let last_char = base_word
+                    .chars()
+                    .last()
+                    .unwrap_or_default()
+                    .to_ascii_lowercase();
+
+                INSANE_MAP
+                    .iter()
+                    .find(|(letter, _)| letter.chars().next().unwrap_or_default() == last_char)
+                    .and_then(|(_, rules)| {
+                        rules.iter().find_map(|(sing, plural)| {
+                            if base_word.ends_with(sing) {
+                                num -= 1;
+                                if num == 0 {
+                                    Some(EnglishCore::replace_last_occurence(
+                                        &base_word, sing, plural,
+                                    ))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        })
+                    })
+                    .unwrap_or_else(|| EnglishCore::noun(&base_word, number))
+            }
         };
 
         format!(
