@@ -4,8 +4,6 @@ use english_core::EnglishCore;
 pub use english_core::grammar::*;
 mod noun_array;
 use noun_array::*;
-mod insane_array;
-use insane_array::*;
 mod verb_array;
 use verb_array::*;
 mod adj_array;
@@ -15,7 +13,6 @@ pub use noun::*;
 mod verb;
 pub use verb::*;
 
-//could make this not an option
 fn strip_trailing_number(word: &str) -> Option<String> {
     if let Some(last_char) = word.chars().last() {
         if last_char.is_ascii_digit() {
@@ -23,45 +20,6 @@ fn strip_trailing_number(word: &str) -> Option<String> {
         }
     }
     None
-}
-
-/// Strips a trailing ASCII digit from a word, if present.
-///
-/// Returns a tuple `(word_without_number, Some(number))` if a trailing digit exists,
-/// otherwise `(original_word, None)`.
-pub fn strip_trailing_number2(word: &str) -> (String, Option<u32>) {
-    if let Some(last_char) = word.chars().last() {
-        if last_char.is_ascii_digit() {
-            let number = last_char.to_digit(10);
-            let stripped = word[..word.len() - last_char.len_utf8()].to_string();
-            return (stripped, number);
-        }
-    }
-    (word.to_string(), None)
-}
-
-pub fn strip_trailing_number3(word: &str) -> (String, Option<u32>) {
-    let mut chars = word.char_indices().rev();
-    let mut end = word.len();
-
-    for (idx, ch) in &mut chars {
-        if ch.is_ascii_digit() {
-            end = idx;
-        } else {
-            break;
-        }
-    }
-
-    if end == word.len() {
-        // No trailing number
-        return (word.to_string(), None);
-    }
-
-    let number_str = &word[end..];
-    let number = number_str.parse::<u32>().ok();
-    let stripped = word[..end].to_string();
-
-    (stripped, number)
 }
 
 /// Entry point for English inflection and morphology.
@@ -98,46 +56,6 @@ impl English {
                 }
             }
         };
-        format!(
-            "{}{}{}",
-            noun.specifier
-                .as_ref()
-                .map(|s| format!("{} ", s))
-                .unwrap_or_default(),
-            head_inflected,
-            noun.complement
-                .as_ref()
-                .map(|c| format!(" {}", c))
-                .unwrap_or_default()
-        )
-    }
-
-    pub fn insane_noun<T: Into<Noun>>(word: T, number: &Number) -> String {
-        let noun: Noun = word.into();
-        let (base_word, num) = strip_trailing_number3(&noun.head);
-        let mut num = num.unwrap_or(1);
-
-        let head_inflected = match number {
-            Number::Singular => base_word.clone(),
-            Number::Plural => INSANE_MAP
-                .iter()
-                .find_map(|(sing, plural)| {
-                    if base_word.ends_with(sing) {
-                        num -= 1;
-                        if num == 0 {
-                            Some(EnglishCore::replace_last_occurence(
-                                &base_word, sing, plural,
-                            ))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                })
-                .unwrap_or_else(|| EnglishCore::noun(&base_word, number)),
-        };
-
         format!(
             "{}{}{}",
             noun.specifier

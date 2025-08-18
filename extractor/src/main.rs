@@ -24,24 +24,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     let filtered_json_path = "english_filtered.jsonl";
 
     insane_noun(filtered_json_path, "insane_noun.csv")?;
-    generate_insane_file("insane_noun.csv", "insane_array.rs")?;
-    check_noun_plurals(filtered_json_path, "noun_plural_check.csv")?;
-    check_insane_plurals(filtered_json_path, "insane_check.csv")?;
 
     // filter_english_entries(input_path, filtered_json_path);
 
     //let input_path = "../../english.jsonl";
     /* check_noun_plurals(filtered_json_path, "noun_plural_check.csv")?;
     check_verb_conjugations(filtered_json_path, "verbs_check.csv")?;
-    check_adjective_forms(filtered_json_path, "adj_check.csv")?;
+    check_adjective_forms(filtered_json_path, "adj_check.csv")?; */
 
     extract_verb_conjugations_new(filtered_json_path, "verb_conjugations.csv")?;
     extract_irregular_nouns(filtered_json_path, "nouns_with_plurals.csv")?;
 
     extract_irregular_adjectives(filtered_json_path, "adjectives.csv")?;
-    generate_adjectives_file("adjectives.csv", "adj_array.rs")?;
-    generate_nouns_file("nouns_with_plurals.csv", "noun_array.rs")?;
-    generate_verbs_file("verb_conjugations.csv", "verb_array.rs")?;*/
+    generate_adjectives_file("adjectives.csv", "adj_array.rs");
+    generate_nouns_file("nouns_with_plurals.csv", "noun_array.rs");
+    generate_verbs_file("verb_conjugations.csv", "verb_array.rs");
     Ok(())
 }
 
@@ -702,7 +699,7 @@ pub fn filter_english_entries(input_path: &str, output_path: &str) -> Result<(),
 fn insane_noun(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
     let mut freq: HashMap<(String, String), usize> = HashMap::new();
     let (reader, mut writer) = base_setup(input_path, output_path);
-    writer.write_record(&["word", "plural"])?;
+    writer.write_record(&["word", "plural", "frequency"])?;
 
     for line in reader.lines() {
         let line = line?;
@@ -744,78 +741,11 @@ fn insane_noun(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>
     let mut freq_vec: Vec<((String, String), usize)> = freq.into_iter().collect();
     freq_vec.sort_by(|a, b| b.1.cmp(&a.1));
 
-    for ((singular_suffix, plural_suffix), _) in freq_vec {
-        writer.write_record(&[singular_suffix, plural_suffix])?;
+    for ((singular_suffix, plural_suffix), count) in freq_vec {
+        writer.write_record(&[singular_suffix, plural_suffix, count.to_string()])?;
     }
 
     writer.flush()?;
     println!("Done! Output written to {}", output_path);
-    Ok(())
-}
-
-pub fn check_insane_plurals(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
-    use english::*;
-    let (reader, mut writer) = base_setup(input_path, output_path);
-    writer.write_record(&["wiki_single", "wiktionary_plural"])?;
-
-    let mut total_counter = 0;
-    let mut match_counter = 0;
-
-    for line in reader.lines() {
-        let line = line?;
-        let entry: Entry = match serde_json::from_str(&line) {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-
-        // Only proper English nouns
-        if !entry_is_proper(&entry, "noun") {
-            continue;
-        }
-        let lowercased_entry = entry.word.to_lowercase();
-
-        // Gather all plural forms from Wiktionary
-        let mut wiktionary_plurals = Vec::new();
-        if let Some(forms) = entry.forms {
-            for form in forms {
-                if form.tags.contains(&"plural".into())
-                //    && !contains_bad_tag(form.tags.clone())
-                //   && word_is_proper(&form.form)
-                {
-                    wiktionary_plurals.push(form.form.to_lowercase());
-                }
-            }
-        }
-        if wiktionary_plurals.is_empty() {
-            continue;
-        }
-
-        // Try base word and numbered variants
-        let mut variants = vec![lowercased_entry.clone()];
-        for i in 2..=20 {
-            variants.push(format!("{}{}", lowercased_entry, i));
-        }
-
-        for wiki_plural in &wiktionary_plurals {
-            let wiki_plural = wiki_plural.to_lowercase();
-            total_counter += 1;
-            let mut matched = false;
-            for variant in &variants {
-                let generated_plural = English::insane_noun(variant, &Number::Plural);
-                matched = generated_plural == wiki_plural;
-                if matched {
-                    match_counter += 1;
-                    break;
-                }
-            }
-            if !matched {
-                writer.write_record(&[lowercased_entry.clone(), wiki_plural.clone()])?;
-            }
-        }
-    }
-
-    writer.flush()?;
-    println!("IUNSANE Done! Output written to {}", output_path);
-    println!("total match amount: {} / {}", match_counter, total_counter);
     Ok(())
 }

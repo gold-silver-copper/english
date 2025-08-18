@@ -47,44 +47,6 @@ pub fn generate_nouns_file(inputik: &str, outputik: &str) -> std::io::Result<()>
     Ok(())
 }
 
-pub fn generate_insane_file(inputik: &str, outputik: &str) -> std::io::Result<()> {
-    let input = File::open(inputik)?;
-    let reader = BufReader::new(input);
-
-    let mut pairs: Vec<(String, String)> = reader
-        .lines()
-        .skip(1) // Skip header
-        .filter_map(|line| {
-            let line = line.ok()?;
-            let mut parts = line.split(',');
-            Some((
-                parts.next()?.trim().to_string(),
-                parts.next()?.trim().to_string(),
-            ))
-        })
-        .collect();
-
-    // Write to a Rust file
-    let mut output = File::create(outputik)?;
-
-    writeln!(output, "static INSANE_MAP: &[(&str, &str)] = &[")?;
-    for (word, plural) in &pairs {
-        writeln!(output, "    (\"{}\", \"{}\"),", word, plural)?;
-    }
-    writeln!(output, "];\n")?;
-
-    writeln!(
-        output,
-        "pub fn get_insane(word: &str) -> Option<&'static str> {{"
-    )?;
-    writeln!(
-        output,
-        "    INSANE_MAP.binary_search_by_key(&word, |&(k, _)| k).ok().map(|i| INSANE_MAP[i].1)"
-    )?;
-    writeln!(output, "}}")?;
-    Ok(())
-}
-
 pub fn generate_verbs_file(inputik: &str, outputik: &str) -> std::io::Result<()> {
     let input = File::open(inputik)?;
     let reader = BufReader::new(input);
