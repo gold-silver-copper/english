@@ -2328,7 +2328,10 @@ static ADJECTIVE_MAP: &[(&str, (&str, &str))] = &[
     ("straggly", ("stragglier", "straggliest")),
     ("straicht", ("straichter", "straichtest")),
     ("straight", ("straighter", "straightest")),
-    ("straightforward", ("straighterforward", "straightestforward")),
+    (
+        "straightforward",
+        ("straighterforward", "straightestforward"),
+    ),
     ("strait", ("straiter", "straitest")),
     ("strang", ("stranger", "strangest")),
     ("strange", ("stranger", "strangest")),
@@ -2852,7 +2855,8 @@ static ADJECTIVE_MAP: &[(&str, (&str, &str))] = &[
 ];
 
 pub fn get_adjective_forms(positive: &str) -> Option<(&'static str, &'static str)> {
-    ADJECTIVE_MAP.binary_search_by_key(&positive, |&(k, _)| k)
+    ADJECTIVE_MAP
+        .binary_search_by_key(&positive, |&(k, _)| k)
         .ok()
         .map(|i| ADJECTIVE_MAP[i].1)
 }

@@ -67,11 +67,7 @@ fn main() {
     assert_eq!(English::count_with_number(jeans, 3), "3 pairs of jeans");
 
     // --- Adjectives ---
-    // Regular adjectives
-    assert_eq!(English::adj("fast", &Degree::Comparative), "faster");
-
-    // Irregular adjectives
-    // Add a number 2-9 to the end of the word to try different forms.
+    // Add a number 2-9 to the end of the word to try different forms. (Bad has the most forms at 3)
     assert_eq!(English::adj("bad", &Degree::Comparative), "more bad");
     assert_eq!(English::adj("bad", &Degree::Superlative), "most bad");
     assert_eq!(English::adj("bad2", &Degree::Comparative), "badder");
@@ -174,11 +170,12 @@ fn main() {
     assert_eq!(English::add_possessive("dogs"), "dogs'");
 
     // --- Mixed Sentence Example ---
-    let subject = English::noun("child", &Number::Plural);
+    let subject_number = Number::Plural;
+    let subject = English::noun("child", &subject_number);
     let verb = English::verb(
         "play",
         &Person::Third,
-        &Number::Plural,
+        &subject_number,
         &Tense::Past,
         &Form::Finite,
     );
@@ -222,11 +219,6 @@ fn main() {
 
 ---
 
-## Benchmarks
-Performance benchmarks were run on my M2 Max Macbook.
-
-Writing benchmarks and tests for such a project is rather difficult and requires opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of words may be inconsistent. This library includes a few uncountable words in its dataset, but not all. Uncountable words require special handling anyway. Take all benchmarks with a pound of salt, write your own tests for your own usecases. Any suggestions to improve the benchmarking are highly appreciated.
-
 ## 📦 Obtaining Wiktionary Data & Running the Extractor
 
 This project relies on raw data extracted from Wiktionary. Current version built with data from 8/17/2025.
@@ -240,6 +232,14 @@ This project relies on raw data extracted from Wiktionary. Current version built
 2. Place the file somewhere accessible (e.g. `../rawwiki.jsonl`).
 3. From the `extractor` folder, run: `cargo run --release ../rawwiki.jsonl`
 4. Move the generated files adj_array.rs, noun_array.rs, verb_array.rs into the /src of english
+
+## Benchmarks
+Performance benchmarks were run on my M2 Max Macbook.
+
+Writing benchmarks and tests for such a project is rather difficult and requires opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of words may be inconsistent. This library includes a few uncountable words in its dataset, but not all. Uncountable words require special handling anyway. Take all benchmarks with a pound of salt, write your own tests for your own usecases. Any suggestions to improve the benchmarking are highly appreciated.
+
+## Disclaimer
+Wiktionary data is often unstable and subject to weird changes. This means that the provided inflections may change unexpectedly. You can look at the diffs of *_array.rs files for a source of truth.
 
 ## Inspirations
 - https://github.com/atteo/evo-inflector
