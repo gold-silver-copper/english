@@ -8,54 +8,8 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 mod file_generation;
 use file_generation::*;
-
-static BAD_TAGS: &[&str] = &[
-    "obsolete",
-    "error-unknown-tag",
-    "dialectal",
-    "alternative",
-    "nonstandard",
-    "archaic",
-    "humorous",
-    "feminine",
-    "pronunciation-spelling",
-    "rare",
-    "dated",
-    "informal",
-    "sometimes",
-    "colloquial",
-];
-static BAD_CHARS: &[&str] = &[".", "/", "&", " ", "'", "-", "#", "@", "`", "*"];
-
-fn contains_bad_tag(words: Vec<String>) -> bool {
-    for word in words {
-        if BAD_TAGS.contains(&&*word) {
-            return true;
-        }
-    }
-    false
-}
-
-fn contains_bad_chars(input: &str) -> bool {
-    BAD_CHARS.iter().any(|&bad| input.contains(bad))
-}
-fn contains_number(s: &str) -> bool {
-    s.chars().any(|c| c.is_numeric())
-}
-
-#[derive(Debug, Deserialize)]
-struct Forms {
-    form: String,
-    tags: Vec<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Entry {
-    word: String,
-    pos: String,
-    forms: Option<Vec<Forms>>,
-    lang_code: String,
-}
+mod helpers;
+pub use helpers::*;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
@@ -69,15 +23,17 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let filtered_json_path = "english_filtered.jsonl";
 
+    insane_noun(filtered_json_path, "insane_noun.csv")?;
+
     // filter_english_entries(input_path, filtered_json_path);
 
     //let input_path = "../../english.jsonl";
-
+    /*
     check_noun_plurals(filtered_json_path, "noun_plural_check.csv")?;
     check_verb_conjugations(filtered_json_path, "verbs_check.csv")?;
     check_adjective_forms(filtered_json_path, "adj_check.csv")?;
 
-    /*   extract_verb_conjugations_new(filtered_json_path, "verb_conjugations.csv")?;
+    extract_verb_conjugations_new(filtered_json_path, "verb_conjugations.csv")?;
     extract_irregular_nouns(filtered_json_path, "nouns_with_plurals.csv")?;
 
     extract_irregular_adjectives(filtered_json_path, "adjectives.csv")?;
@@ -85,31 +41,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     generate_nouns_file("nouns_with_plurals.csv", "noun_array.rs");
     generate_verbs_file("verb_conjugations.csv", "verb_array.rs"); */
     Ok(())
-}
-
-fn entry_is_proper(entry: &Entry, pos: &str) -> bool {
-    if entry.lang_code != "en" {
-        return false;
-    }
-
-    if entry.pos != pos || !word_is_proper(&entry.word) {
-        return false;
-    }
-    true
-}
-
-fn word_is_proper(word: &str) -> bool {
-    if contains_bad_chars(&word) || !word.is_ascii() || contains_number(&word) {
-        return false;
-    }
-    true
-}
-
-fn base_setup(input_path: &str, output_path: &str) -> (BufReader<File>, Writer<File>) {
-    let input = File::open(input_path).unwrap();
-    let reader = BufReader::new(input);
-    let mut writer = Writer::from_path(output_path).unwrap();
-    (reader, writer)
 }
 
 /// Extracts irregular noun plurals and writes them to a CSV.
@@ -192,13 +123,6 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
     writer.flush()?;
     println!("Done! Output written to {}", output_path);
     Ok(())
-}
-
-#[derive(Debug, Default, Eq, Hash, PartialEq, Clone, Ord, PartialOrd)]
-struct AdjParts {
-    positive: String,
-    comparative: String,
-    superlative: String,
 }
 
 fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
@@ -298,15 +222,6 @@ fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(
     writer.flush()?;
     println!("Done! Output written to {}", output_path);
     Ok(())
-}
-
-#[derive(Debug, Default, Eq, Hash, PartialEq, Clone, Ord, PartialOrd)]
-struct VerbParts {
-    inf: String,
-    third: String,
-    past: String,
-    present_part: String,
-    past_part: String,
 }
 
 /// Extracts verb conjugations and writes them to a CSV.
@@ -778,5 +693,60 @@ pub fn filter_english_entries(input_path: &str, output_path: &str) -> Result<(),
     }
 
     println!("Filtered dataset saved to {}", output_path);
+    Ok(())
+}
+
+/// Extracts irregular noun plurals and writes them to a CSV.
+fn insane_noun(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
+    let mut freq: HashMap<(String, String), usize> = HashMap::new();
+    let (reader, mut writer) = base_setup(input_path, output_path);
+    writer.write_record(&["word", "plural", "frequency"])?;
+
+    for line in reader.lines() {
+        let line = line?;
+        let entry: Entry = match serde_json::from_str(&line) {
+            Ok(e) => e,
+            Err(e) => {
+                println!("{:#?}", e);
+                continue;
+            }
+        };
+
+        if !entry_is_proper(&entry, "noun") {
+            continue;
+        }
+
+        let infinitive = entry.word.to_lowercase();
+
+        if let Some(forms) = entry.forms {
+            for form in &forms {
+                let tags = &form.tags;
+
+                let entry_form = form.form.to_lowercase();
+                if entry_form == "dubious" {
+                    continue;
+                }
+                if !word_is_proper(&entry_form) || contains_bad_tag(tags.clone()) {
+                    continue;
+                }
+
+                if tags.contains(&"plural".into()) {
+                    let rule = suffix_rule(&infinitive, &entry_form);
+                    *freq.entry(rule).or_insert(0) += 1;
+                }
+            }
+        }
+    }
+
+    // Collect into Vec and sort by frequency (descending)
+    let mut freq_vec: Vec<((String, String), usize)> = freq.into_iter().collect();
+    freq_vec.sort_by(|a, b| b.1.cmp(&a.1));
+
+    for ((singular_suffix, plural_suffix), count) in freq_vec {
+        writer.write_record(&[singular_suffix, plural_suffix, count.to_string()])?;
+    }
+
+    writer.flush()?;
+    println!("Done! Output written to {}", output_path);
     Ok(())
 }
