@@ -24,11 +24,7 @@ fn main() {
     assert_eq!(English::count_with_number(jeans, 3), "3 pairs of jeans");
 
     // --- Adjectives ---
-    // Regular adjectives
-    assert_eq!(English::adj("fast", &Degree::Comparative), "faster");
-
-    // Irregular adjectives
-    // Add a number 2-9 to the end of the word to try different forms.
+    // Add a number 2-9 to the end of the word to try different forms. (Bad has the most forms at 3)
     assert_eq!(English::adj("bad", &Degree::Comparative), "more bad");
     assert_eq!(English::adj("bad", &Degree::Superlative), "most bad");
     assert_eq!(English::adj("bad2", &Degree::Comparative), "badder");

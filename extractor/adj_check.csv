@@ -2,21 +2,33 @@ wiktionary_form,degree
 dubious,Superlative
 baby-er,Comparative
 baby-est,Superlative
+rightest,Superlative
+honier,Comparative
+honiest,Superlative
 gooder,Comparative
 goodest,Superlative
 hazeler,Comparative
 hazelest,Superlative
+flyer,Comparative
+flyest,Superlative
 further inset,Comparative
 furthest inset,Superlative
 better known,Comparative
 best known,Superlative
 complexer,Comparative
 complexest,Superlative
+further,Comparative
+furthermost,Superlative
+elder,Comparative
 oldermost,Superlative
 betterer,Comparative
 betterest,Superlative
 further upstairs,Comparative
 furthest upstairs,Superlative
+weller,Comparative
+wellest,Superlative
+liever,Comparative
+lievest,Superlative
 intelligenter,Comparative
 intelligentest,Superlative
 gingerer,Comparative
@@ -25,6 +37,8 @@ gingerer,Comparative
 gingerest,Superlative
 further front,Comparative
 furthest front,Superlative
+littler,Comparative
+littlest,Superlative
 bester,Comparative
 bestest,Superlative
 further advanced,Comparative
@@ -39,14 +53,29 @@ dangerouser,Comparative
 dangerousest,Superlative
 honester,Comparative
 honestest,Superlative
+royaller,Comparative
+royallest,Superlative
+near,Comparative
+next,Superlative
+leveller,Comparative
+levellest,Superlative
 behinder,Comparative
 behindest,Superlative
 adverser,Comparative
 adversest,Superlative
 darlinger,Comparative
+wryer,Comparative
+wryest,Superlative
+luxiest,Superlative
+slyer,Comparative
+slyest,Superlative
 spitefuller,Comparative
 spitefullest,Superlative
+wilfuller,Comparative
+wilfullest,Superlative
 favouritest,Superlative
+cheerfuller,Comparative
+cheerfullest,Superlative
 impudenter,Comparative
 impudentest,Superlative
 outermore,Comparative
@@ -59,6 +88,8 @@ likeliest,Superlative
 unbelievabler,Comparative
 unbelievablest,Superlative
 uncertainer,Comparative
+peacefuler,Comparative
+peacefulest,Superlative
 unwieldier,Comparative
 unwieldiest,Superlative
 gingerlier,Comparative
@@ -71,8 +102,12 @@ further upstream,Comparative
 furthest upstream,Superlative
 shininger,Comparative
 shiningest,Superlative
+delightfuller,Comparative
+delightfullest,Superlative
 worrisomer,Comparative
 worrisomest,Superlative
+motleyer,Comparative
+motleyest,Superlative
 fraughter,Comparative
 fraughtest,Superlative
 unsightlier,Comparative
@@ -85,13 +120,22 @@ further downhill,Comparative
 furthest downhill,Superlative
 further downstream,Comparative
 furthest downstream,Superlative
+dolefuler,Comparative
+dolefulest,Superlative
 moe-er,Comparative
 moe-est,Superlative
 better matching,Comparative
 best matching,Superlative
 believabler,Comparative
 believablest,Superlative
+smoller,Comparative
+smollest,Superlative
+willfuller,Comparative
+willfullest,Superlative
 darnder,Comparative
+darndest,Superlative
+easiergoing,Comparative
+easiestgoing,Superlative
 unfree-er,Comparative
 further recessed,Comparative
 furthest recessed,Superlative
@@ -101,6 +145,8 @@ wieldier,Comparative
 wieldiest,Superlative
 farther downrange,Comparative
 farthest downrange,Superlative
+ultradryer,Comparative
+ultradryest,Superlative
 further ultraleft,Comparative
 furthest ultraleft,Superlative
 further ultraright,Comparative

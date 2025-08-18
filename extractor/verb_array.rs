@@ -220,7 +220,6 @@ static VERB_MAP: &[(&str, (&str, &str, &str, &str))] = &[
     ("batman", ("batmans", "batmanned", "batmanning", "batmanned")),
     ("battel2", ("battels", "battelled", "battelling", "battelled")),
     ("bauf", ("baufs", "bauffed", "bauffing", "bauffed")),
-    ("be", ("is", "was", "being", "been")),
     ("beach", ("beaches", "beached", "beaching", "beached")),
     ("bear2", ("bears", "bore", "bearing", "borne")),
     ("bearhug", ("bearhugs", "bearhugged", "bearhugging", "bearhugged")),
