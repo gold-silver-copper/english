@@ -26,12 +26,21 @@ pub fn generate_insane_file(inputik: &str, outputik: &str) -> std::io::Result<()
     // Write to a Rust file
     let mut output = File::create(outputik)?;
 
-    writeln!(output, "pub static INSANE_MAP: &[(&str, &str)] = &[")?;
+    writeln!(output, "static INSANE_MAP: &[(&str, &str)] = &[")?;
     for (word, plural) in &pairs {
         writeln!(output, "    (\"{}\", \"{}\"),", word, plural)?;
     }
     writeln!(output, "];\n")?;
 
+    writeln!(
+        output,
+        "pub fn get_insane(word: &str) -> Option<&'static str> {{"
+    )?;
+    writeln!(
+        output,
+        "    INSANE_MAP.binary_search_by_key(&word, |&(k, _)| k).ok().map(|i| INSANE_MAP[i].1)"
+    )?;
+    writeln!(output, "}}")?;
     Ok(())
 }
 
