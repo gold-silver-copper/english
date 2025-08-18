@@ -591,9 +591,12 @@ fn insane_noun(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>
         }
     }
 
-    // Collect into Vec and sort by frequency (descending)
     let mut freq_vec: Vec<((String, String), usize)> = freq.into_iter().collect();
-    freq_vec.sort_by(|a, b| b.1.cmp(&a.1));
+    freq_vec.sort_by(|a, b| {
+        b.1.cmp(&a.1) // frequency descending
+            .then_with(|| a.0.0.cmp(&b.0.0)) // singular suffix ascending
+            .then_with(|| a.0.1.cmp(&b.0.1)) // plural suffix ascending
+    });
 
     for ((singular_suffix, plural_suffix), _) in freq_vec {
         writer.write_record(&[singular_suffix, plural_suffix])?;
