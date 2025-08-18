@@ -13,13 +13,13 @@ pub use noun::*;
 mod verb;
 pub use verb::*;
 
-fn strip_trailing_number(word: &str) -> Option<String> {
+fn strip_trailing_number(word: &str) -> String {
     if let Some(last_char) = word.chars().last() {
         if last_char.is_ascii_digit() {
-            return Some(word[..word.len() - 1].to_string());
+            return word[..word.len() - 1].to_string();
         }
     }
-    None
+    word.to_string()
 }
 
 /// Entry point for English inflection and morphology.
@@ -44,7 +44,7 @@ impl English {
     /// ```
     pub fn noun<T: Into<Noun>>(word: T, number: &Number) -> String {
         let noun: Noun = word.into();
-        let base_word = strip_trailing_number(&noun.head).unwrap_or(noun.head.clone());
+        let base_word = strip_trailing_number(&noun.head);
 
         let head_inflected = match number {
             Number::Singular => base_word,
@@ -84,7 +84,7 @@ impl English {
     /// assert_eq!(English::adj("fun", &Degree::Comparative), "more fun");
     /// ```
     pub fn adj(word: &str, degree: &Degree) -> String {
-        let base_word = strip_trailing_number(word).unwrap_or(word.to_string());
+        let base_word = strip_trailing_number(word);
         match degree {
             Degree::Positive => base_word.to_string(),
             Degree::Comparative => {
@@ -138,7 +138,7 @@ impl English {
         form: &Form,
     ) -> String {
         let verb: Verb = wordish.into();
-        let base_word = strip_trailing_number(&verb.head).unwrap_or(verb.head.clone());
+        let base_word = strip_trailing_number(&verb.head);
         // Conjugate the head verb
         let conjugated_head = match get_verb_forms(&verb.head) {
             Some(wordik) => match (person, number, tense, form) {
