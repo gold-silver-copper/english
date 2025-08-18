@@ -84,34 +84,6 @@ impl English {
     /// assert_eq!(English::noun("child", &Number::Plural), "children");
     /// assert_eq!(English::noun("die2", &Number::Plural), "dice");
     /// ```
-    pub fn noun<T: Into<Noun>>(word: T, number: &Number) -> String {
-        let noun: Noun = word.into();
-        let base_word = strip_trailing_number(&noun.head).unwrap_or(noun.head.clone());
-
-        let head_inflected = match number {
-            Number::Singular => base_word,
-            Number::Plural => {
-                if let Some(x) = get_plural(&noun.head) {
-                    x.to_string()
-                } else {
-                    EnglishCore::noun(&base_word, number)
-                }
-            }
-        };
-        format!(
-            "{}{}{}",
-            noun.specifier
-                .as_ref()
-                .map(|s| format!("{} ", s))
-                .unwrap_or_default(),
-            head_inflected,
-            noun.complement
-                .as_ref()
-                .map(|c| format!(" {}", c))
-                .unwrap_or_default()
-        )
-    }
-
     pub fn insane_noun<T: Into<Noun>>(word: T, number: &Number) -> String {
         let noun: Noun = word.into();
         let (base_word, num) = strip_trailing_number3(&noun.head);
@@ -282,9 +254,9 @@ impl English {
     /// ```
     pub fn count<T: Into<Noun>>(word: T, count: u32) -> String {
         if count == 1 {
-            English::noun(word, &Number::Singular)
+            English::insane_noun(word, &Number::Singular)
         } else {
-            English::noun(word, &Number::Plural)
+            English::insane_noun(word, &Number::Plural)
         }
     }
 

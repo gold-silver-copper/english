@@ -1,9 +1,9 @@
 use english::*;
 
 fn main() {
-    println!("{}", English::noun("thyridium", &Number::Plural));
+    //   println!("{}", English::noun("thyridium", &Number::Plural));
     benchmark_verb();
-    benchmark_noun();
+    // benchmark_noun();
     benchmark_adj();
     benchmark_insane();
 }
@@ -21,12 +21,12 @@ pub fn benchmark_verb() {
         English::verb(w, &person, &number, &tense, &form)
     });
 }
-
+/*
 pub fn benchmark_noun() {
     let words = ["cat", "child", "mouse", "bus", "sheep", "fish"];
 
     run_benchmark("noun", &words, |w| English::noun(w, &Number::Plural));
-}
+} */
 pub fn benchmark_insane() {
     let words = ["cat", "child", "mouse", "bus", "sheep", "fish"];
 
