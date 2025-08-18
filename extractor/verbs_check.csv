@@ -44,14 +44,9 @@ skied,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
 obfuscate,Third,Singular,Present,Finite
 obfuscate,Third,Singular,Present,Finite
-can,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
-can,Third,Singular,Present,Finite
-can,Third,Singular,Present,Finite
+canneth,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
-can,Third,Singular,Present,Finite
-can,Third,Singular,Present,Finite
-zeroes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 are,Third,Singular,Present,Finite
 be,Third,Singular,Present,Finite
@@ -91,12 +86,11 @@ add,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 work,Third,Singular,Present,Finite
 work,Third,Singular,Present,Finite
+radioes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 consent,Third,Singular,Present,Finite
 consent,Third,Singular,Present,Finite
 shrunk,Third,Singular,Past,Participle
-gasses,Third,Singular,Present,Finite
-gasses,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 love,Third,Singular,Present,Finite
 love,Third,Singular,Present,Finite
@@ -122,7 +116,6 @@ glossary,Third,Singular,Present,Finite
 win,Third,Singular,Present,Finite
 win,Third,Singular,Present,Finite
 drank,Third,Singular,Past,Finite
-yesses,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 stand,Third,Singular,Present,Finite
 stand,Third,Singular,Present,Finite
@@ -147,7 +140,6 @@ buy,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 give,Third,Singular,Present,Finite
 give,Third,Singular,Present,Finite
-dare,Third,Singular,Present,Finite
 blueing,Third,Singular,Present,Participle
 blueing,Third,Singular,Present,Participle
 yet,Third,Singular,Past,Finite
@@ -225,6 +217,7 @@ travelled,Third,Singular,Past,Finite
 travel,Third,Singular,Present,Finite
 travelling,Third,Singular,Present,Participle
 travelled,Third,Singular,Past,Participle
+helloes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 egg,Third,Singular,Present,Finite
 egg,Third,Singular,Present,Finite
@@ -465,6 +458,7 @@ hamstrung,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
 thunder,Third,Singular,Present,Finite
 thunder,Third,Singular,Present,Finite
+whies,Third,Singular,Present,Finite
 outbid,Third,Singular,Past,Finite
 outbid,Third,Singular,Past,Participle
 outbidden,Third,Singular,Past,Participle
@@ -644,7 +638,6 @@ kekked,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
 dry,Third,Singular,Present,Finite
 dry,Third,Singular,Present,Finite
-octopusses,Third,Singular,Present,Finite
 octopussing,Third,Singular,Present,Participle
 octopussed,Third,Singular,Past,Participle
 octopussed,Third,Singular,Past,Finite
@@ -756,15 +749,16 @@ wokked,Third,Singular,Past,Finite
 zinking,Third,Singular,Present,Participle
 zinked,Third,Singular,Past,Participle
 zinked,Third,Singular,Past,Finite
-busses,Third,Singular,Present,Finite
 bussing,Third,Singular,Present,Participle
 bussed,Third,Singular,Past,Participle
 bussed,Third,Singular,Past,Finite
-busses,Third,Singular,Present,Finite
 bussing,Third,Singular,Present,Participle
 bussed,Third,Singular,Past,Participle
 bussed,Third,Singular,Past,Finite
+omnibusses,Third,Singular,Present,Finite
+halloes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
+halloes,Third,Singular,Present,Finite
 hallo,Third,Singular,Present,Finite
 hallo,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
@@ -782,6 +776,8 @@ secure,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 blest,Third,Singular,Past,Participle
 blest,Third,Singular,Past,Finite
+microes,Third,Singular,Present,Finite
+christmasses,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 bang,Third,Singular,Present,Finite
 bang,Third,Singular,Present,Finite
@@ -830,7 +826,6 @@ borrow,Third,Singular,Present,Finite
 signalling,Third,Singular,Present,Participle
 signalled,Third,Singular,Past,Participle
 signalled,Third,Singular,Past,Finite
-nonplusses,Third,Singular,Present,Finite
 nonplussing,Third,Singular,Present,Participle
 nonplussed,Third,Singular,Past,Participle
 nonplussed,Third,Singular,Past,Finite
@@ -855,6 +850,7 @@ guess,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 trust,Third,Singular,Present,Finite
 trust,Third,Singular,Present,Finite
+caucusses,Third,Singular,Present,Finite
 smote,Third,Singular,Past,Finite
 smitten,Third,Singular,Past,Participle
 smote,Third,Singular,Past,Participle
@@ -871,6 +867,7 @@ lust,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 glean,Third,Singular,Present,Finite
 glean,Third,Singular,Present,Finite
+focusses,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 praise,Third,Singular,Present,Finite
 praise,Third,Singular,Present,Finite
@@ -882,7 +879,7 @@ durft,Third,Singular,Past,Finite
 finalling,Third,Singular,Present,Participle
 finalled,Third,Singular,Past,Participle
 finalled,Third,Singular,Past,Finite
-vies,Third,Singular,Present,Finite
+vyes,Third,Singular,Present,Finite
 vied,Third,Singular,Past,Participle
 vied,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
@@ -936,6 +933,7 @@ recur,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 discover,Third,Singular,Present,Finite
 discover,Third,Singular,Present,Finite
+portcullisses,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 connect,Third,Singular,Present,Finite
 connect,Third,Singular,Present,Finite
@@ -963,12 +961,12 @@ compare,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 shackle,Third,Singular,Present,Finite
 shackle,Third,Singular,Present,Finite
+alibies,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 alight,Third,Singular,Present,Finite
 alight,Third,Singular,Present,Finite
-allies,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
-allies,Third,Singular,Present,Finite
+allyeth,Third,Singular,Present,Finite
 ally,Third,Singular,Present,Finite
 ally,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
@@ -989,6 +987,7 @@ giddyuped,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
 announce,Third,Singular,Present,Finite
 announce,Third,Singular,Present,Finite
+skies,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 move,Third,Singular,Present,Finite
 move,Third,Singular,Present,Finite
@@ -1035,7 +1034,6 @@ carolled,Third,Singular,Past,Finite
 programming,Third,Singular,Present,Participle
 programmed,Third,Singular,Past,Participle
 programmed,Third,Singular,Past,Finite
-heroes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 print,Third,Singular,Present,Finite
 print,Third,Singular,Present,Finite
@@ -1045,10 +1043,11 @@ turniped,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
 approve,Third,Singular,Present,Finite
 approve,Third,Singular,Present,Finite
-crescendoes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 sour,Third,Singular,Present,Finite
 sour,Third,Singular,Present,Finite
+biasses,Third,Singular,Present,Finite
+bonusses,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 wait,Third,Singular,Present,Finite
 wait,Third,Singular,Present,Finite
@@ -1075,6 +1074,7 @@ enter,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 bane,Third,Singular,Present,Finite
 bane,Third,Singular,Present,Finite
+bravoes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 cease,Third,Singular,Present,Finite
 cease,Third,Singular,Present,Finite
@@ -1086,6 +1086,7 @@ glossary,Third,Singular,Present,Finite
 refuse,Third,Singular,Present,Finite
 refuse,Third,Singular,Present,Finite
 vegges,Third,Singular,Present,Finite
+veges,Third,Singular,Present,Finite
 vegging,Third,Singular,Present,Participle
 vegged,Third,Singular,Past,Participle
 vegged,Third,Singular,Past,Finite
@@ -1148,7 +1149,6 @@ obtain,Third,Singular,Present,Finite
 phialling,Third,Singular,Present,Participle
 phialled,Third,Singular,Past,Participle
 phialled,Third,Singular,Past,Finite
-taxies,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 quell,Third,Singular,Present,Finite
 quell,Third,Singular,Present,Finite
@@ -1161,7 +1161,6 @@ aver,Third,Singular,Present,Finite
 sacking,Third,Singular,Present,Participle
 sacked,Third,Singular,Past,Participle
 sacked,Third,Singular,Past,Finite
-siloes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 demonstrate,Third,Singular,Present,Finite
 demonstrate,Third,Singular,Present,Finite
@@ -1220,7 +1219,6 @@ divide,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 transfer,Third,Singular,Present,Finite
 transfer,Third,Singular,Present,Finite
-resses,Third,Singular,Present,Finite
 ressing,Third,Singular,Present,Participle
 ressed,Third,Singular,Past,Participle
 ressed,Third,Singular,Past,Finite
@@ -1290,6 +1288,7 @@ adulterate,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 redden,Third,Singular,Present,Finite
 redden,Third,Singular,Present,Finite
+aggroes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 condescend,Third,Singular,Present,Finite
 condescend,Third,Singular,Present,Finite
@@ -1348,9 +1347,11 @@ teaselled,Third,Singular,Past,Finite
 vying,Third,Singular,Present,Participle
 whetted,Third,Singular,Past,Participle
 whetted,Third,Singular,Past,Finite
+hocusses,Third,Singular,Present,Finite
 combatting,Third,Singular,Present,Participle
 combatted,Third,Singular,Past,Participle
 combatted,Third,Singular,Past,Finite
+bivouacks,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 celebrate,Third,Singular,Present,Finite
 celebrate,Third,Singular,Present,Finite
@@ -1426,6 +1427,7 @@ glossary,Third,Singular,Present,Finite
 spare,Third,Singular,Present,Finite
 spare,Third,Singular,Present,Finite
 stove,Third,Singular,Past,Participle
+surplusses,Third,Singular,Present,Finite
 surplussing,Third,Singular,Present,Participle
 surplussed,Third,Singular,Past,Participle
 surplussed,Third,Singular,Past,Finite
@@ -1477,10 +1479,10 @@ procure,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 summon,Third,Singular,Present,Finite
 summon,Third,Singular,Present,Finite
+xmasses,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 provide,Third,Singular,Present,Finite
 provide,Third,Singular,Present,Finite
-shhes,Third,Singular,Present,Finite
 gospelling,Third,Singular,Present,Participle
 gospelled,Third,Singular,Past,Participle
 gospelled,Third,Singular,Past,Finite
@@ -1492,10 +1494,10 @@ channelled,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
 possess,Third,Singular,Present,Finite
 possess,Third,Singular,Present,Finite
+volcanoes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 replace,Third,Singular,Present,Finite
 replace,Third,Singular,Present,Finite
-torpedoes,Third,Singular,Present,Finite
 laden,Third,Singular,Past,Participle
 glossary,Third,Singular,Present,Finite
 nibble,Third,Singular,Present,Finite
@@ -1521,6 +1523,8 @@ repel,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 suffer,Third,Singular,Present,Finite
 suffer,Third,Singular,Present,Finite
+plusses,Third,Singular,Present,Finite
+walrusses,Third,Singular,Present,Finite
 tunnelling,Third,Singular,Present,Participle
 tunnelled,Third,Singular,Past,Participle
 tunnelled,Third,Singular,Past,Finite
@@ -1536,6 +1540,7 @@ urge,Third,Singular,Present,Finite
 totalling,Third,Singular,Present,Participle
 totalled,Third,Singular,Past,Participle
 totalled,Third,Singular,Past,Finite
+soloes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 involve,Third,Singular,Present,Finite
 involve,Third,Singular,Present,Finite
@@ -1558,6 +1563,7 @@ commit,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 expect,Third,Singular,Present,Finite
 expect,Third,Singular,Present,Finite
+censusses,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 utter,Third,Singular,Present,Finite
 utter,Third,Singular,Present,Finite
@@ -1565,8 +1571,10 @@ makeuping,Third,Singular,Present,Participle
 makeuped,Third,Singular,Past,Participle
 makeuped,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
+victualleth,Third,Singular,Present,Finite
 victual,Third,Singular,Present,Finite
 victual,Third,Singular,Present,Finite
+blottoes,Third,Singular,Present,Finite
 downcast,Third,Singular,Past,Participle
 downcast,Third,Singular,Past,Finite
 caddying,Third,Singular,Present,Participle
@@ -1580,6 +1588,7 @@ examming,Third,Singular,Present,Participle
 exammed,Third,Singular,Past,Participle
 exammed,Third,Singular,Past,Finite
 braaing,Third,Singular,Present,Participle
+minusses,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 decide,Third,Singular,Present,Finite
 decide,Third,Singular,Present,Finite
@@ -1620,6 +1629,7 @@ cleft,Third,Singular,Past,Finite
 clove,Third,Singular,Past,Finite
 cleft,Third,Singular,Past,Participle
 cloven,Third,Singular,Past,Participle
+rebusses,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 thwart,Third,Singular,Present,Finite
 thwart,Third,Singular,Present,Finite
@@ -1642,6 +1652,7 @@ glossary,Third,Singular,Present,Finite
 exhort,Third,Singular,Present,Finite
 exhort,Third,Singular,Present,Finite
 partialling,Third,Singular,Present,Finite
+campusses,Third,Singular,Present,Finite
 pommelling,Third,Singular,Present,Participle
 pommelled,Third,Singular,Past,Participle
 pommelled,Third,Singular,Past,Finite
@@ -1673,6 +1684,7 @@ hondelling,Third,Singular,Present,Participle
 hondelled,Third,Singular,Past,Participle
 hondelled,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
+betrothes,Third,Singular,Present,Finite
 betroth,Third,Singular,Present,Finite
 betroth,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
@@ -1770,7 +1782,6 @@ glid,Third,Singular,Past,Participle
 glossary,Third,Singular,Present,Finite
 realize,Third,Singular,Present,Finite
 realize,Third,Singular,Present,Finite
-bmxs,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 thwack,Third,Singular,Present,Finite
 thwack,Third,Singular,Present,Finite
@@ -1799,7 +1810,7 @@ scandalled,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
 glimpse,Third,Singular,Present,Finite
 glimpse,Third,Singular,Present,Finite
-hasta,Third,Singular,Present,Finite
+hafta,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 scourge,Third,Singular,Present,Finite
 scourge,Third,Singular,Present,Finite
@@ -1809,10 +1820,11 @@ apprise,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 apprise,Third,Singular,Present,Finite
 apprise,Third,Singular,Present,Finite
+fianchettoes,Third,Singular,Present,Finite
+circusses,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 blight,Third,Singular,Present,Finite
 blight,Third,Singular,Present,Finite
-dorcasses,Third,Singular,Present,Finite
 dorcassing,Third,Singular,Present,Participle
 dorcassed,Third,Singular,Past,Participle
 dorcassed,Third,Singular,Past,Finite
@@ -1844,6 +1856,7 @@ airstruck,Third,Singular,Past,Participle
 airstruck,Third,Singular,Past,Finite
 newscast,Third,Singular,Past,Participle
 newscast,Third,Singular,Past,Finite
+teargasses,Third,Singular,Present,Finite
 telecast,Third,Singular,Past,Participle
 telecast,Third,Singular,Past,Finite
 evalling,Third,Singular,Present,Participle
@@ -1952,9 +1965,11 @@ embolden,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 elongate,Third,Singular,Present,Finite
 elongate,Third,Singular,Present,Finite
+enhaloes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 succor,Third,Singular,Present,Finite
 succor,Third,Singular,Present,Finite
+curtsies,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 moan,Third,Singular,Present,Finite
 moan,Third,Singular,Present,Finite
@@ -1985,6 +2000,7 @@ sauteed,Third,Singular,Past,Finite
 spancelling,Third,Singular,Present,Participle
 spancelled,Third,Singular,Past,Participle
 spancelled,Third,Singular,Past,Finite
+rendezvous,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 perpetuate,Third,Singular,Present,Finite
 perpetuate,Third,Singular,Present,Finite
@@ -2022,7 +2038,6 @@ tinge,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 enfeoff,Third,Singular,Present,Finite
 enfeoff,Third,Singular,Present,Finite
-luvz,Third,Singular,Present,Finite
 luvd,Third,Singular,Past,Participle
 luvd,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
@@ -2031,16 +2046,17 @@ inaugurate,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 succour,Third,Singular,Present,Finite
 succour,Third,Singular,Present,Finite
+stuccoes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 retract,Third,Singular,Present,Finite
 retract,Third,Singular,Present,Finite
 birdieing,Third,Singular,Present,Participle
-exit,Third,Singular,Present,Finite
 typecast,Third,Singular,Past,Participle
 typecast,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
 temporize,Third,Singular,Present,Finite
 temporize,Third,Singular,Present,Finite
+jacuzzies,Third,Singular,Present,Finite
 synching,Third,Singular,Present,Participle
 synched,Third,Singular,Past,Participle
 synched,Third,Singular,Past,Finite
@@ -2110,14 +2126,15 @@ speedran,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
 wot,Third,Singular,Present,Finite
 wot,Third,Singular,Present,Finite
+sgraffitoes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 drench,Third,Singular,Present,Finite
 drench,Third,Singular,Present,Finite
+outgasses,Third,Singular,Present,Finite
 took,Third,Singular,Past,Finite
 tekked,Third,Singular,Past,Finite
 tekken,Third,Singular,Past,Participle
 tekked,Third,Singular,Past,Participle
-vaxxes,Third,Singular,Present,Finite
 vaxxing,Third,Singular,Present,Participle
 vaxxed,Third,Singular,Past,Participle
 vaxxed,Third,Singular,Past,Finite
@@ -2140,7 +2157,6 @@ cramponned,Third,Singular,Past,Finite
 had,Third,Singular,Past,Participle
 had,Third,Singular,Past,Finite
 bode,Third,Singular,Past,Participle
-aks,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 requite,Third,Singular,Present,Finite
 requite,Third,Singular,Present,Finite
@@ -2173,9 +2189,11 @@ photostatted,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
 embitter,Third,Singular,Present,Finite
 embitter,Third,Singular,Present,Finite
+refocusses,Third,Singular,Present,Finite
 bejewelling,Third,Singular,Present,Participle
 bejewelled,Third,Singular,Past,Participle
 bejewelled,Third,Singular,Past,Finite
+kayoes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 extenuate,Third,Singular,Present,Finite
 extenuate,Third,Singular,Present,Finite
@@ -2213,11 +2231,11 @@ floodlit,Third,Singular,Past,Finite
 cablecast,Third,Singular,Past,Participle
 cablecast,Third,Singular,Past,Finite
 hogtying,Third,Singular,Present,Participle
-strikesthrough,Third,Singular,Present,Finite
 muste,Third,Singular,Past,Finite
 vialling,Third,Singular,Present,Participle
 vialled,Third,Singular,Past,Participle
 vialled,Third,Singular,Past,Finite
+hilloes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 outgo,Third,Singular,Present,Finite
 outgo,Third,Singular,Present,Finite
@@ -2264,6 +2282,7 @@ relabelled,Third,Singular,Past,Finite
 decontrolling,Third,Singular,Present,Participle
 decontrolled,Third,Singular,Past,Participle
 decontrolled,Third,Singular,Past,Finite
+degasses,Third,Singular,Present,Finite
 timbrelling,Third,Singular,Present,Participle
 timbrelled,Third,Singular,Past,Participle
 timbrelled,Third,Singular,Past,Finite
@@ -2280,6 +2299,7 @@ lowpt,Third,Singular,Past,Finite
 mislabelling,Third,Singular,Present,Participle
 mislabelled,Third,Singular,Past,Participle
 mislabelled,Third,Singular,Past,Finite
+hallooes,Third,Singular,Present,Finite
 overbet,Third,Singular,Past,Participle
 overbet,Third,Singular,Past,Finite
 refitted,Third,Singular,Past,Participle
@@ -2297,6 +2317,7 @@ galoped,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
 unloose,Third,Singular,Present,Finite
 unloose,Third,Singular,Present,Finite
+bringeth,Third,Singular,Present,Finite
 behelde,Third,Singular,Past,Participle
 forcast,Third,Singular,Past,Participle
 forcast,Third,Singular,Past,Finite
@@ -2307,7 +2328,6 @@ left,Third,Singular,Past,Participle
 left,Third,Singular,Past,Finite
 cheerled,Third,Singular,Past,Participle
 cheerled,Third,Singular,Past,Finite
-wuvz,Third,Singular,Present,Finite
 wuvd,Third,Singular,Past,Participle
 wuvd,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
@@ -2323,6 +2343,7 @@ lorn,Third,Singular,Past,Participle
 controulling,Third,Singular,Present,Participle
 controulled,Third,Singular,Past,Participle
 controulled,Third,Singular,Past,Finite
+convoes,Third,Singular,Present,Finite
 shetted,Third,Singular,Past,Participle
 hatchelling,Third,Singular,Present,Participle
 hatchelled,Third,Singular,Past,Participle
@@ -2342,7 +2363,7 @@ medevacking,Third,Singular,Present,Participle
 medevacked,Third,Singular,Past,Participle
 medevacked,Third,Singular,Past,Finite
 medivacking,Third,Singular,Present,Participle
-regasses,Third,Singular,Present,Finite
+defocusses,Third,Singular,Present,Finite
 predialling,Third,Singular,Present,Participle
 predialled,Third,Singular,Past,Participle
 predialled,Third,Singular,Past,Finite
@@ -2366,6 +2387,7 @@ giddyaping,Third,Singular,Present,Participle
 giddyaped,Third,Singular,Past,Participle
 giddyaped,Third,Singular,Past,Finite
 unbid,Third,Singular,Past,Participle
+autofocusses,Third,Singular,Present,Finite
 overleaped,Third,Singular,Past,Participle
 overleaped,Third,Singular,Past,Finite
 misdialling,Third,Singular,Present,Participle
@@ -2387,6 +2409,7 @@ overpedalled,Third,Singular,Past,Participle
 overpedalled,Third,Singular,Past,Finite
 backcast,Third,Singular,Past,Participle
 backcast,Third,Singular,Past,Finite
+derezzes,Third,Singular,Present,Finite
 marcotting,Third,Singular,Present,Participle
 marcotted,Third,Singular,Past,Participle
 marcotted,Third,Singular,Past,Finite
@@ -2434,6 +2457,7 @@ overset,Third,Singular,Present,Finite
 outrivalling,Third,Singular,Present,Participle
 outrivalled,Third,Singular,Past,Participle
 outrivalled,Third,Singular,Past,Finite
+wanteth,Third,Singular,Present,Finite
 threaped,Third,Singular,Past,Participle
 threaped,Third,Singular,Past,Finite
 jpegging,Third,Singular,Present,Participle
@@ -2468,6 +2492,7 @@ unmarshalled,Third,Singular,Past,Participle
 unmarshalled,Third,Singular,Past,Finite
 ragequit,Third,Singular,Past,Participle
 ragequit,Third,Singular,Past,Finite
+prefocusses,Third,Singular,Present,Finite
 enskied,Third,Singular,Past,Participle
 enskied,Third,Singular,Past,Finite
 regot,Third,Singular,Past,Participle
@@ -2546,6 +2571,7 @@ overlit,Third,Singular,Past,Finite
 forehewn,Third,Singular,Past,Participle
 upbuilt,Third,Singular,Past,Participle
 upbuilt,Third,Singular,Past,Finite
+unfocusses,Third,Singular,Present,Finite
 depetalling,Third,Singular,Present,Participle
 depetalled,Third,Singular,Past,Participle
 depetalled,Third,Singular,Past,Finite
@@ -2560,6 +2586,7 @@ newmodelling,Third,Singular,Present,Participle
 newmodelled,Third,Singular,Past,Participle
 newmodelled,Third,Singular,Past,Finite
 overdyeing,Third,Singular,Present,Participle
+saboes,Third,Singular,Present,Finite
 refunnelling,Third,Singular,Present,Participle
 refunnelled,Third,Singular,Past,Participle
 refunnelled,Third,Singular,Past,Finite
@@ -2590,6 +2617,7 @@ bedrote,Third,Singular,Past,Finite
 misfuelling,Third,Singular,Present,Participle
 misfuelled,Third,Singular,Past,Participle
 misfuelled,Third,Singular,Past,Finite
+unbiasses,Third,Singular,Present,Finite
 platitudinise,Third,Singular,Present,Finite
 outstruck,Third,Singular,Past,Participle
 drunck,Third,Singular,Past,Participle
@@ -2684,7 +2712,6 @@ whammelled,Third,Singular,Past,Participle
 whammelled,Third,Singular,Past,Finite
 besown,Third,Singular,Past,Participle
 forfought,Third,Singular,Past,Participle
-necroes,Third,Singular,Present,Finite
 beshit,Third,Singular,Past,Finite
 beshote,Third,Singular,Past,Finite
 besingeing,Third,Singular,Present,Participle
@@ -2699,6 +2726,7 @@ beshorn,Third,Singular,Past,Participle
 handknitted,Third,Singular,Past,Participle
 handknitted,Third,Singular,Past,Finite
 bedrunk,Third,Singular,Past,Participle
+overfocusses,Third,Singular,Present,Finite
 touselling,Third,Singular,Present,Participle
 touselled,Third,Singular,Past,Participle
 touselled,Third,Singular,Past,Finite
@@ -2717,6 +2745,7 @@ carrolled,Third,Singular,Past,Finite
 misprogramming,Third,Singular,Present,Participle
 misprogrammed,Third,Singular,Past,Participle
 misprogrammed,Third,Singular,Past,Finite
+aunswereth,Third,Singular,Present,Finite
 delamming,Third,Singular,Present,Participle
 delammed,Third,Singular,Past,Participle
 delammed,Third,Singular,Past,Finite
@@ -2729,7 +2758,6 @@ disenvowelling,Third,Singular,Present,Participle
 disenvowelled,Third,Singular,Past,Participle
 disenvowelled,Third,Singular,Past,Finite
 misstruck,Third,Singular,Past,Participle
-strawpedoes,Third,Singular,Present,Finite
 miswed,Third,Singular,Past,Participle
 miswed,Third,Singular,Past,Finite
 resprang,Third,Singular,Past,Finite
@@ -2753,6 +2781,7 @@ mismodelled,Third,Singular,Past,Finite
 reswollen,Third,Singular,Past,Participle
 prewet,Third,Singular,Past,Participle
 prewet,Third,Singular,Past,Finite
+misfocusses,Third,Singular,Present,Finite
 shadowcast,Third,Singular,Past,Participle
 shadowcast,Third,Singular,Past,Finite
 livecast,Third,Singular,Past,Participle
@@ -2760,6 +2789,7 @@ livecast,Third,Singular,Past,Finite
 regravelling,Third,Singular,Present,Participle
 regravelled,Third,Singular,Past,Participle
 regravelled,Third,Singular,Past,Finite
+lassues,Third,Singular,Present,Finite
 empannelling,Third,Singular,Present,Participle
 empannelled,Third,Singular,Past,Participle
 empannelled,Third,Singular,Past,Finite
@@ -2770,6 +2800,7 @@ overclad,Third,Singular,Past,Participle
 overclad,Third,Singular,Past,Finite
 predyeing,Third,Singular,Present,Participle
 preageing,Third,Singular,Present,Participle
+debiasses,Third,Singular,Present,Finite
 bechid,Third,Singular,Past,Finite
 bechid,Third,Singular,Past,Participle
 fkn,Third,Singular,Present,Participle
@@ -2786,7 +2817,6 @@ photolabelled,Third,Singular,Past,Finite
 whummelling,Third,Singular,Present,Participle
 whummelled,Third,Singular,Past,Participle
 whummelled,Third,Singular,Past,Finite
-restuccoes,Third,Singular,Present,Finite
 oversped,Third,Singular,Past,Participle
 oversped,Third,Singular,Past,Finite
 retotalling,Third,Singular,Present,Participle
@@ -2822,11 +2852,13 @@ downbet,Third,Singular,Past,Finite
 reshorn,Third,Singular,Past,Participle
 misforecast,Third,Singular,Past,Participle
 misforecast,Third,Singular,Past,Finite
+pallisadoes,Third,Singular,Present,Finite
 misknit,Third,Singular,Past,Participle
 misknit,Third,Singular,Past,Finite
 escortcelling,Third,Singular,Present,Participle
 escortcelled,Third,Singular,Past,Participle
 escortcelled,Third,Singular,Past,Finite
+immunofocusses,Third,Singular,Present,Finite
 wishcast,Third,Singular,Past,Participle
 wishcast,Third,Singular,Past,Finite
 reoutput,Third,Singular,Past,Participle
@@ -2857,6 +2889,7 @@ mistotalled,Third,Singular,Past,Finite
 dispetalling,Third,Singular,Present,Participle
 dispetalled,Third,Singular,Past,Participle
 dispetalled,Third,Singular,Past,Finite
+deaggroes,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 wotte,Third,Singular,Present,Finite
 wotte,Third,Singular,Present,Finite
@@ -2865,6 +2898,7 @@ quethed,Third,Singular,Past,Finite
 quoth,Third,Singular,Past,Participle
 queathen,Third,Singular,Past,Participle
 glossary,Third,Singular,Present,Finite
+queathes,Third,Singular,Present,Finite
 quoth,Third,Singular,Past,Finite
 queath,Third,Singular,Present,Finite
 quoth,Third,Singular,Past,Finite

@@ -257,10 +257,6 @@ fn extract_verb_conjugations_new(
         let mut verbik = VerbParts::default();
         verbik.inf = infinitive.clone();
 
-        if verbik.inf == "can" {
-            println!("{:#?}", entry);
-        }
-
         if let Some(forms) = entry.forms {
             for form in &forms {
                 let tags = &form.tags;
