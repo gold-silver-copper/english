@@ -73,7 +73,7 @@ const IRREGULAR_PRES_PART: &[(&str, &str)] = &[
     ("p", "pping"),
     ("ng", "nging"),
     ("g", "gging"),
-    // ("z", "zzing"),
+    //   ("d", "dding"),
     //  ("t", "tting"),
 ];
 
@@ -83,7 +83,7 @@ const IRREGULAR_PAST: &[(&str, &str)] = &[
     ("y", "ied"),
     ("ng", "nged"),
     ("g", "gged"),
-    //  ("z", "zzed"),
+    //("d", "dded"),
     //  ("t", "tted"),
 ];
 
