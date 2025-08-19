@@ -34,8 +34,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     extract_verb_conjugations_new(filtered_json_path, "verb_conjugations.csv")?;
     extract_irregular_nouns(filtered_json_path, "nouns_with_plurals.csv")?;
 
-    // extract_irregular_adjectives(filtered_json_path, "adjectives.csv")?;
-    //  generate_adjectives_file("adjectives.csv", "adj_array.rs");
+    extract_irregular_adjectives(filtered_json_path, "adjectives.csv")?;
+    generate_adjectives_file("adjectives.csv", "adj_array.rs");
     generate_nouns_file("nouns_with_plurals.csv", "noun_array.rs");
     generate_verbs_file("verb_conjugations.csv", "verb_array.rs");
 
