@@ -20,16 +20,10 @@ impl EnglishCore {
             }
 
             (Person::Third, Number::Singular, Tense::Present, Form::Finite) => {
-                if word.ends_with("s")
-                    || word.ends_with("z")
-                    || word.ends_with("sh")
-                    || word.ends_with("ch")
-                    || word.ends_with("x")
-                {
-                    return format!("{}{}", word, "es");
-                } else {
-                    return format!("{}{}", word, "s");
+                if let Some(irr) = EnglishCore::iter_replace_last(word, IRREGULAR_THIRD) {
+                    return irr;
                 }
+                format!("{}{}", word, "s")
             }
             (_, _, Tense::Present, Form::Finite) => {
                 return word.to_string();
@@ -88,4 +82,21 @@ const IRREGULAR_PAST: &[(&str, &str)] = &[
     //  ("l", "lled"),
     //  ("z", "zzed"),
     //  ("t", "tted"),
+];
+/*  if word.ends_with("s")
+    || word.ends_with("z")
+    || word.ends_with("sh")
+    || word.ends_with("ch")
+    || word.ends_with("x")
+{
+    return format!("{}{}", word, "es");
+} else {
+    return format!("{}{}", word, "s");
+} */
+const IRREGULAR_THIRD: &[(&str, &str)] = &[
+    ("sh", "shes"),
+    ("ch", "ches"),
+    ("s", "ses"),
+    ("z", "zes"),
+    ("x", "xes"),
 ];
