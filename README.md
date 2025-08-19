@@ -22,14 +22,14 @@ In-sample evaluation of the English inflector (`extractor/main.rs/check_*`) show
 ---
 
 ### Performance
-Preliminary benchmarking (`examples/speedmark.rs`) yields the following speeds:
+Benchmarking under a worst-case scenario (`examples/speedmark.rs`) yields the following speeds:
 
 | Part of Speech | Throughput (calls/sec) | Time per Call |
 |----------------|-------------------------|---------------|
-| **Verbs**      | 7,673,166               | 130.32 ns     |
-| **Nouns**      | 5,193,495               | 192.55 ns     |
-| **Adjectives** | 9,448,375               | 105.84 ns     |
-
+| **Verbs**      | 5,572,956               | 180 ns     |
+| **Nouns**      | 3,668,747               | 272 ns     |
+| **Adjectives** | 7,167,281               | 139 ns     |
+Note: Real world use cases are generally 50-100 nanoseconds faster
 
 ## 📦 Installation
 
@@ -236,7 +236,7 @@ This project relies on raw data extracted from Wiktionary. Current version built
 4. Move the generated files adj_array.rs, noun_array.rs, verb_array.rs into the /src of english
 
 ## Benchmarks
-Performance benchmarks were run on my M2 Max Macbook.
+Performance benchmarks were run on my M2 Macbook.
 
 Writing benchmarks and tests for such a project is rather difficult and requires opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of words may be inconsistent. This library includes a few uncountable words in its dataset, but not all. Uncountable words require special handling anyway. Take all benchmarks with a pound of salt, write your own tests for your own usecases. Any suggestions to improve the benchmarking are highly appreciated.
 

@@ -10,7 +10,14 @@ use std::hint::black_box;
 use std::time::Instant;
 
 pub fn benchmark_verb() {
-    let words = ["walk", "eat", "go", "see", "invent", "play"];
+    let words = [
+        "zzzzzzzzzzzzzzzzz",
+        //   "xxxxxxxxxxxx",
+        //  "yyyyyyyyyyyy",
+        //   "aaaaaaaaaaaaaaaaaaaaa",
+        //  "wwwwwwwwwww",
+        //   "lllllllllll",
+    ];
     let person = Person::Third;
     let number = Number::Singular;
     let tense = Tense::Present;
@@ -22,13 +29,28 @@ pub fn benchmark_verb() {
 }
 
 pub fn benchmark_noun() {
-    let words = ["cat", "child", "mouse", "bus", "sheep", "fish"];
+    //tests for genereally worst case scenario, long word that is outside the array
+    let words = [
+        "zzzzzzzzzzzzzzzzz",
+        //   "xxxxxxxxxxxx",
+        //  "yyyyyyyyyyyy",
+        //   "aaaaaaaaaaaaaaaaaaaaa",
+        //  "wwwwwwwwwww",
+        //   "lllllllllll",
+    ];
 
     run_benchmark("noun", &words, |w| English::noun(w, &Number::Plural));
 }
 
 pub fn benchmark_adj() {
-    let words = ["fast", "good", "bad", "fun", "happy"];
+    let words = [
+        "zzzzzzzzzzzzzzzzz",
+        //   "xxxxxxxxxxxx",
+        //  "yyyyyyyyyyyy",
+        //   "aaaaaaaaaaaaaaaaaaaaa",
+        //  "wwwwwwwwwww",
+        //   "lllllllllll",
+    ];
 
     run_benchmark("adjective", &words, |w| {
         English::adj(w, &Degree::Comparative)
