@@ -24,8 +24,8 @@ Preliminary benchmarking (`examples/speedmark.rs`) yields the following speeds:
 
 | Part of Speech | Throughput (calls/sec) | Time per Call |
 |----------------|-------------------------|---------------|
-| **Verbs**      | 8,949,672               | 111.74 ns     |
-| **Nouns**      | 4,623,280               | 216.30 ns     |
+| **Verbs**      | 7,673,166               | 130.32 ns     |
+| **Nouns**      | 4,467,096               | 223.86 ns     |
 | **Adjectives** | 9,448,375               | 105.84 ns     |
 
 
@@ -35,7 +35,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-english = "0.0.4"
+english = "0.0.7"
 ```
 
 Then in your code:
