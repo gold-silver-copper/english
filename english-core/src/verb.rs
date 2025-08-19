@@ -68,7 +68,7 @@ impl EnglishCore {
     }
 }
 
-const IRREGULAR_PRES_PART: &[(&str, &str)] = &[
+static IRREGULAR_PRES_PART: &[(&str, &str)] = &[
     ("e", "ing"),
     ("p", "pping"),
     ("ng", "nging"),
@@ -78,7 +78,7 @@ const IRREGULAR_PRES_PART: &[(&str, &str)] = &[
     //  ("t", "tting"),
 ];
 
-const IRREGULAR_PAST: &[(&str, &str)] = &[
+static IRREGULAR_PAST: &[(&str, &str)] = &[
     ("fight", "fought"),
     ("buy", "bought"),
     ("e", "ed"),
@@ -91,7 +91,7 @@ const IRREGULAR_PAST: &[(&str, &str)] = &[
     //  ("t", "tted"),
 ];
 
-const IRREGULAR_THIRD: &[(&str, &str)] = &[
+static IRREGULAR_THIRD: &[(&str, &str)] = &[
     ("sh", "shes"),
     ("ch", "ches"),
     ("s", "ses"),

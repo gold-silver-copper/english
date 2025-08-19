@@ -16569,5 +16569,8 @@ static PLURAL_MAP: &[(&str, &str)] = &[
 ];
 
 pub fn get_plural(word: &str) -> Option<&'static str> {
-    PLURAL_MAP.binary_search_by_key(&word, |&(k, _)| k).ok().map(|i| PLURAL_MAP[i].1)
+    PLURAL_MAP
+        .binary_search_by_key(&word, |&(k, _)| k)
+        .ok()
+        .map(|i| PLURAL_MAP[i].1)
 }
