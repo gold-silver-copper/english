@@ -9,6 +9,7 @@ use std::io::{BufRead, BufReader, Write};
 mod file_generation;
 use file_generation::*;
 mod helpers;
+use csv::{ReaderBuilder, WriterBuilder};
 pub use helpers::*;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -37,6 +38,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     //  generate_adjectives_file("adjectives.csv", "adj_array.rs");
     generate_nouns_file("nouns_with_plurals.csv", "noun_array.rs");
     generate_verbs_file("verb_conjugations.csv", "verb_array.rs");
+
+    //  analyze_and_write_suffix_rules("nouns_with_plurals.csv", "analyzed_endings.csv");
     Ok(())
 }
 
@@ -700,5 +703,50 @@ pub fn filter_english_entries(input_path: &str, output_path: &str) -> Result<(),
     }
 
     println!("Filtered dataset saved to {}", output_path);
+    Ok(())
+}
+
+/// Strip trailing digits from a word (e.g., "walrus2" -> "walrus")
+pub fn strip_trailing_number(word: &str) -> &str {
+    word.trim_end_matches(|c: char| c.is_ascii_digit())
+}
+
+/// Process CSV and write suffix rules with frequencies to output CSV
+pub fn analyze_and_write_suffix_rules(
+    input_path: &str,
+    output_path: &str,
+) -> Result<(), Box<dyn Error>> {
+    let file = File::open(input_path)?;
+    let mut rdr = ReaderBuilder::new().from_reader(BufReader::new(file));
+
+    let mut freq: HashMap<(String, String), usize> = HashMap::new();
+
+    for result in rdr.records() {
+        let record = result?;
+        let singular_raw = record.get(0).unwrap();
+        let plural = record.get(1).unwrap();
+
+        let singular = strip_trailing_number(singular_raw);
+
+        let pair = suffix_rule(singular, plural);
+        *freq.entry(pair).or_insert(0) += 1;
+    }
+
+    // Sort by frequency descending, then singular suffix, then plural suffix
+    let mut freq_vec: Vec<_> = freq.into_iter().collect();
+    freq_vec.sort_by(|a, b| {
+        b.1.cmp(&a.1)
+            .then_with(|| a.0.0.cmp(&b.0.0))
+            .then_with(|| a.0.1.cmp(&b.0.1))
+    });
+
+    let mut wtr = WriterBuilder::new().from_path(output_path)?;
+    wtr.write_record(&["singular_suffix", "plural_suffix", "count"])?;
+
+    for ((sing_suf, plur_suf), count) in freq_vec {
+        wtr.write_record(&[sing_suf, plur_suf, count.to_string()])?;
+    }
+
+    wtr.flush()?;
     Ok(())
 }

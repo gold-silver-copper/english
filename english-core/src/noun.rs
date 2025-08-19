@@ -58,6 +58,7 @@ const IRREGULAR_SUFFIXES: &[(&str, &str)] = &[
     ("oy", "oys"),
     ("ey", "eys"),
     ("x", "xes"),
+    //  ("a", "ae"),
     ("s", "ses"),
     ("y", "ies"),
     ("f", "ves"),
