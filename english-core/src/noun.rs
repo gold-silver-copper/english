@@ -41,6 +41,7 @@ const IRREGULAR_SUFFIXES: &[(&str, &str)] = &[
     ("goose", "geese"),
     ("foot", "feet"),
     ("zoon", "zoa"),
+    // ("ful", "sful"),
     ("um", "a"),
     ("cis", "ces"),
     ("sis", "ses"),
