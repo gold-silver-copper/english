@@ -73,16 +73,20 @@ const IRREGULAR_PRES_PART: &[(&str, &str)] = &[
     ("p", "pping"),
     ("ng", "nging"),
     ("g", "gging"),
+    //  ("b", "bbing"),
     //   ("d", "dding"),
     //  ("t", "tting"),
 ];
 
 const IRREGULAR_PAST: &[(&str, &str)] = &[
+    ("fight", "fought"),
+    ("buy", "bought"),
     ("e", "ed"),
     ("p", "pped"),
     ("y", "ied"),
     ("ng", "nged"),
     ("g", "gged"),
+    // ("b", "bbed"),
     //("d", "dded"),
     //  ("t", "tted"),
 ];
@@ -93,5 +97,6 @@ const IRREGULAR_THIRD: &[(&str, &str)] = &[
     ("s", "ses"),
     ("z", "zes"),
     ("x", "xes"),
+    ("buy", "buys"),
     ("y", "ies"),
 ];
