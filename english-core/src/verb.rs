@@ -76,15 +76,15 @@ impl EnglishCore {
 const IRREGULAR_PRES_PART: &[(&str, &str)] = &[
     ("e", "ing"),
     ("p", "pping"),
-    ("l", "lling"),
+    //("l", "lling"),
     ("z", "zzing"),
-    ("t", "tting"),
+    //  ("t", "tting"),
 ];
 
 const IRREGULAR_PAST: &[(&str, &str)] = &[
     ("e", "ed"),
     ("p", "pped"),
-    ("l", "lled"),
+    //  ("l", "lled"),
     ("z", "zzed"),
-    ("t", "tted"),
+    //  ("t", "tted"),
 ];

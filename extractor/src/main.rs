@@ -26,9 +26,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     //filter_english_entries(input_path, filtered_json_path);
 
     //let input_path = "../../english.jsonl";
-    check_noun_plurals(filtered_json_path, "noun_plural_check.csv")?;
-    check_verb_conjugations(filtered_json_path, "verbs_check.csv")?;
-    check_adjective_forms(filtered_json_path, "adj_check.csv")?;
+    // check_noun_plurals(filtered_json_path, "noun_plural_check.csv")?;
+    //check_verb_conjugations(filtered_json_path, "verbs_check.csv")?;
+    //check_adjective_forms(filtered_json_path, "adj_check.csv")?;
 
     extract_verb_conjugations_new(filtered_json_path, "verb_conjugations.csv")?;
     extract_irregular_nouns(filtered_json_path, "nouns_with_plurals.csv")?;
