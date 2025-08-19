@@ -79,6 +79,7 @@ const IRREGULAR_PRES_PART: &[(&str, &str)] = &[
 const IRREGULAR_PAST: &[(&str, &str)] = &[
     ("e", "ed"),
     ("p", "pped"),
+    ("y", "ied"),
     //  ("l", "lled"),
     //  ("z", "zzed"),
     //  ("t", "tted"),
@@ -99,4 +100,5 @@ const IRREGULAR_THIRD: &[(&str, &str)] = &[
     ("s", "ses"),
     ("z", "zes"),
     ("x", "xes"),
+    ("y", "ies"),
 ];
