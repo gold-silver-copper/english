@@ -1,5 +1,5 @@
-use crate::grammar::*;
 use crate::EnglishCore;
+use crate::grammar::*;
 impl EnglishCore {
     pub fn verb(
         word: &str,
@@ -34,25 +34,17 @@ impl EnglishCore {
                 return word.to_string();
             }
             (_, _, Tense::Present, Form::Participle) => {
-                if word.ends_with("e") {
-                    return EnglishCore::replace_last_occurence(word, "e", "ing");
+                if let Some(irr) = EnglishCore::iter_replace_last(word, IRREGULAR_PRES_PART) {
+                    return irr;
                 }
-                if word.ends_with("p") {
-                    return format!("{}{}", word, "ping");
-                } else {
-                    return format!("{}{}", word, "ing");
-                }
+                format!("{}{}", word, "ing")
             }
 
             (_, _, Tense::Past, _) => {
-                if word.ends_with("e") {
-                    return format!("{}{}", word, "d");
+                if let Some(irr) = EnglishCore::iter_replace_last(word, IRREGULAR_PAST) {
+                    return irr;
                 }
-                if word.ends_with("p") {
-                    return format!("{}{}", word, "ped");
-                } else {
-                    return format!("{}{}", word, "ed");
-                }
+                format!("{}{}", word, "ed")
             }
         }
     }
@@ -80,3 +72,19 @@ impl EnglishCore {
         }
     }
 }
+
+const IRREGULAR_PRES_PART: &[(&str, &str)] = &[
+    ("e", "ing"),
+    ("p", "pping"),
+    ("l", "lling"),
+    ("z", "zzing"),
+    ("t", "tting"),
+];
+
+const IRREGULAR_PAST: &[(&str, &str)] = &[
+    ("e", "ed"),
+    ("p", "pped"),
+    ("l", "lled"),
+    ("z", "zzed"),
+    ("t", "tted"),
+];

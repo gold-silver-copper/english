@@ -1,5 +1,5 @@
-use crate::grammar::*;
 use crate::EnglishCore;
+use crate::grammar::*;
 
 impl EnglishCore {
     pub fn noun(word: &str, number: &Number) -> String {
@@ -16,17 +16,8 @@ impl EnglishCore {
         }
     }
 
-    fn irregular_suffix(word: &str) -> Option<String> {
-        for (sing, plur) in IRREGULAR_SUFFIXES {
-            if word.ends_with(sing) {
-                return Some(EnglishCore::replace_last_occurence(word, sing, plur));
-            }
-        }
-        None
-    }
-
     pub fn pluralize_noun(word: &str) -> String {
-        if let Some(irr) = EnglishCore::irregular_suffix(word) {
+        if let Some(irr) = EnglishCore::iter_replace_last(word, IRREGULAR_SUFFIXES) {
             return irr;
         }
         format!("{}{}", word, "s")

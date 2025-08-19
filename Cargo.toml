@@ -22,5 +22,5 @@ opt-level = 2 # fast and small wasm
 opt-level = 2
 
 [dependencies]
-#english-core = { path = "english-core" }
-english-core = "0.0.5"
+english-core = { path = "english-core" }
+#english-core = "0.0.5"

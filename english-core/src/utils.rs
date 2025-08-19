@@ -1,5 +1,5 @@
-use crate::grammar::*;
 use crate::EnglishCore;
+use crate::grammar::*;
 impl EnglishCore {
     pub fn pair_match(word: &str, listik: &[(&str, &str)]) -> Option<String> {
         listik
@@ -15,6 +15,14 @@ impl EnglishCore {
         } else {
             input.into()
         }
+    }
+    pub fn iter_replace_last(word: &str, pairs: &[(&str, &str)]) -> Option<String> {
+        for (sing, plur) in pairs {
+            if word.ends_with(sing) {
+                return Some(EnglishCore::replace_last_occurence(word, sing, plur));
+            }
+        }
+        None
     }
 
     pub fn starts_with_uppercase(word: &str) -> bool {
