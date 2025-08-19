@@ -26,10 +26,10 @@ impl EnglishCore {
 
 //These are most of the irregular suffixes, not counted so far are wolves,potatoes,compound words
 const IRREGULAR_SUFFIXES: &[(&str, &str)] = &[
-    ("chassis", "chassis"),
-    ("sheep", "sheep"),
+    //  ("chassis", "chassis"),
+    //  ("sheep", "sheep"),
     ("mouse", "mice"),
-    ("louse", "lice"),
+    // ("louse", "lice"),
     ("tooth", "teeth"),
     ("goose", "geese"),
     ("trix", "trices"),
