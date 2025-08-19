@@ -23,6 +23,7 @@ impl EnglishCore {
                 if word.ends_with("s")
                     || word.ends_with("z")
                     || word.ends_with("sh")
+                    || word.ends_with("ch")
                     || word.ends_with("x")
                 {
                     return format!("{}{}", word, "es");
@@ -77,7 +78,7 @@ const IRREGULAR_PRES_PART: &[(&str, &str)] = &[
     ("e", "ing"),
     ("p", "pping"),
     //("l", "lling"),
-    ("z", "zzing"),
+    // ("z", "zzing"),
     //  ("t", "tting"),
 ];
 
@@ -85,6 +86,6 @@ const IRREGULAR_PAST: &[(&str, &str)] = &[
     ("e", "ed"),
     ("p", "pped"),
     //  ("l", "lled"),
-    ("z", "zzed"),
+    //  ("z", "zzed"),
     //  ("t", "tted"),
 ];
