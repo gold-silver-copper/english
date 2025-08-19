@@ -3,8 +3,10 @@
 [![Crates.io](https://img.shields.io/crates/v/english)](https://crates.io/crates/english)
 [![Docs.rs](https://docs.rs/english/badge.svg)](https://docs.rs/english)
 ![License](https://img.shields.io/crates/l/english)
+[![Discord](https://img.shields.io/discord/123456789012345678.svg?logo=discord&logoColor=white&color=5865F2)](https://discord.gg/tDBPkdgApN)
 
-**english** is a blazing fast English morphology library written in Rust with zero external dependencies. It provides accurate verb conjugation and noun/adjective declension based on processed Wiktionary data, making it ideal for real-time procedural text generation.
+
+**english** is a blazing fast English morphology library written in Rust with zero external dependencies and a total code+data size under 1 MB. It provides extremely accurate verb conjugation and noun/adjective declension based on highly processed Wiktionary data, making it ideal for real-time procedural text generation.
 
 ## ⚡ Speed and Accuracy
 
