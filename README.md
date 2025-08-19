@@ -29,6 +29,7 @@ Benchmarking under a worst-case scenario (`examples/speedmark.rs`) yields the fo
 | **Verbs**      | 5,572,956               | 180 ns     |
 | **Nouns**      | 3,668,747               | 272 ns     |
 | **Adjectives** | 7,167,281               | 139 ns     |
+
 Note: Real world use cases are generally 50-100 nanoseconds faster
 
 ## 📦 Installation
