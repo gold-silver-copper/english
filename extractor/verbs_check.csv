@@ -39,6 +39,8 @@ spring,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 die,Third,Singular,Present,Finite
 die,Third,Singular,Present,Finite
+skyed,Third,Singular,Past,Participle
+skyed,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
 obfuscate,Third,Singular,Present,Finite
 obfuscate,Third,Singular,Present,Finite
@@ -481,9 +483,6 @@ speak,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 thunder,Third,Singular,Present,Finite
 thunder,Third,Singular,Present,Finite
-whies,Third,Singular,Present,Finite
-whied,Third,Singular,Past,Participle
-whied,Third,Singular,Past,Finite
 mown,Third,Singular,Past,Participle
 outbidded,Third,Singular,Past,Finite
 outbidden,Third,Singular,Past,Participle
@@ -500,6 +499,8 @@ bright,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 attend,Third,Singular,Present,Finite
 attend,Third,Singular,Present,Finite
+overlayed,Third,Singular,Past,Participle
+overlayed,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
 sleep,Third,Singular,Present,Finite
 sleep,Third,Singular,Present,Finite
@@ -570,6 +571,8 @@ show,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 sit,Third,Singular,Present,Finite
 sit,Third,Singular,Present,Finite
+slayed,Third,Singular,Past,Finite
+slayed,Third,Singular,Past,Participle
 slidden,Third,Singular,Past,Participle
 slang,Third,Singular,Past,Participle
 slang,Third,Singular,Past,Finite
@@ -934,6 +937,8 @@ galen,Third,Singular,Past,Participle
 darving,Third,Singular,Present,Participle
 darved,Third,Singular,Past,Finite
 vyes,Third,Singular,Present,Finite
+vyed,Third,Singular,Past,Participle
+vyed,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
 best,Third,Singular,Present,Finite
 best,Third,Singular,Present,Finite
@@ -1064,9 +1069,6 @@ calculate,Third,Singular,Present,Finite
 glossary,Third,Singular,Present,Finite
 follow,Third,Singular,Present,Finite
 follow,Third,Singular,Present,Finite
-gulagging,Third,Singular,Present,Participle
-gulagged,Third,Singular,Past,Participle
-gulagged,Third,Singular,Past,Finite
 apparelling,Third,Singular,Present,Participle
 apparelled,Third,Singular,Past,Participle
 apparelled,Third,Singular,Past,Finite
@@ -1170,6 +1172,9 @@ refuse,Third,Singular,Present,Finite
 refuse,Third,Singular,Present,Finite
 vegges,Third,Singular,Present,Finite
 veges,Third,Singular,Present,Finite
+veging,Third,Singular,Present,Participle
+veged,Third,Singular,Past,Participle
+veged,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
 hover,Third,Singular,Present,Finite
 hover,Third,Singular,Present,Finite
@@ -1431,6 +1436,8 @@ doff,Third,Singular,Present,Finite
 doff,Third,Singular,Present,Finite
 dought,Third,Singular,Past,Participle
 dought,Third,Singular,Past,Finite
+epoxyed,Third,Singular,Past,Participle
+epoxyed,Third,Singular,Past,Finite
 eyeletting,Third,Singular,Present,Participle
 eyeletted,Third,Singular,Past,Participle
 eyeletted,Third,Singular,Past,Finite
@@ -1603,6 +1610,9 @@ befit,Third,Singular,Past,Finite
 motelling,Third,Singular,Present,Participle
 motelled,Third,Singular,Past,Participle
 motelled,Third,Singular,Past,Finite
+jpeging,Third,Singular,Present,Participle
+jpeged,Third,Singular,Past,Participle
+jpeged,Third,Singular,Past,Finite
 dequeueing,Third,Singular,Present,Participle
 glossary,Third,Singular,Present,Finite
 explode,Third,Singular,Present,Finite
@@ -2260,6 +2270,8 @@ slueing,Third,Singular,Present,Participle
 glossary,Third,Singular,Present,Finite
 perpetuate,Third,Singular,Present,Finite
 perpetuate,Third,Singular,Present,Finite
+miladyed,Third,Singular,Past,Participle
+miladyed,Third,Singular,Past,Finite
 trollied,Third,Singular,Past,Participle
 trollied,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
@@ -2818,6 +2830,9 @@ threapt,Third,Singular,Past,Finite
 cocounselling,Third,Singular,Present,Participle
 cocounselled,Third,Singular,Past,Participle
 cocounselled,Third,Singular,Past,Finite
+jpeging,Third,Singular,Present,Participle
+jpeged,Third,Singular,Past,Participle
+jpeged,Third,Singular,Past,Finite
 begrove,Third,Singular,Past,Finite
 begraven,Third,Singular,Past,Participle
 araught,Third,Singular,Past,Participle
@@ -2864,6 +2879,8 @@ prefocussed,Third,Singular,Past,Finite
 precounselling,Third,Singular,Present,Participle
 precounselled,Third,Singular,Past,Participle
 precounselled,Third,Singular,Past,Finite
+enskyed,Third,Singular,Past,Participle
+enskyed,Third,Singular,Past,Finite
 embowelling,Third,Singular,Present,Participle
 embowelled,Third,Singular,Past,Participle
 embowelled,Third,Singular,Past,Finite
@@ -3109,6 +3126,8 @@ atraught,Third,Singular,Past,Participle
 atraught,Third,Singular,Past,Finite
 atrone,Third,Singular,Past,Finite
 atrinnen,Third,Singular,Past,Participle
+belyed,Third,Singular,Past,Participle
+belyed,Third,Singular,Past,Finite
 glossary,Third,Singular,Present,Finite
 wote,Third,Singular,Present,Finite
 wote,Third,Singular,Present,Finite

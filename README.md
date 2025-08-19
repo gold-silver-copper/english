@@ -15,9 +15,9 @@ In-sample evaluation of the English inflector (`extractor/main.rs/check_*`) show
 
 | Part of Speech | Correct / Total | Accuracy |
 |----------------|-----------------|-----------|
-| **Nouns**      | 235,719 / 236,150 | **99.82%** |
-| **Verbs**      | 154,711 / 156,474 | **98.87%** |
-| **Adjectives** | 118,136 / 118,221 | **99.92%** |
+| **Nouns**      | 238106 / 238549 | **99.81%** |
+| **Verbs**      | 158056 / 161643 | **97.78%** |
+| **Adjectives** | 119200 / 119356 | **99.86%** |
 
 ---
 
@@ -27,7 +27,7 @@ Preliminary benchmarking (`examples/speedmark.rs`) yields the following speeds:
 | Part of Speech | Throughput (calls/sec) | Time per Call |
 |----------------|-------------------------|---------------|
 | **Verbs**      | 7,673,166               | 130.32 ns     |
-| **Nouns**      | 4,467,096               | 223.86 ns     |
+| **Nouns**      | 5,193,495               | 192.55 ns     |
 | **Adjectives** | 9,448,375               | 105.84 ns     |
 
 
