@@ -71,7 +71,8 @@ impl EnglishCore {
 const IRREGULAR_PRES_PART: &[(&str, &str)] = &[
     ("e", "ing"),
     ("p", "pping"),
-    //("l", "lling"),
+    ("ng", "nging"),
+    ("g", "gging"),
     // ("z", "zzing"),
     //  ("t", "tting"),
 ];
@@ -80,20 +81,12 @@ const IRREGULAR_PAST: &[(&str, &str)] = &[
     ("e", "ed"),
     ("p", "pped"),
     ("y", "ied"),
-    //  ("l", "lled"),
+    ("ng", "nged"),
+    ("g", "gged"),
     //  ("z", "zzed"),
     //  ("t", "tted"),
 ];
-/*  if word.ends_with("s")
-    || word.ends_with("z")
-    || word.ends_with("sh")
-    || word.ends_with("ch")
-    || word.ends_with("x")
-{
-    return format!("{}{}", word, "es");
-} else {
-    return format!("{}{}", word, "s");
-} */
+
 const IRREGULAR_THIRD: &[(&str, &str)] = &[
     ("sh", "shes"),
     ("ch", "ches"),
