@@ -15,3 +15,6 @@ Cargo.lock
 *.pdb
 extractor/english_filtered.jsonl
 english-core/.DS_Store
+extractor/adjectives.csv
+extractor/nouns_with_plurals.csv
+extractor/verb_conjugations.csv
