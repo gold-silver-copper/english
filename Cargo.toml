@@ -1,6 +1,6 @@
 [package]
 name = "english"
-version = "0.0.7"
+version = "0.0.8"
 authors = ["gold-silver-copper"]
 edition = "2024"
 include = ["LICENSE-APACHE", "LICENSE-MIT", "**/*.rs", "Cargo.toml"]
@@ -22,5 +22,5 @@ opt-level = 2 # fast and small wasm
 opt-level = 2
 
 [dependencies]
-english-core = { path = "english-core" }
-#english-core = "0.0.7"
+#english-core = { path = "english-core" }
+english-core = "0.0.8"
