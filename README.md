@@ -6,7 +6,7 @@
 [![Discord](https://img.shields.io/discord/123456789012345678.svg?logo=discord&logoColor=white&color=5865F2)](https://discord.gg/tDBPkdgApN)
 
 
-**english** is a blazing fast English morphology library written in Rust with zero external dependencies and a total code+data size under 1 MB. It provides extremely accurate verb conjugation and noun/adjective declension based on highly processed Wiktionary data, making it ideal for real-time procedural text generation.
+**english** is a blazing fast and light weight English inflection library written in Rust. Total bundled data size is less than 1 MB. It provides extremely accurate verb conjugation and noun/adjective declension based on highly processed Wiktionary data, making it ideal for real-time procedural text generation.
 
 ## ⚡ Speed and Accuracy
 
@@ -14,11 +14,11 @@ Evaluation of the English inflector (`extractor/main.rs/check_*`) and performanc
 
 | Part of Speech | Correct / Total | Accuracy  | Throughput (calls/sec) | Time per Call |
 |----------------|----------------|-----------|-----------------------|---------------|
-| **Nouns**      | 238106 / 238549 | 99.81%   | 3,929,101             | 254 ns        |
-| **Verbs**      | 158056 / 161643 | 97.78%   | 5,572,956             | 180 ns        |
-| **Adjectives** | 119200 / 119356 | 99.86%   | 7,167,281             | 139 ns        |
+| **Nouns**      | 238106 / 238549 | 99.81%   | 5,228,300             | 191 ns        |
+| **Verbs**      | 158056 / 161643 | 97.78%   | 8,473,248             | 118 ns        |
+| **Adjectives** | 119200 / 119356 | 99.86%   | 11,999,052             | 83 ns        |
 
-*Note: Benchmarking was done under a worst-case scenario; typical real-world usage is 50-100 ns faster.*
+*Note: Benchmarking was done under a worst-case scenario; typical real-world usage is 50~ nanoseconds faster.*
 
 ## 📦 Installation
 

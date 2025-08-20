@@ -1,11 +1,6 @@
 use english_core::EnglishCore;
 pub use english_core::grammar::*;
-mod noun_array;
-//use noun_array::*;
-mod verb_array;
-//use verb_array::*;
-mod adj_array;
-//use adj_array::*;
+
 mod noun;
 pub use noun::*;
 mod verb;
