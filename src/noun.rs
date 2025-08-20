@@ -1,3 +1,5 @@
+use crate::*;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Noun {
     pub head: String,
@@ -22,6 +24,55 @@ impl Noun {
     pub fn with_complement(mut self, post: impl Into<String>) -> Self {
         self.complement = Some(post.into());
         self
+    }
+}
+
+impl English {
+    /// Returns a noun inflected according to the count. Wrapper around English::noun()
+    ///
+    /// # Examples
+    /// ```rust
+    /// assert_eq!(English::count("cat", 1), "cat");
+    /// assert_eq!(English::count("cat", 2), "cats");
+    /// ```
+    pub fn count<T: Into<Noun>>(word: T, count: u32) -> String {
+        if count == 1 {
+            English::noun(word, &Number::Singular)
+        } else {
+            English::noun(word, &Number::Plural)
+        }
+    }
+
+    /// Returns a noun inflected according to the count, preserves the number in output
+    ///
+    /// # Examples
+    /// ```rust
+    /// assert_eq!(English::count("cat", 1), "1 cat");
+    /// assert_eq!(English::count("cat", 2), "2 cats");
+    /// ```
+    pub fn count_with_number<T: Into<Noun>>(word: T, count: u32) -> String {
+        format!("{} {}", count, English::count(word, count))
+    }
+
+    /// Returns the plural form of a noun.
+    ///
+    /// # Examples
+    /// ```
+    /// assert_eq!(English::plural("child"), "children");
+    /// assert_eq!(English::plural("cat"), "cats");
+    /// ```
+    pub fn plural<T: Into<Noun>>(word: T) -> String {
+        English::noun(word, &Number::Plural)
+    }
+
+    /// Returns the singular form of a noun.
+    ///
+    /// # Examples
+    /// ```
+    /// assert_eq!(English::singular("cat2"), "cat");
+    /// ```
+    pub fn singular<T: Into<Noun>>(word: T) -> String {
+        English::noun(word, &Number::Singular)
     }
 }
 

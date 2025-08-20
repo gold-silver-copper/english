@@ -1,3 +1,5 @@
+use crate::*;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Verb {
     pub head: String,             // "pick"
@@ -17,6 +19,88 @@ impl Verb {
     pub fn with_particle(mut self, particle: impl Into<String>) -> Self {
         self.particle = Some(particle.into());
         self
+    }
+}
+
+impl English {
+    /// Returns the third-person singular present tense of the verb.
+    ///
+    /// # Examples
+    /// ```
+    /// assert_eq!(English::third_person("run"), "runs");
+    /// ```
+    pub fn third_person<T: Into<Verb>>(wordish: T) -> String {
+        English::verb(
+            wordish,
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Present,
+            &Form::Finite,
+        )
+    }
+
+    /// Returns the past tense of the verb.
+    ///
+    /// # Examples
+    /// ```
+    /// assert_eq!(English::past("walk"), "walked");
+    /// ```
+    pub fn past<T: Into<Verb>>(wordish: T) -> String {
+        English::verb(
+            wordish,
+            &Person::Third,    // person doesn’t matter in past tense finite
+            &Number::Singular, // irrelevant
+            &Tense::Past,
+            &Form::Finite,
+        )
+    }
+
+    /// Returns the present participle ("-ing" form) of the verb.
+    ///
+    /// # Examples
+    /// ```
+    /// assert_eq!(English::present_participle("swim"), "swimming");
+    /// ```
+    pub fn present_participle<T: Into<Verb>>(wordish: T) -> String {
+        English::verb(
+            wordish,
+            &Person::First,    // irrelevant for participles
+            &Number::Singular, // irrelevant
+            &Tense::Present,
+            &Form::Participle,
+        )
+    }
+
+    /// Returns the past participle of the verb.
+    ///
+    /// # Examples
+    /// ```
+    /// assert_eq!(English::past_participle("eat"), "eaten");
+    /// ```
+    pub fn past_participle<T: Into<Verb>>(wordish: T) -> String {
+        English::verb(
+            wordish,
+            &Person::First,    // irrelevant
+            &Number::Singular, // irrelevant
+            &Tense::Past,
+            &Form::Participle,
+        )
+    }
+
+    /// Returns the infinitive (base) form of the verb.
+    ///
+    /// # Examples
+    /// ```
+    /// assert_eq!(English::infinitive("go"), "go");
+    /// ```
+    pub fn infinitive<T: Into<Verb>>(wordish: T) -> String {
+        English::verb(
+            wordish,
+            &Person::First,    // irrelevant
+            &Number::Singular, // irrelevant
+            &Tense::Present,   // irrelevant
+            &Form::Infinitive,
+        )
     }
 }
 

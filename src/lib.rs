@@ -1,5 +1,3 @@
-use core::fmt;
-
 use english_core::EnglishCore;
 pub use english_core::grammar::*;
 mod noun_array;
@@ -12,6 +10,8 @@ mod noun;
 pub use noun::*;
 mod verb;
 pub use verb::*;
+mod adj;
+pub use adj::*;
 
 fn strip_trailing_number(word: &str) -> String {
     if let Some(last_char) = word.chars().last() {
@@ -191,29 +191,17 @@ impl English {
         EnglishCore::add_possessive(word)
     }
 
-    /// Returns a noun inflected according to the count. Wrapper around English::noun()
+    /// Capitalize the first letter of a word
     ///
     /// # Examples
     /// ```rust
-    /// assert_eq!(English::count("cat", 1), "cat");
-    /// assert_eq!(English::count("cat", 2), "cats");
+    /// assert_eq!(English::add_possessive("house"), "House");
     /// ```
-    pub fn count<T: Into<Noun>>(word: T, count: u32) -> String {
-        if count == 1 {
-            English::noun(word, &Number::Singular)
-        } else {
-            English::noun(word, &Number::Plural)
+    pub fn capitalize_first(s: &str) -> String {
+        let mut c = s.chars();
+        match c.next() {
+            None => String::new(),
+            Some(first) => first.to_uppercase().collect::<String>() + c.as_str(),
         }
-    }
-
-    /// Returns a noun inflected according to the count, preserves the number in output
-    ///
-    /// # Examples
-    /// ```rust
-    /// assert_eq!(English::count("cat", 1), "1 cat");
-    /// assert_eq!(English::count("cat", 2), "2 cats");
-    /// ```
-    pub fn count_with_number<T: Into<Noun>>(word: T, count: u32) -> String {
-        format!("{} {}", count, English::count(word, count))
     }
 }
