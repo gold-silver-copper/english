@@ -1,6 +1,6 @@
 [package]
 name = "english"
-version = "0.0.10"
+version = "0.1.0"
 authors = ["gold-silver-copper"]
 edition = "2024"
 include = ["LICENSE-APACHE", "LICENSE-MIT", "**/*.rs", "Cargo.toml"]
@@ -23,4 +23,4 @@ opt-level = 2
 
 [dependencies]
 #english-core = { path = "english-core" }
-english-core = "0.0.8"
+english-core = "0.1.0"
