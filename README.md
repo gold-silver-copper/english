@@ -22,8 +22,6 @@ Evaluation of the English inflector (`extractor/main.rs/check_*`) and performanc
 
 ## 📦 Installation
 
-Add to your `Cargo.toml`:
-
 ```
 cargo add english
 ```
