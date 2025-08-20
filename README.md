@@ -24,9 +24,8 @@ Evaluation of the English inflector (`extractor/main.rs/check_*`) and performanc
 
 Add to your `Cargo.toml`:
 
-```toml
-[dependencies]
-english = "0.0.9"
+```
+cargo add english
 ```
 
 Then in your code:
