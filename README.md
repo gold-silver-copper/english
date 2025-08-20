@@ -10,27 +10,15 @@
 
 ## ⚡ Speed and Accuracy
 
-### Accuracy
-In-sample evaluation of the English inflector (`extractor/main.rs/check_*`) shows:
+Evaluation of the English inflector (`extractor/main.rs/check_*`) and performance benchmarking (`examples/speedmark.rs`) shows:
 
-| Part of Speech | Correct / Total | Accuracy |
-|----------------|-----------------|-----------|
-| **Nouns**      | 238106 / 238549 | **99.81%** |
-| **Verbs**      | 158056 / 161643 | **97.78%** |
-| **Adjectives** | 119200 / 119356 | **99.86%** |
+| Part of Speech | Correct / Total | Accuracy  | Throughput (calls/sec) | Time per Call |
+|----------------|----------------|-----------|-----------------------|---------------|
+| **Nouns**      | 238106 / 238549 | 99.81%   | 3,929,101             | 254 ns        |
+| **Verbs**      | 158056 / 161643 | 97.78%   | 5,572,956             | 180 ns        |
+| **Adjectives** | 119200 / 119356 | 99.86%   | 7,167,281             | 139 ns        |
 
----
-
-### Performance
-Benchmarking under a worst-case scenario (`examples/speedmark.rs`) yields the following speeds:
-
-| Part of Speech | Throughput (calls/sec) | Time per Call |
-|----------------|-------------------------|---------------|
-| **Verbs**      | 5,572,956               | 180 ns     |
-| **Nouns**      | 3,668,747               | 272 ns     |
-| **Adjectives** | 7,167,281               | 139 ns     |
-
-Note: Real world use cases are generally 50-100 nanoseconds faster
+*Note: Benchmarking was done under a worst-case scenario; typical real-world usage is 50-100 ns faster.*
 
 ## 📦 Installation
 
