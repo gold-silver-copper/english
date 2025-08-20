@@ -24,6 +24,11 @@ impl Verb {
     }
 
     /// Set the particle of a phrasal verb.
+    /// # Examples
+    /// ```
+    ///  let pick_up = Verb::from("pick").with_particle("up");
+    ///  assert_eq!(English::past_participle(pick_up), "picked up");
+    /// ```
     pub fn with_particle(mut self, particle: impl Into<String>) -> Self {
         self.particle = Some(particle.into());
         self
@@ -99,7 +104,7 @@ impl Verb {
     ///
     /// # Examples
     /// ```
-    /// assert_eq!(English::infinitive("go"), "go");
+    /// assert_eq!(English::infinitive("lie2"), "lie");
     /// ```
     pub fn infinitive<T: Into<Verb>>(wordish: T) -> String {
         English::verb(

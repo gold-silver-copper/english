@@ -16,6 +16,7 @@ pub struct Noun {
 }
 
 impl Noun {
+    /// Creates a new Noun with the given head
     pub fn new(head: impl Into<String>) -> Self {
         Noun {
             head: head.into(),
@@ -24,11 +25,23 @@ impl Noun {
         }
     }
 
+    /// Goes before the head of the noun
+    /// # Examples
+    /// ```
+    ///  let child = Noun::from("child").with_specifier("running");
+    ///  assert_eq!(English::count_with_number(child, 3), "3 running children");
+    /// ```
     pub fn with_specifier(mut self, pre: impl Into<String>) -> Self {
         self.modifier = Some(pre.into());
         self
     }
 
+    /// Goes after the head of the noun
+    /// # Examples
+    /// ```
+    ///  let jeans = Noun::from("pair").with_complement("of jeans");
+    ///  assert_eq!(English::count_with_number(jeans, 3), "3 pairs of jeans");
+    /// ```
     pub fn with_complement(mut self, post: impl Into<String>) -> Self {
         self.complement = Some(post.into());
         self
@@ -55,8 +68,8 @@ impl Noun {
     ///
     /// # Examples
     /// ```rust
-    /// assert_eq!(English::count("cat", 1), "1 cat");
-    /// assert_eq!(English::count("cat", 2), "2 cats");
+    /// assert_eq!(English::count_with_number("cat", 1), "1 cat");
+    /// assert_eq!(English::count_with_number("cat", 2), "2 cats");
     /// ```
     pub fn count_with_number<T: Into<Noun>>(word: T, count: u32) -> String {
         format!("{} {}", count, Noun::count(word, count))
