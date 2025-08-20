@@ -26,7 +26,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-english = "0.0.7"
+english = "0.0.9"
 ```
 
 Then in your code:
