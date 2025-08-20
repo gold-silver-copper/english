@@ -178,9 +178,10 @@ Writing benchmarks and tests for such a project is rather difficult and requires
 Wiktionary data is often unstable and subject to weird changes. This means that the provided inflections may change unexpectedly. You can look at the diffs of *_array.rs files for a source of truth.
 
 ## Inspirations and Thanks
+- Ole in the bevy discord suggested I use ```phf``` instead of sorted arrays, this resulted in up to 40% speedups
 - https://github.com/atteo/evo-inflector
 - https://github.com/plurals/pluralize
-- Ole in the bevy discord suggested I use ```phf``` instead of sorted arrays, this resulted in up to 40% speedups
+
 
 ## 📄 License
 
