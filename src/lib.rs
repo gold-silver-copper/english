@@ -50,24 +50,27 @@ impl English {
             Number::Singular => base_word,
             Number::Plural => {
                 if let Some(x) = get_plural(&noun.head) {
-                    x.to_string()
+                    x.to_owned()
                 } else {
                     EnglishCore::noun(&base_word, number)
                 }
             }
         };
-        format!(
-            "{}{}{}",
-            noun.modifier
-                .as_ref()
-                .map(|s| format!("{} ", s))
-                .unwrap_or_default(),
-            head_inflected,
-            noun.complement
-                .as_ref()
-                .map(|c| format!(" {}", c))
-                .unwrap_or_default()
-        )
+        let mut result = String::new();
+
+        if let Some(modifier) = &noun.modifier {
+            result.push_str(modifier);
+            result.push(' ');
+        }
+
+        result.push_str(&head_inflected);
+
+        if let Some(complement) = &noun.complement {
+            result.push(' ');
+            result.push_str(complement);
+        }
+
+        result
     }
 
     /// Inflects an adjective into positive, comparative, or superlative form.
@@ -86,17 +89,17 @@ impl English {
     pub fn adj(word: &str, degree: &Degree) -> String {
         let base_word = strip_trailing_number(word);
         match degree {
-            Degree::Positive => base_word.to_string(),
+            Degree::Positive => base_word.to_owned(),
             Degree::Comparative => {
                 if let Some((comp, _)) = get_adjective_forms(word) {
-                    comp.to_string()
+                    comp.to_owned()
                 } else {
                     EnglishCore::comparative(&base_word)
                 }
             }
             Degree::Superlative => {
                 if let Some((_, sup)) = get_adjective_forms(word) {
-                    sup.to_string()
+                    sup.to_owned()
                 } else {
                     EnglishCore::superlative(&base_word)
                 }
@@ -142,20 +145,24 @@ impl English {
         // Conjugate the head verb
         let conjugated_head = match get_verb_forms(&verb.head) {
             Some(wordik) => match (person, number, tense, form) {
-                (_, _, _, Form::Infinitive) => base_word.clone(),
+                (_, _, _, Form::Infinitive) => base_word.to_owned(),
                 (Person::Third, Number::Singular, Tense::Present, Form::Finite) => {
                     wordik.0.to_string()
                 }
-                (_, _, Tense::Present, Form::Finite) => base_word.clone(),
-                (_, _, Tense::Present, Form::Participle) => wordik.2.to_string(),
-                (_, _, Tense::Past, Form::Participle) => wordik.3.to_string(),
-                (_, _, Tense::Past, Form::Finite) => wordik.1.to_string(),
+                (_, _, Tense::Present, Form::Finite) => base_word.to_owned(),
+                (_, _, Tense::Present, Form::Participle) => wordik.2.to_owned(),
+                (_, _, Tense::Past, Form::Participle) => wordik.3.to_owned(),
+                (_, _, Tense::Past, Form::Finite) => wordik.1.to_owned(),
             },
             None => EnglishCore::verb(&base_word, person, number, tense, form),
         };
-        // Reassemble phrasal verb with particle
+        // Combine with particle efficiently
         if let Some(particle) = verb.particle {
-            format!("{} {}", conjugated_head, particle)
+            let mut result = String::with_capacity(conjugated_head.len() + 1 + particle.len());
+            result.push_str(&conjugated_head);
+            result.push(' ');
+            result.push_str(&particle);
+            result
         } else {
             conjugated_head
         }

@@ -1,5 +1,13 @@
 use crate::*;
 
+///The Verb struct is used for handling more complicated verb phrases
+/// It is interchangeable with strings for all verb functions such as present_participle()
+///
+/// # Examples
+/// ```
+///  let pick_up = Verb::from("pick").with_particle("up");
+///  assert_eq!(English::past_participle(pick_up), "picked up");
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Verb {
     pub head: String,             // "pick"
@@ -131,6 +139,7 @@ impl From<&str> for Verb {
     }
 }
 
+/// Just clones it
 impl From<&Verb> for Verb {
     fn from(s: &Verb) -> Self {
         s.clone()

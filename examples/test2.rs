@@ -15,4 +15,6 @@ fn main() {
     assert_eq!(English::superlative("fun"), "most fun");
     assert_eq!(English::capitalize_first(""), "");
     assert_eq!(English::capitalize_first("house"), "House");
+    let pick_up = Verb::from("pick").with_particle("up");
+    assert_eq!(English::past_participle(pick_up), "picked up");
 }

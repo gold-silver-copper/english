@@ -1,5 +1,13 @@
 use crate::*;
 
+///The Noun struct is used for handling more complicated noun phrases
+/// It is interchangeable with strings for all noun functions such as count_with_number()
+///
+/// # Examples
+/// ```
+///  let jeans = Noun::from("pair").with_complement("of jeans");
+///  assert_eq!(English::count_with_number(jeans, 3), "3 pairs of jeans");
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Noun {
     pub head: String,
