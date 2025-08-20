@@ -1,11 +1,11 @@
 use english_core::EnglishCore;
 pub use english_core::grammar::*;
 mod noun_array;
-use noun_array::*;
+//use noun_array::*;
 mod verb_array;
-use verb_array::*;
+//use verb_array::*;
 mod adj_array;
-use adj_array::*;
+//use adj_array::*;
 mod noun;
 pub use noun::*;
 mod verb;
@@ -14,6 +14,10 @@ mod adj;
 pub use adj::*;
 mod noun_phf;
 pub use noun_phf::*;
+mod adj_phf;
+pub use adj_phf::*;
+mod verb_phf;
+pub use verb_phf::*;
 
 fn strip_trailing_number(word: &str) -> String {
     if let Some(last_char) = word.chars().last() {

@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     //filter_english_entries(input_path, filtered_json_path);
 
     //let input_path = "../../english.jsonl";
-    /* check_noun_plurals(filtered_json_path, "noun_plural_check.csv")?;
+    check_noun_plurals(filtered_json_path, "noun_plural_check.csv")?;
     check_verb_conjugations(filtered_json_path, "verbs_check.csv")?;
     check_adjective_forms(filtered_json_path, "adj_check.csv")?;
 
@@ -35,10 +35,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     extract_irregular_nouns(filtered_json_path, "nouns_with_plurals.csv")?;
 
     extract_irregular_adjectives(filtered_json_path, "adjectives.csv")?;
-    generate_adjectives_file("adjectives.csv", "adj_array.rs");
-    generate_nouns_file("nouns_with_plurals.csv", "noun_array.rs");
-    generate_verbs_file("verb_conjugations.csv", "verb_array.rs"); */
+
     generate_nouns_phf("nouns_with_plurals.csv", "noun_phf.rs");
+    generate_adjectives_phf("adjectives.csv", "adj_phf.rs");
+    generate_verbs_phf("verb_conjugations.csv", "verb_phf.rs");
 
     //  analyze_and_write_suffix_rules("nouns_with_plurals.csv", "analyzed_endings.csv");
     Ok(())

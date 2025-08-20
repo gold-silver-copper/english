@@ -24,3 +24,4 @@ opt-level = 2
 [dependencies]
 #english-core = { path = "english-core" }
 english-core = "0.1.0"
+phf = { version = "0.12", default-features = false, features = ["macros"] }
