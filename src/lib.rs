@@ -58,7 +58,7 @@ impl English {
         };
         format!(
             "{}{}{}",
-            noun.specifier
+            noun.modifier
                 .as_ref()
                 .map(|s| format!("{} ", s))
                 .unwrap_or_default(),
