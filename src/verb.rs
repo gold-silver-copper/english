@@ -30,7 +30,7 @@ impl Verb {
     }
 }
 
-impl English {
+impl Verb {
     /// Returns the third-person singular present tense of the verb.
     ///
     /// # Examples

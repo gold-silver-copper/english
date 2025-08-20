@@ -1,6 +1,10 @@
 use crate::*;
 
-impl English {
+///The Adj struct is used for holding adjective functions
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Adj {}
+
+impl Adj {
     // ---------------------------
     // ADJECTIVE HELPERS
     // ---------------------------

@@ -35,7 +35,7 @@ impl Noun {
     }
 }
 
-impl English {
+impl Noun {
     /// Returns a noun inflected according to the count. Wrapper around English::noun()
     ///
     /// # Examples
@@ -59,7 +59,7 @@ impl English {
     /// assert_eq!(English::count("cat", 2), "2 cats");
     /// ```
     pub fn count_with_number<T: Into<Noun>>(word: T, count: u32) -> String {
-        format!("{} {}", count, English::count(word, count))
+        format!("{} {}", count, Noun::count(word, count))
     }
 
     /// Returns the plural form of a noun.
