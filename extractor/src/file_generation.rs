@@ -156,3 +156,47 @@ pub fn generate_adjectives_file(inputik: &str, outputik: &str) -> std::io::Resul
 
     Ok(())
 }
+
+pub fn generate_nouns_phf(inputik: &str, outputik: &str) -> std::io::Result<()> {
+    let input = File::open(inputik)?;
+    let reader = BufReader::new(input);
+
+    let mut pairs: Vec<(String, String)> = reader
+        .lines()
+        .skip(1) // Skip header
+        .filter_map(|line| {
+            let line = line.ok()?;
+            let mut parts = line.split(',');
+            Some((
+                parts.next()?.trim().to_string(),
+                parts.next()?.trim().to_string(),
+            ))
+        })
+        .collect();
+
+    // Sort by word for determinism (not required by phf, but helps reproducibility)
+    pairs.sort_by_key(|(word, _)| word.clone());
+
+    let mut output = File::create(outputik)?;
+
+    // Start file with imports
+    writeln!(output, "use phf::phf_map;\n")?;
+
+    writeln!(
+        output,
+        "pub static PLURAL_MAP: phf::Map<&'static str, &'static str> = phf_map! {{"
+    )?;
+
+    for (word, plural) in &pairs {
+        writeln!(output, "    \"{}\" => \"{}\",", word, plural)?;
+    }
+
+    writeln!(output, "}};\n")?;
+
+    writeln!(
+        output,
+        "pub fn get_plural(word: &str) -> Option<&'static str> {{ PLURAL_MAP.get(word).copied() }}"
+    )?;
+
+    Ok(())
+}

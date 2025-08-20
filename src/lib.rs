@@ -12,6 +12,8 @@ mod verb;
 pub use verb::*;
 mod adj;
 pub use adj::*;
+mod noun_phf;
+pub use noun_phf::*;
 
 fn strip_trailing_number(word: &str) -> String {
     if let Some(last_char) = word.chars().last() {
