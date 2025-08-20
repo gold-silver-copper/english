@@ -8,11 +8,11 @@ pub use verb::*;
 mod adj;
 pub use adj::*;
 mod noun_phf;
-pub use noun_phf::*;
+use noun_phf::*;
 mod adj_phf;
-pub use adj_phf::*;
+use adj_phf::*;
 mod verb_phf;
-pub use verb_phf::*;
+use verb_phf::*;
 
 fn strip_trailing_number(word: &str) -> String {
     if let Some(last_char) = word.chars().last() {
