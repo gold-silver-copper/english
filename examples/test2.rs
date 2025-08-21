@@ -19,10 +19,10 @@ fn main() {
     assert_eq!(Verb::past_participle(pick_up), "picked up");
 
     // Simple forms
-    assert_eq!(Verb::negate("eat"), "not eat");
-    assert_eq!(Verb::future("eat"), "will eat");
-    assert_eq!(Verb::emphatic_past("eat"), "did eat");
-    assert_eq!(Verb::conditional("eat"), "would eat");
+    assert_eq!(Verb::not("eat"), "not eat");
+    assert_eq!(Verb::will("eat"), "will eat");
+    assert_eq!(Verb::did("eat"), "did eat");
+    assert_eq!(Verb::would("eat"), "would eat");
     assert_eq!(Verb::could("eat"), "could eat");
     assert_eq!(Verb::can("eat"), "can eat");
     assert_eq!(Verb::should("eat"), "should eat");
@@ -59,11 +59,11 @@ fn main() {
     assert_eq!(Verb::future_progressive("eat"), "will be eating");
 
     // Negation / modal / emphatic
-    assert_eq!(Verb::negate("eat"), "not eat");
-    assert_eq!(Verb::negate("see"), "not see");
-    assert_eq!(Verb::future("run"), "will run");
-    assert_eq!(Verb::emphatic_past("go"), "did go");
-    assert_eq!(Verb::conditional("eat"), "would eat");
+    assert_eq!(Verb::not("eat"), "not eat");
+    assert_eq!(Verb::not("see"), "not see");
+    assert_eq!(Verb::will("run"), "will run");
+    assert_eq!(Verb::did("go"), "did go");
+    assert_eq!(Verb::would("eat"), "would eat");
     assert_eq!(Verb::could("see"), "could see");
     assert_eq!(Verb::can("run"), "can run");
     assert_eq!(Verb::should("go"), "should go");

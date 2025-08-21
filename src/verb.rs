@@ -119,22 +119,22 @@ impl Verb {
 
 impl Verb {
     /// Returns the negated base form ("not eat").
-    pub fn negate<T: Into<Verb>>(wordish: T) -> String {
+    pub fn not<T: Into<Verb>>(wordish: T) -> String {
         format!("not {}", Self::infinitive(wordish))
     }
 
     /// Returns the simple future tense ("will eat").
-    pub fn future<T: Into<Verb>>(wordish: T) -> String {
+    pub fn will<T: Into<Verb>>(wordish: T) -> String {
         format!("will {}", Self::infinitive(wordish))
     }
 
     /// Returns the simple past with auxiliary ("did eat").
-    pub fn emphatic_past<T: Into<Verb>>(wordish: T) -> String {
+    pub fn did<T: Into<Verb>>(wordish: T) -> String {
         format!("did {}", Self::infinitive(wordish))
     }
 
     /// Returns the conditional form ("would eat").
-    pub fn conditional<T: Into<Verb>>(wordish: T) -> String {
+    pub fn would<T: Into<Verb>>(wordish: T) -> String {
         format!("would {}", Self::infinitive(wordish))
     }
 
