@@ -212,6 +212,7 @@ impl Verb {
     }
 
     /// Returns the future progressive aspect ("will be eating").
+    // Needs to be made to work better with negation
     pub fn future_progressive<T: Into<Verb>>(wordish: T) -> String {
         format!("will be {}", Self::present_participle(wordish))
     }
