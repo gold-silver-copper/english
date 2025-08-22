@@ -1,6 +1,6 @@
 [package]
 name = "english"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["gold-silver-copper"]
 edition = "2024"
 include = ["LICENSE-APACHE", "LICENSE-MIT", "**/*.rs", "Cargo.toml"]
