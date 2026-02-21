@@ -131,7 +131,7 @@ fn main() {
 > The public API for verb conjugation and noun/adjective declension.
 
 * Combines optimized data generated from `extractor` with inflection logic from `english-core`
-* Pure Rust, no external dependencies
+* Pure Rust, only one dependency: phf
 * Fast Binary search over pre-sorted arrays: `O(log n)` lookup.
 * Code generation ensures no runtime penalty.
 
