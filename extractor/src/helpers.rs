@@ -1,11 +1,8 @@
 use csv::Writer;
-use english_core::*;
 use serde::Deserialize;
-use std::collections::{HashMap, HashSet};
-use std::env;
-use std::error::Error;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
+use std::io::BufReader;
+use std::path::Path;
 
 pub static BAD_TAGS: &[&str] = &[
     "obsolete",
@@ -98,10 +95,13 @@ pub fn word_is_proper(word: &str) -> bool {
     true
 }
 
-pub fn base_setup(input_path: &str, output_path: &str) -> (BufReader<File>, Writer<File>) {
+pub fn base_setup(
+    input_path: impl AsRef<Path>,
+    output_path: impl AsRef<Path>,
+) -> (BufReader<File>, Writer<File>) {
     let input = File::open(input_path).unwrap();
     let reader = BufReader::new(input);
-    let mut writer = Writer::from_path(output_path).unwrap();
+    let writer = Writer::from_path(output_path).unwrap();
     (reader, writer)
 }
 

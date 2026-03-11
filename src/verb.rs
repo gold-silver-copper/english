@@ -5,8 +5,10 @@ use crate::*;
 ///
 /// # Examples
 /// ```
+/// use english::Verb;
+///
 ///  let pick_up = Verb::from("pick").with_particle("up");
-///  assert_eq!(English::past_participle(pick_up), "picked up");
+///  assert_eq!(Verb::past_participle(pick_up), "picked up");
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Verb {
@@ -26,8 +28,10 @@ impl Verb {
     /// Set the particle of a phrasal verb.
     /// # Examples
     /// ```
+    /// use english::Verb;
+    ///
     ///  let pick_up = Verb::from("pick").with_particle("up");
-    ///  assert_eq!(English::past_participle(pick_up), "picked up");
+    ///  assert_eq!(Verb::past_participle(pick_up), "picked up");
     /// ```
     pub fn with_particle(mut self, particle: impl Into<String>) -> Self {
         self.particle = Some(particle.into());
@@ -40,7 +44,9 @@ impl Verb {
     ///
     /// # Examples
     /// ```
-    /// assert_eq!(English::third_person("run"), "runs");
+    /// use english::Verb;
+    ///
+    /// assert_eq!(Verb::third_person("run"), "runs");
     /// ```
     pub fn third_person<T: Into<Verb>>(wordish: T) -> String {
         English::verb(
@@ -56,7 +62,9 @@ impl Verb {
     ///
     /// # Examples
     /// ```
-    /// assert_eq!(English::past("walk"), "walked");
+    /// use english::Verb;
+    ///
+    /// assert_eq!(Verb::past("walk"), "walked");
     /// ```
     pub fn past<T: Into<Verb>>(wordish: T) -> String {
         English::verb(
@@ -72,7 +80,9 @@ impl Verb {
     ///
     /// # Examples
     /// ```
-    /// assert_eq!(English::present_participle("swim"), "swimming");
+    /// use english::Verb;
+    ///
+    /// assert_eq!(Verb::present_participle("swim"), "swimming");
     /// ```
     pub fn present_participle<T: Into<Verb>>(wordish: T) -> String {
         English::verb(
@@ -88,7 +98,9 @@ impl Verb {
     ///
     /// # Examples
     /// ```
-    /// assert_eq!(English::past_participle("eat"), "eaten");
+    /// use english::Verb;
+    ///
+    /// assert_eq!(Verb::past_participle("eat"), "eaten");
     /// ```
     pub fn past_participle<T: Into<Verb>>(wordish: T) -> String {
         English::verb(
@@ -104,7 +116,9 @@ impl Verb {
     ///
     /// # Examples
     /// ```
-    /// assert_eq!(English::infinitive("lie2"), "lie");
+    /// use english::Verb;
+    ///
+    /// assert_eq!(Verb::infinitive("lie2"), "lie");
     /// ```
     pub fn infinitive<T: Into<Verb>>(wordish: T) -> String {
         English::verb(

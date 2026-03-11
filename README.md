@@ -166,8 +166,10 @@ This project relies on raw data extracted from Wiktionary. Current version built
 
 1. Download the **raw Wiktextract JSONL dump** (~20 GB) from [Kaikki.org](https://kaikki.org/dictionary/rawdata.html).
 2. Place the file somewhere accessible (e.g. `../rawwiki.jsonl`).
-3. From the `extractor` folder, run: `cargo run --release ../rawwiki.jsonl`
-4. Move the generated files adj_array.rs, noun_array.rs, verb_array.rs into the /src of english
+3. From the repository root, run: `cargo xtask refresh-data --dump ../rawwiki.jsonl`
+4. The generated Rust tables are written to `/generated`, and intermediate CSV/JSONL artifacts are written to `/data/intermediate`
+
+To also run the extractor evaluation reports against the current library data, add `--with-checks`.
 
 ## Benchmarks
 Performance benchmarks were run on my M2 Macbook.

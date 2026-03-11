@@ -1,51 +1,153 @@
-use csv::Writer;
+use csv::{ReaderBuilder, WriterBuilder};
 use english_core::*;
-use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::error::Error;
+use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
+use std::path::{Path, PathBuf};
 mod file_generation;
 use file_generation::*;
 mod helpers;
-use csv::{ReaderBuilder, WriterBuilder};
 pub use helpers::*;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let args: Vec<String> = env::args().collect();
+const DEFAULT_GENERATED_DIR: &str = "generated";
+const DEFAULT_ARTIFACTS_DIR: &str = "data/intermediate";
 
-    if args.len() != 2 {
-        eprintln!("Usage: cargo run --release rawwiki.jsonl");
-        std::process::exit(1);
+#[derive(Debug)]
+struct Config {
+    dump_path: PathBuf,
+    generated_dir: PathBuf,
+    artifacts_dir: PathBuf,
+    run_checks: bool,
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let config = parse_args()?;
+    fs::create_dir_all(&config.generated_dir)?;
+    fs::create_dir_all(&config.artifacts_dir)?;
+
+    let filtered_json_path = config.artifacts_dir.join("english_filtered.jsonl");
+    if config.dump_path != filtered_json_path {
+        filter_english_entries(&config.dump_path, &filtered_json_path)?;
+    } else {
+        println!(
+            "Reusing filtered dataset at {}",
+            filtered_json_path.display()
+        );
     }
 
-    let input_path = &args[1];
+    if config.run_checks {
+        run_checks(&filtered_json_path, &config.artifacts_dir)?;
+    }
 
-    let filtered_json_path = "english_filtered.jsonl";
+    let verbs_csv = config.artifacts_dir.join("verb_conjugations.csv");
+    let nouns_csv = config.artifacts_dir.join("nouns_with_plurals.csv");
+    let adjectives_csv = config.artifacts_dir.join("adjectives.csv");
 
-    //filter_english_entries(input_path, filtered_json_path);
+    extract_verb_conjugations_new(&filtered_json_path, &verbs_csv)?;
+    extract_irregular_nouns(&filtered_json_path, &nouns_csv)?;
+    extract_irregular_adjectives(&filtered_json_path, &adjectives_csv)?;
 
-    //let input_path = "../../english.jsonl";
-    check_noun_plurals(filtered_json_path, "noun_plural_check.csv")?;
-    check_verb_conjugations(filtered_json_path, "verbs_check.csv")?;
-    check_adjective_forms(filtered_json_path, "adj_check.csv")?;
-
-    extract_verb_conjugations_new(filtered_json_path, "verb_conjugations.csv")?;
-    extract_irregular_nouns(filtered_json_path, "nouns_with_plurals.csv")?;
-
-    extract_irregular_adjectives(filtered_json_path, "adjectives.csv")?;
-
-    generate_nouns_phf("nouns_with_plurals.csv", "noun_phf.rs");
-    generate_adjectives_phf("adjectives.csv", "adj_phf.rs");
-    generate_verbs_phf("verb_conjugations.csv", "verb_phf.rs");
+    generate_nouns_phf(&nouns_csv, config.generated_dir.join("noun_phf.rs"))?;
+    generate_adjectives_phf(&adjectives_csv, config.generated_dir.join("adj_phf.rs"))?;
+    generate_verbs_phf(&verbs_csv, config.generated_dir.join("verb_phf.rs"))?;
 
     //  analyze_and_write_suffix_rules("nouns_with_plurals.csv", "analyzed_endings.csv");
     Ok(())
 }
 
+fn parse_args() -> Result<Config, Box<dyn Error>> {
+    let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let mut dump_path = None;
+    let mut generated_dir = repo_root.join(DEFAULT_GENERATED_DIR);
+    let mut artifacts_dir = repo_root.join(DEFAULT_ARTIFACTS_DIR);
+    let mut run_checks = false;
+
+    let mut args = env::args().skip(1);
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--dump" => {
+                let value = args.next().ok_or("expected a path after `--dump`")?;
+                dump_path = Some(PathBuf::from(value));
+            }
+            "--generated-dir" => {
+                let value = args
+                    .next()
+                    .ok_or("expected a path after `--generated-dir`")?;
+                generated_dir = PathBuf::from(value);
+            }
+            "--artifacts-dir" => {
+                let value = args
+                    .next()
+                    .ok_or("expected a path after `--artifacts-dir`")?;
+                artifacts_dir = PathBuf::from(value);
+            }
+            "--run-checks" => {
+                run_checks = true;
+            }
+            "-h" | "--help" => {
+                print_usage();
+                std::process::exit(0);
+            }
+            _ if arg.starts_with("--") => {
+                return Err(format!("unknown flag: {arg}").into());
+            }
+            _ => {
+                if dump_path.is_some() {
+                    return Err("expected a single dump path".into());
+                }
+                dump_path = Some(PathBuf::from(arg));
+            }
+        }
+    }
+
+    let dump_path =
+        dump_path.ok_or("missing dump path. Use `cargo run -p extractor --release -- --dump /path/to/rawwiki.jsonl`.")?;
+
+    Ok(Config {
+        dump_path,
+        generated_dir,
+        artifacts_dir,
+        run_checks,
+    })
+}
+
+fn print_usage() {
+    eprintln!(
+        "Usage: cargo run -p extractor --release -- --dump /path/to/rawwiki.jsonl [--generated-dir generated] [--artifacts-dir data/intermediate] [--run-checks]"
+    );
+    eprintln!("       cargo run -p extractor --release -- /path/to/rawwiki.jsonl");
+}
+
+fn run_checks(filtered_json_path: &Path, artifacts_dir: &Path) -> Result<(), Box<dyn Error>> {
+    #[cfg(feature = "checks")]
+    {
+        check_noun_plurals(
+            filtered_json_path,
+            artifacts_dir.join("noun_plural_check.csv"),
+        )?;
+        check_verb_conjugations(filtered_json_path, artifacts_dir.join("verbs_check.csv"))?;
+        check_adjective_forms(filtered_json_path, artifacts_dir.join("adj_check.csv"))?;
+        Ok(())
+    }
+
+    #[cfg(not(feature = "checks"))]
+    {
+        let _ = filtered_json_path;
+        let _ = artifacts_dir;
+        Err("extractor was built without the `checks` feature. Re-run with `cargo xtask refresh-data --dump /path/to/rawwiki.jsonl --with-checks`.".into())
+    }
+}
+
 /// Extracts irregular noun plurals and writes them to a CSV.
-fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
+fn extract_irregular_nouns(
+    input_path: impl AsRef<Path>,
+    output_path: impl AsRef<Path>,
+) -> Result<(), Box<dyn Error>> {
+    let input_path = input_path.as_ref();
+    let output_path = output_path.as_ref();
     let mut forms_map: HashMap<String, HashSet<String>> = HashMap::new();
 
     let (reader, mut writer) = base_setup(input_path, output_path);
@@ -71,7 +173,6 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
             forms_map.insert(infinitive.clone(), HashSet::new());
         }
 
-        let mut plural_found = false;
         if let Some(forms) = entry.forms {
             for form in &forms {
                 let tags = &form.tags;
@@ -122,11 +223,16 @@ fn extract_irregular_nouns(input_path: &str, output_path: &str) -> Result<(), Bo
     }
 
     writer.flush()?;
-    println!("Done! Output written to {}", output_path);
+    println!("Done! Output written to {}", output_path.display());
     Ok(())
 }
 
-fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
+fn extract_irregular_adjectives(
+    input_path: impl AsRef<Path>,
+    output_path: impl AsRef<Path>,
+) -> Result<(), Box<dyn Error>> {
+    let input_path = input_path.as_ref();
+    let output_path = output_path.as_ref();
     let mut forms_map: HashMap<String, HashSet<AdjParts>> = HashMap::new();
     let (reader, mut writer) = base_setup(input_path, output_path);
     writer.write_record(&["positive", "comparative", "superlative"])?;
@@ -221,15 +327,17 @@ fn extract_irregular_adjectives(input_path: &str, output_path: &str) -> Result<(
         }
     }
     writer.flush()?;
-    println!("Done! Output written to {}", output_path);
+    println!("Done! Output written to {}", output_path.display());
     Ok(())
 }
 
 /// Extracts verb conjugations and writes them to a CSV.
 fn extract_verb_conjugations_new(
-    input_path: &str,
-    output_path: &str,
+    input_path: impl AsRef<Path>,
+    output_path: impl AsRef<Path>,
 ) -> Result<(), Box<dyn Error>> {
+    let input_path = input_path.as_ref();
+    let output_path = output_path.as_ref();
     let mut forms_map: HashMap<String, HashSet<VerbParts>> = HashMap::new();
     let (reader, mut writer) = base_setup(input_path, output_path);
     writer.write_record(&[
@@ -396,12 +504,18 @@ fn extract_verb_conjugations_new(
     }
 
     writer.flush()?;
-    println!("Done! Output written to {}", output_path);
+    println!("Done! Output written to {}", output_path.display());
     Ok(())
 }
 
-pub fn check_noun_plurals(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
+#[cfg(feature = "checks")]
+pub fn check_noun_plurals(
+    input_path: impl AsRef<Path>,
+    output_path: impl AsRef<Path>,
+) -> Result<(), Box<dyn Error>> {
     use english::*;
+    let input_path = input_path.as_ref();
+    let output_path = output_path.as_ref();
     let (reader, mut writer) = base_setup(input_path, output_path);
     writer.write_record(&["wiki_single", "wiktionary_plural"])?;
 
@@ -462,13 +576,19 @@ pub fn check_noun_plurals(input_path: &str, output_path: &str) -> Result<(), Box
     }
 
     writer.flush()?;
-    println!("Done! Output written to {}", output_path);
+    println!("Done! Output written to {}", output_path.display());
     println!("total match amount: {} / {}", match_counter, total_counter);
     Ok(())
 }
 
-pub fn check_verb_conjugations(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
+#[cfg(feature = "checks")]
+pub fn check_verb_conjugations(
+    input_path: impl AsRef<Path>,
+    output_path: impl AsRef<Path>,
+) -> Result<(), Box<dyn Error>> {
     use english::*;
+    let input_path = input_path.as_ref();
+    let output_path = output_path.as_ref();
     let (reader, mut writer) = base_setup(input_path, output_path);
 
     writer.write_record(&["wiktionary_form", "person", "number", "tense", "form"])?;
@@ -583,13 +703,19 @@ pub fn check_verb_conjugations(input_path: &str, output_path: &str) -> Result<()
     }
 
     writer.flush()?;
-    println!("Done! Output written to {}", output_path);
+    println!("Done! Output written to {}", output_path.display());
     println!("total match amount: {} / {}", match_counter, total_counter);
     Ok(())
 }
 
-pub fn check_adjective_forms(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
+#[cfg(feature = "checks")]
+pub fn check_adjective_forms(
+    input_path: impl AsRef<Path>,
+    output_path: impl AsRef<Path>,
+) -> Result<(), Box<dyn Error>> {
     use english::*;
+    let input_path = input_path.as_ref();
+    let output_path = output_path.as_ref();
     let (reader, mut writer) = base_setup(input_path, output_path);
     writer.write_record(&["wiktionary_form", "degree"])?;
 
@@ -676,12 +802,17 @@ pub fn check_adjective_forms(input_path: &str, output_path: &str) -> Result<(), 
     }
 
     writer.flush()?;
-    println!("Done! Output written to {}", output_path);
+    println!("Done! Output written to {}", output_path.display());
     println!("total match amount: {} / {}", match_counter, total_counter);
     Ok(())
 }
 
-pub fn filter_english_entries(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
+pub fn filter_english_entries(
+    input_path: impl AsRef<Path>,
+    output_path: impl AsRef<Path>,
+) -> Result<(), Box<dyn Error>> {
+    let input_path = input_path.as_ref();
+    let output_path = output_path.as_ref();
     let input = File::open(input_path)?;
     let reader = BufReader::new(input);
 
@@ -703,7 +834,7 @@ pub fn filter_english_entries(input_path: &str, output_path: &str) -> Result<(),
         writeln!(output, "{}", line)?;
     }
 
-    println!("Filtered dataset saved to {}", output_path);
+    println!("Filtered dataset saved to {}", output_path.display());
     Ok(())
 }
 
@@ -714,9 +845,11 @@ pub fn strip_trailing_number(word: &str) -> &str {
 
 /// Process CSV and write suffix rules with frequencies to output CSV
 pub fn analyze_and_write_suffix_rules(
-    input_path: &str,
-    output_path: &str,
+    input_path: impl AsRef<Path>,
+    output_path: impl AsRef<Path>,
 ) -> Result<(), Box<dyn Error>> {
+    let input_path = input_path.as_ref();
+    let output_path = output_path.as_ref();
     let file = File::open(input_path)?;
     let mut rdr = ReaderBuilder::new().from_reader(BufReader::new(file));
 

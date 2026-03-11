@@ -1,12 +1,11 @@
-use csv::Writer;
-use english_core::*;
-use serde::Deserialize;
-use std::collections::{HashMap, HashSet};
-use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
+use std::path::Path;
 
-pub fn generate_nouns_phf(inputik: &str, outputik: &str) -> std::io::Result<()> {
+pub fn generate_nouns_phf(
+    inputik: impl AsRef<Path>,
+    outputik: impl AsRef<Path>,
+) -> std::io::Result<()> {
     let input = File::open(inputik)?;
     let reader = BufReader::new(input);
 
@@ -50,7 +49,10 @@ pub fn generate_nouns_phf(inputik: &str, outputik: &str) -> std::io::Result<()> 
     Ok(())
 }
 
-pub fn generate_verbs_phf(inputik: &str, outputik: &str) -> std::io::Result<()> {
+pub fn generate_verbs_phf(
+    inputik: impl AsRef<Path>,
+    outputik: impl AsRef<Path>,
+) -> std::io::Result<()> {
     let input = File::open(inputik)?;
     let reader = BufReader::new(input);
 
@@ -108,7 +110,10 @@ pub fn generate_verbs_phf(inputik: &str, outputik: &str) -> std::io::Result<()> 
     Ok(())
 }
 
-pub fn generate_adjectives_phf(inputik: &str, outputik: &str) -> std::io::Result<()> {
+pub fn generate_adjectives_phf(
+    inputik: impl AsRef<Path>,
+    outputik: impl AsRef<Path>,
+) -> std::io::Result<()> {
     let input = File::open(inputik)?;
     let reader = BufReader::new(input);
 
