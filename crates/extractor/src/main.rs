@@ -12,7 +12,7 @@ use file_generation::*;
 mod helpers;
 pub use helpers::*;
 
-const DEFAULT_GENERATED_DIR: &str = "generated";
+const DEFAULT_GENERATED_DIR: &str = "crates/english/generated";
 const DEFAULT_ARTIFACTS_DIR: &str = "data/intermediate";
 
 #[derive(Debug)]
@@ -59,7 +59,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn parse_args() -> Result<Config, Box<dyn Error>> {
-    let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()?;
     let mut dump_path = None;
     let mut generated_dir = repo_root.join(DEFAULT_GENERATED_DIR);
     let mut artifacts_dir = repo_root.join(DEFAULT_ARTIFACTS_DIR);

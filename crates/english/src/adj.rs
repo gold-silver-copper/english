@@ -15,7 +15,7 @@ impl Adj {
     /// ```
     /// use english::Adj;
     ///
-    /// assert_eq!(Adj::comparative("fast2"), "faster");
+    /// assert_eq!(Adj::comparative("fast"), "faster");
     /// assert_eq!(Adj::comparative("fun"), "more fun");
     /// ```
     pub fn comparative(word: &str) -> String {
@@ -28,7 +28,7 @@ impl Adj {
     /// ```
     /// use english::Adj;
     ///
-    /// assert_eq!(Adj::superlative("fast2"), "fastest");
+    /// assert_eq!(Adj::superlative("fast"), "fastest");
     /// assert_eq!(Adj::superlative("fun"), "most fun");
     /// ```
     pub fn superlative(word: &str) -> String {
@@ -41,7 +41,7 @@ impl Adj {
     /// ```
     /// use english::Adj;
     ///
-    /// assert_eq!(Adj::positive("fast2"), "fast");
+    /// assert_eq!(Adj::positive("fast"), "fast");
     /// ```
     pub fn positive(word: &str) -> String {
         English::adj(word, &Degree::Positive)

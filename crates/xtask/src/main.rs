@@ -27,7 +27,9 @@ fn refresh_data(args: Vec<String>) -> Result<(), Box<dyn Error>> {
     let parsed = parse_refresh_data_args(args)?;
 
     let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
-    let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()?;
 
     let mut command = Command::new(cargo);
     command.current_dir(&workspace_root);
