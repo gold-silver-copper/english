@@ -1,12 +1,14 @@
 [workspace]
 members = [
     "crates/english",
+    "crates/english-phrase",
     "crates/english-core",
     "crates/extractor",
     "crates/xtask",
 ]
 default-members = [
     "crates/english",
+    "crates/english-phrase",
     "crates/english-core",
     "crates/xtask",
 ]
@@ -21,6 +23,7 @@ repository = "https://github.com/gold-silver-copper/english"
 [workspace.dependencies]
 csv = "1.3.1"
 english = { path = "crates/english", version = "0.1.3" }
+english-phrase = { path = "crates/english-phrase", version = "0.1.0" }
 english-core = { path = "crates/english-core", version = "0.1.0" }
 phf = { version = "0.12", default-features = false, features = ["macros"] }
 serde = { version = "1.0.219", features = ["derive"] }

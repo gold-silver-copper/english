@@ -1,7 +1,7 @@
 use crate::*;
 
-///The Verb struct is used for handling more complicated verb phrases
-/// It is interchangeable with strings for all verb functions such as present_participle()
+///The Verb struct is used for inflecting simple and phrasal verbs.
+/// It is interchangeable with strings for all verb inflection helpers such as present_participle()
 ///
 /// # Examples
 /// ```
@@ -128,107 +128,6 @@ impl Verb {
             &Tense::Present,   // irrelevant
             &Form::Infinitive,
         )
-    }
-}
-
-impl Verb {
-    /// Returns the negated base form ("not eat").
-    pub fn not<T: Into<Verb>>(wordish: T) -> String {
-        format!("not {}", Self::infinitive(wordish))
-    }
-
-    /// Returns the simple future tense ("will eat").
-    pub fn will<T: Into<Verb>>(wordish: T) -> String {
-        format!("will {}", Self::infinitive(wordish))
-    }
-
-    /// Returns the simple past with auxiliary ("did eat").
-    pub fn did<T: Into<Verb>>(wordish: T) -> String {
-        format!("did {}", Self::infinitive(wordish))
-    }
-
-    /// Returns the conditional form ("would eat").
-    pub fn would<T: Into<Verb>>(wordish: T) -> String {
-        format!("would {}", Self::infinitive(wordish))
-    }
-
-    /// Returns the modal possibility form ("could eat").
-    pub fn could<T: Into<Verb>>(wordish: T) -> String {
-        format!("could {}", Self::infinitive(wordish))
-    }
-
-    /// Returns the modal ability/permission form ("can eat").
-    pub fn can<T: Into<Verb>>(wordish: T) -> String {
-        format!("can {}", Self::infinitive(wordish))
-    }
-
-    /// Returns the modal obligation form ("should eat").
-    pub fn should<T: Into<Verb>>(wordish: T) -> String {
-        format!("should {}", Self::infinitive(wordish))
-    }
-
-    /// Returns the present perfect form ("has eaten") ("have seen").
-    pub fn present_perfect<T: Into<Verb>>(
-        wordish: T,
-        subject_person: &Person,
-        subject_number: &Number,
-    ) -> String {
-        let have = English::verb(
-            "have",
-            subject_person,
-            subject_number,
-            &Tense::Present,
-            &Form::Finite,
-        );
-        format!("{have} {}", Self::past_participle(wordish))
-    }
-
-    /// Returns the past perfect form ("had eaten").
-    pub fn past_perfect<T: Into<Verb>>(wordish: T) -> String {
-        format!("had {}", Self::past_participle(wordish))
-    }
-
-    /// Returns the future perfect form ("will have eaten").
-    pub fn future_perfect<T: Into<Verb>>(wordish: T) -> String {
-        format!("will have {}", Self::past_participle(wordish))
-    }
-
-    /// Returns the progressive aspect ("is eating").
-    pub fn present_progressive<T: Into<Verb>>(
-        wordish: T,
-        subject_person: &Person,
-        subject_number: &Number,
-    ) -> String {
-        let be = English::verb(
-            "be",
-            subject_person,
-            subject_number,
-            &Tense::Present,
-            &Form::Finite,
-        );
-        format!("{be} {}", Self::present_participle(wordish))
-    }
-
-    /// Returns the past progressive aspect ("was eating").
-    pub fn past_progressive<T: Into<Verb>>(
-        wordish: T,
-        subject_person: &Person,
-        subject_number: &Number,
-    ) -> String {
-        let be = English::verb(
-            "be",
-            subject_person,
-            subject_number,
-            &Tense::Past,
-            &Form::Finite,
-        );
-        format!("{be} {}", Self::present_participle(wordish))
-    }
-
-    /// Returns the future progressive aspect ("will be eating").
-    // Needs to be made to work better with negation
-    pub fn future_progressive<T: Into<Verb>>(wordish: T) -> String {
-        format!("will be {}", Self::present_participle(wordish))
     }
 }
 
