@@ -44,30 +44,14 @@ impl Modal {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct AdjPhrase {
+pub struct AdjPhrase<const HAS_DEGREE: bool = false> {
     adjective: String,
     degree: Option<Degree>,
     intensifier: Option<String>,
     complements: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum AdjPhraseError {
-    MissingDegree,
-}
-
-impl std::fmt::Display for AdjPhraseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let message = match self {
-            AdjPhraseError::MissingDegree => "adjective phrase is missing a degree",
-        };
-        f.write_str(message)
-    }
-}
-
-impl std::error::Error for AdjPhraseError {}
-
-impl AdjPhrase {
+impl AdjPhrase<false> {
     pub fn new(adjective: impl Into<String>) -> Self {
         Self {
             adjective: adjective.into(),
@@ -77,11 +61,17 @@ impl AdjPhrase {
         }
     }
 
-    pub fn degree(mut self, degree: Degree) -> Self {
-        self.degree = Some(degree);
-        self
+    pub fn degree(self, degree: Degree) -> AdjPhrase<true> {
+        AdjPhrase {
+            adjective: self.adjective,
+            degree: Some(degree),
+            intensifier: self.intensifier,
+            complements: self.complements,
+        }
     }
+}
 
+impl<const HAS_DEGREE: bool> AdjPhrase<HAS_DEGREE> {
     pub fn intensifier(mut self, intensifier: impl Into<String>) -> Self {
         self.intensifier = Some(intensifier.into());
         self
@@ -91,82 +81,52 @@ impl AdjPhrase {
         self.complements.push(complement.into());
         self
     }
+}
 
-    pub fn render(&self) -> Result<String, AdjPhraseError> {
-        let degree = self.degree.as_ref().ok_or(AdjPhraseError::MissingDegree)?;
+impl AdjPhrase<true> {
+    pub fn render(&self) -> String {
         let mut parts = Vec::new();
 
         if let Some(intensifier) = &self.intensifier {
             parts.push(intensifier.clone());
         }
 
-        parts.push(English::adj(&self.adjective, degree));
+        parts.push(English::adj(
+            &self.adjective,
+            self.degree.as_ref().expect("degree set by typestate"),
+        ));
 
         if !self.complements.is_empty() {
             parts.push(self.complements.join(" "));
         }
 
-        Ok(parts.join(" "))
+        parts.join(" ")
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct NounPhrase {
+enum QuantitySpec {
+    Number(Number),
+    Count(u32),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NounPhrase<const HAS_QUANTITY: bool = false> {
     head: String,
-    number: Option<Number>,
-    count: Option<u32>,
+    quantity: Option<QuantitySpec>,
     determiner: Option<String>,
-    modifiers: Vec<NounModifier>,
+    modifiers: Vec<String>,
     complements: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum NounPhraseError {
-    MissingNumber,
-    CountNumberMismatch { count: u32, number: Number },
-    ModifierPhrase(AdjPhraseError),
-}
-
-impl std::fmt::Display for NounPhraseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            NounPhraseError::MissingNumber => f.write_str("noun phrase is missing a number"),
-            NounPhraseError::CountNumberMismatch { count, number } => {
-                write!(
-                    f,
-                    "noun phrase count {count} conflicts with explicit number {:?}",
-                    number
-                )
-            }
-            NounPhraseError::ModifierPhrase(err) => {
-                write!(f, "noun phrase has an invalid modifier phrase: {err}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for NounPhraseError {}
-
-#[derive(Debug, Clone, PartialEq)]
-enum NounModifier {
-    Text(String),
-    Adjective(AdjPhrase),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-enum SubjectSpec {
-    Agreement(Person, Number),
-    NounPhrase(NounPhrase),
-}
-
-impl NounPhrase {
+impl NounPhrase<false> {
     pub fn new<T: Into<Noun>>(noun: T) -> Self {
         let noun = noun.into();
         let mut modifiers = Vec::new();
         let mut complements = Vec::new();
 
         if let Some(modifier) = noun.modifier {
-            modifiers.push(NounModifier::Text(modifier));
+            modifiers.push(modifier);
         }
         if let Some(complement) = noun.complement {
             complements.push(complement);
@@ -174,36 +134,55 @@ impl NounPhrase {
 
         Self {
             head: noun.head,
-            number: None,
-            count: None,
+            quantity: None,
             determiner: None,
             modifiers,
             complements,
         }
     }
 
-    pub fn number(mut self, number: Number) -> Self {
-        self.number = Some(number);
-        self
+    pub fn number(self, number: Number) -> NounPhrase<true> {
+        NounPhrase {
+            head: self.head,
+            quantity: Some(QuantitySpec::Number(number)),
+            determiner: self.determiner,
+            modifiers: self.modifiers,
+            complements: self.complements,
+        }
     }
 
-    pub fn count(mut self, count: u32) -> Self {
-        self.count = Some(count);
-        self
+    pub fn singular(self) -> NounPhrase<true> {
+        self.number(Number::Singular)
     }
 
+    pub fn plural(self) -> NounPhrase<true> {
+        self.number(Number::Plural)
+    }
+
+    pub fn count(self, count: u32) -> NounPhrase<true> {
+        NounPhrase {
+            head: self.head,
+            quantity: Some(QuantitySpec::Count(count)),
+            determiner: self.determiner,
+            modifiers: self.modifiers,
+            complements: self.complements,
+        }
+    }
+}
+
+impl<const HAS_QUANTITY: bool> NounPhrase<HAS_QUANTITY> {
     pub fn determiner(mut self, determiner: impl Into<String>) -> Self {
         self.determiner = Some(determiner.into());
         self
     }
 
     pub fn modifier(mut self, modifier: impl Into<String>) -> Self {
-        self.modifiers.push(NounModifier::Text(modifier.into()));
+        self.modifiers.push(modifier.into());
         self
     }
 
-    pub fn modifier_phrase(mut self, phrase: AdjPhrase) -> Self {
-        self.modifiers.push(NounModifier::Adjective(phrase));
+    pub fn modifier_phrase(mut self, phrase: AdjPhrase<true>) -> Self {
+        self.modifiers.push(phrase.render());
         self
     }
 
@@ -211,120 +190,68 @@ impl NounPhrase {
         self.complements.push(complement.into());
         self
     }
+}
 
-    pub fn render(&self) -> Result<String, NounPhraseError> {
-        let number = self.resolve_number()?;
-        let noun = self.render_noun()?;
+impl NounPhrase<true> {
+    pub fn render(&self) -> String {
+        let noun = self.to_english_noun();
 
         let mut parts = Vec::new();
         if let Some(determiner) = &self.determiner {
             parts.push(determiner.clone());
         }
 
-        if let Some(count) = self.count {
-            parts.push(Noun::count_with_number(noun, count));
-        } else {
-            parts.push(English::noun(noun, &number));
+        match self.quantity.as_ref().expect("quantity set by typestate") {
+            QuantitySpec::Number(number) => parts.push(English::noun(noun, number)),
+            QuantitySpec::Count(count) => parts.push(Noun::count_with_number(noun, *count)),
         }
 
-        Ok(parts.join(" "))
+        parts.join(" ")
     }
 
-    pub fn agreement(&self) -> Result<(Person, Number), NounPhraseError> {
-        Ok((Person::Third, self.resolve_number()?))
-    }
-
-    fn resolve_number(&self) -> Result<Number, NounPhraseError> {
-        match (self.count, self.number.as_ref()) {
-            (Some(count), Some(number)) => {
-                let derived = if count == 1 {
+    pub fn agreement(&self) -> (Person, Number) {
+        let number = match self.quantity.as_ref().expect("quantity set by typestate") {
+            QuantitySpec::Number(number) => number.clone(),
+            QuantitySpec::Count(count) => {
+                if *count == 1 {
                     Number::Singular
                 } else {
                     Number::Plural
-                };
+                }
+            }
+        };
 
-                if &derived == number {
-                    Ok(number.clone())
-                } else {
-                    Err(NounPhraseError::CountNumberMismatch {
-                        count,
-                        number: number.clone(),
-                    })
-                }
-            }
-            (Some(count), None) => {
-                if count == 1 {
-                    Ok(Number::Singular)
-                } else {
-                    Ok(Number::Plural)
-                }
-            }
-            (None, Some(number)) => Ok(number.clone()),
-            (None, None) => Err(NounPhraseError::MissingNumber),
-        }
+        (Person::Third, number)
     }
 
-    fn render_noun(&self) -> Result<Noun, NounPhraseError> {
+    fn to_english_noun(&self) -> Noun {
         let mut noun = Noun::new(self.head.clone());
 
-        let rendered_modifiers = self
-            .modifiers
-            .iter()
-            .map(|modifier| match modifier {
-                NounModifier::Text(text) => Ok(text.clone()),
-                NounModifier::Adjective(phrase) => {
-                    phrase.render().map_err(NounPhraseError::ModifierPhrase)
-                }
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-
-        if !rendered_modifiers.is_empty() {
-            noun = noun.with_specifier(rendered_modifiers.join(" "));
+        if !self.modifiers.is_empty() {
+            noun = noun.with_specifier(self.modifiers.join(" "));
         }
         if !self.complements.is_empty() {
             noun = noun.with_complement(self.complements.join(" "));
         }
 
-        Ok(noun)
+        noun
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct VerbPhrase {
+pub struct VerbPhrase<
+    const HAS_TENSE: bool = false,
+    const HAS_ASPECT: bool = false,
+    const HAS_POLARITY: bool = false,
+    const HAS_SUBJECT: bool = false,
+> {
     verb: Verb,
     tense: Option<BaseTense>,
     aspect: Option<Aspect>,
     polarity: Option<Polarity>,
     modal: Option<Modal>,
-    subject: Option<SubjectSpec>,
+    subject: Option<(Person, Number)>,
 }
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum VerbPhraseError {
-    MissingTense,
-    MissingAspect,
-    MissingPolarity,
-    MissingSubject,
-    SubjectPhrase(NounPhraseError),
-}
-
-impl std::fmt::Display for VerbPhraseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let message = match self {
-            VerbPhraseError::MissingTense => "verb phrase is missing a tense",
-            VerbPhraseError::MissingAspect => "verb phrase is missing an aspect",
-            VerbPhraseError::MissingPolarity => "verb phrase is missing a polarity",
-            VerbPhraseError::MissingSubject => "verb phrase is missing a subject",
-            VerbPhraseError::SubjectPhrase(_) => "verb phrase has an invalid noun phrase subject",
-        };
-        match self {
-            VerbPhraseError::SubjectPhrase(err) => write!(f, "{message}: {err}"),
-            _ => f.write_str(message),
-        }
-    }
-}
-
-impl std::error::Error for VerbPhraseError {}
 
 #[derive(Debug, Clone)]
 struct RenderContext {
@@ -334,7 +261,7 @@ struct RenderContext {
     subject: (Person, Number),
 }
 
-impl VerbPhrase {
+impl VerbPhrase<false, false, false, false> {
     pub fn new<T: Into<Verb>>(verb: T) -> Self {
         Self {
             verb: verb.into(),
@@ -345,64 +272,123 @@ impl VerbPhrase {
             subject: None,
         }
     }
+}
 
-    pub fn tense(mut self, tense: BaseTense) -> Self {
-        self.tense = Some(tense);
-        self
+impl<const HAS_ASPECT: bool, const HAS_POLARITY: bool, const HAS_SUBJECT: bool>
+    VerbPhrase<false, HAS_ASPECT, HAS_POLARITY, HAS_SUBJECT>
+{
+    pub fn tense(
+        self,
+        tense: BaseTense,
+    ) -> VerbPhrase<true, HAS_ASPECT, HAS_POLARITY, HAS_SUBJECT> {
+        VerbPhrase {
+            verb: self.verb,
+            tense: Some(tense),
+            aspect: self.aspect,
+            polarity: self.polarity,
+            modal: self.modal,
+            subject: self.subject,
+        }
+    }
+}
+
+impl<const HAS_TENSE: bool, const HAS_POLARITY: bool, const HAS_SUBJECT: bool>
+    VerbPhrase<HAS_TENSE, false, HAS_POLARITY, HAS_SUBJECT>
+{
+    pub fn aspect(self, aspect: Aspect) -> VerbPhrase<HAS_TENSE, true, HAS_POLARITY, HAS_SUBJECT> {
+        VerbPhrase {
+            verb: self.verb,
+            tense: self.tense,
+            aspect: Some(aspect),
+            polarity: self.polarity,
+            modal: self.modal,
+            subject: self.subject,
+        }
+    }
+}
+
+impl<const HAS_TENSE: bool, const HAS_ASPECT: bool, const HAS_SUBJECT: bool>
+    VerbPhrase<HAS_TENSE, HAS_ASPECT, false, HAS_SUBJECT>
+{
+    pub fn polarity(
+        self,
+        polarity: Polarity,
+    ) -> VerbPhrase<HAS_TENSE, HAS_ASPECT, true, HAS_SUBJECT> {
+        VerbPhrase {
+            verb: self.verb,
+            tense: self.tense,
+            aspect: self.aspect,
+            polarity: Some(polarity),
+            modal: self.modal,
+            subject: self.subject,
+        }
+    }
+}
+
+impl<const HAS_TENSE: bool, const HAS_ASPECT: bool, const HAS_POLARITY: bool>
+    VerbPhrase<HAS_TENSE, HAS_ASPECT, HAS_POLARITY, false>
+{
+    pub fn subject(
+        self,
+        person: Person,
+        number: Number,
+    ) -> VerbPhrase<HAS_TENSE, HAS_ASPECT, HAS_POLARITY, true> {
+        VerbPhrase {
+            verb: self.verb,
+            tense: self.tense,
+            aspect: self.aspect,
+            polarity: self.polarity,
+            modal: self.modal,
+            subject: Some((person, number)),
+        }
     }
 
-    pub fn aspect(mut self, aspect: Aspect) -> Self {
-        self.aspect = Some(aspect);
-        self
+    pub fn subject_noun_phrase(
+        self,
+        phrase: &NounPhrase<true>,
+    ) -> VerbPhrase<HAS_TENSE, HAS_ASPECT, HAS_POLARITY, true> {
+        let (person, number) = phrase.agreement();
+        self.subject(person, number)
     }
+}
 
-    pub fn polarity(mut self, polarity: Polarity) -> Self {
-        self.polarity = Some(polarity);
-        self
-    }
-
+impl<
+    const HAS_TENSE: bool,
+    const HAS_ASPECT: bool,
+    const HAS_POLARITY: bool,
+    const HAS_SUBJECT: bool,
+> VerbPhrase<HAS_TENSE, HAS_ASPECT, HAS_POLARITY, HAS_SUBJECT>
+{
     pub fn modal(mut self, modal: Modal) -> Self {
         self.modal = Some(modal);
         self
     }
+}
 
-    pub fn subject(mut self, person: Person, number: Number) -> Self {
-        self.subject = Some(SubjectSpec::Agreement(person, number));
-        self
-    }
-
-    pub fn subject_noun_phrase(mut self, phrase: &NounPhrase) -> Self {
-        self.subject = Some(SubjectSpec::NounPhrase(phrase.clone()));
-        self
-    }
-
-    pub fn render(&self) -> Result<String, VerbPhraseError> {
-        let aspect = self.aspect.ok_or(VerbPhraseError::MissingAspect)?;
-        let polarity = self.polarity.ok_or(VerbPhraseError::MissingPolarity)?;
-
-        if let Some(modal) = self.modal {
-            return Ok(self.render_with_modal(modal, aspect, polarity));
-        }
-
-        let tense = self.tense.ok_or(VerbPhraseError::MissingTense)?;
-        let subject = self.resolve_subject()?;
-
+impl VerbPhrase<true, true, true, true> {
+    pub fn render(&self) -> String {
         let context = RenderContext {
-            tense,
-            aspect,
-            polarity,
-            subject,
+            tense: self.tense.expect("tense set by typestate"),
+            aspect: self.aspect.expect("aspect set by typestate"),
+            polarity: self.polarity.expect("polarity set by typestate"),
+            subject: self.subject.clone().expect("subject set by typestate"),
         };
 
-        Ok(match context.aspect {
-            Aspect::Simple => self.render_simple(context),
-            Aspect::Perfect => {
-                self.render_without_modal("have", Verb::past_participle(self.verb.clone()), context)
-            }
+        if let Some(modal) = self.modal {
+            return self.render_with_modal(modal, context.aspect, context.polarity);
+        }
+
+        match context.aspect {
+            Aspect::Simple => self.render_simple(&context),
+            Aspect::Perfect => self.render_without_modal(
+                "have",
+                Verb::past_participle(self.verb.clone()),
+                &context,
+            ),
             Aspect::Progressive => self.render_without_modal(
                 "be",
                 Verb::present_participle(self.verb.clone()),
-                context,
+                &context,
             ),
             Aspect::PerfectProgressive => self.render_without_modal(
                 "have",
@@ -411,9 +397,9 @@ impl VerbPhrase {
                     Verb::past_participle("be"),
                     Verb::present_participle(self.verb.clone())
                 ),
-                context,
+                &context,
             ),
-        })
+        }
     }
 
     fn render_with_modal(&self, modal: Modal, aspect: Aspect, polarity: Polarity) -> String {
@@ -443,7 +429,7 @@ impl VerbPhrase {
         chunks.join(" ")
     }
 
-    fn render_simple(&self, context: RenderContext) -> String {
+    fn render_simple(&self, context: &RenderContext) -> String {
         let (person, number) = (&context.subject.0, &context.subject.1);
 
         if context.polarity == Polarity::Affirmative {
@@ -481,7 +467,7 @@ impl VerbPhrase {
         &self,
         auxiliary: &str,
         tail: String,
-        context: RenderContext,
+        context: &RenderContext,
     ) -> String {
         let (person, number) = (&context.subject.0, &context.subject.1);
         let finite_aux = English::verb(
@@ -505,19 +491,6 @@ impl VerbPhrase {
             BaseTense::Past => Tense::Past,
         }
     }
-
-    fn resolve_subject(&self) -> Result<(Person, Number), VerbPhraseError> {
-        match self
-            .subject
-            .as_ref()
-            .ok_or(VerbPhraseError::MissingSubject)?
-        {
-            SubjectSpec::Agreement(person, number) => Ok((person.clone(), number.clone())),
-            SubjectSpec::NounPhrase(phrase) => {
-                phrase.agreement().map_err(VerbPhraseError::SubjectPhrase)
-            }
-        }
-    }
 }
 
 #[cfg(test)]
@@ -531,8 +504,7 @@ mod tests {
             .aspect(Aspect::Perfect)
             .polarity(Polarity::Negative)
             .subject(Person::Third, Number::Singular)
-            .render()
-            .unwrap();
+            .render();
 
         assert_eq!(text, "has not eaten");
     }
@@ -544,15 +516,13 @@ mod tests {
             .aspect(Aspect::Simple)
             .polarity(Polarity::Negative)
             .subject(Person::Third, Number::Singular)
-            .render()
-            .unwrap();
+            .render();
         let past = VerbPhrase::new("eat")
             .tense(BaseTense::Past)
             .aspect(Aspect::Simple)
             .polarity(Polarity::Negative)
             .subject(Person::First, Number::Plural)
-            .render()
-            .unwrap();
+            .render();
 
         assert_eq!(present, "does not eat");
         assert_eq!(past, "did not eat");
@@ -566,32 +536,8 @@ mod tests {
             .aspect(Aspect::Perfect)
             .polarity(Polarity::Affirmative)
             .subject(Person::Third, Number::Singular)
-            .render()
-            .unwrap();
+            .render();
 
         assert_eq!(text, "has given up");
-    }
-
-    #[test]
-    fn builder_requires_missing_fields_explicitly() {
-        assert_eq!(
-            VerbPhrase::new("eat").render(),
-            Err(VerbPhraseError::MissingAspect)
-        );
-        assert_eq!(
-            VerbPhrase::new("eat")
-                .aspect(Aspect::Simple)
-                .polarity(Polarity::Affirmative)
-                .render(),
-            Err(VerbPhraseError::MissingTense)
-        );
-        assert_eq!(
-            VerbPhrase::new("eat")
-                .tense(BaseTense::Present)
-                .aspect(Aspect::Simple)
-                .polarity(Polarity::Affirmative)
-                .render(),
-            Err(VerbPhraseError::MissingSubject)
-        );
     }
 }
