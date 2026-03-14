@@ -1,4 +1,4 @@
-use english::English;
+use english_core::EnglishCore;
 
 pub use english::{Adj, Degree, Form, Noun, Number, Person, Tense, Verb};
 
@@ -137,7 +137,11 @@ impl ResolvedAdjPhrase {
             parts.push(intensifier.clone());
         }
 
-        parts.push(English::adj(self.adjective.as_str(), &self.degree));
+        parts.push(match self.degree {
+            Degree::Positive => self.adjective.positive(),
+            Degree::Comparative => self.adjective.comparative(),
+            Degree::Superlative => self.adjective.superlative(),
+        });
 
         if !self.complements.is_empty() {
             parts.push(self.complements.join(" "));
@@ -273,7 +277,8 @@ impl ResolvedNounPhrase {
         parts.extend(self.modifiers.iter().map(NounModifier::render));
 
         match &self.quantity {
-            QuantitySpec::Number(number) => parts.push(English::noun(self.head.as_str(), number)),
+            QuantitySpec::Number(Number::Singular) => parts.push(self.head.singular()),
+            QuantitySpec::Number(Number::Plural) => parts.push(self.head.plural()),
             QuantitySpec::Count(count) => parts.push(self.head.count_with_number(*count)),
         }
 
@@ -481,6 +486,38 @@ impl VerbPhrase<MissingTense, MissingAspect, MissingPolarity, MissingSubject, Mi
 impl<TenseState, AspectState, PolarityState, SubjectState, ModalState>
     VerbPhrase<TenseState, AspectState, PolarityState, SubjectState, ModalState>
 {
+    fn finite_form(
+        &self,
+        verb: &Verb,
+        person: &Person,
+        number: &Number,
+        tense: BaseTense,
+    ) -> String {
+        if verb.infinitive() == "be" {
+            return EnglishCore::to_be(
+                person,
+                number,
+                &match tense {
+                    BaseTense::Present => Tense::Present,
+                    BaseTense::Past => Tense::Past,
+                },
+                &Form::Finite,
+            )
+            .to_string();
+        }
+
+        match tense {
+            BaseTense::Present => {
+                if matches!(person, Person::Third) && matches!(number, Number::Singular) {
+                    verb.third_person()
+                } else {
+                    verb.infinitive()
+                }
+            }
+            BaseTense::Past => verb.past(),
+        }
+    }
+
     pub fn particle(mut self, particle: impl Into<String>) -> Self {
         self.data.particle = Some(particle.into());
         self
@@ -671,16 +708,16 @@ impl<TenseState, AspectState, PolarityState, SubjectState, ModalState>
         let (person, number) = (&context.subject.0, &context.subject.1);
 
         if context.polarity == Polarity::Affirmative {
-            let finite = English::verb(head, person, number, &Self::low_level_tense(context.tense), &Form::Finite);
+            let finite = self.finite_form(&Verb::new(head), person, number, context.tense);
             return self.with_particle(finite, particle);
         }
 
         if Verb::new(head).infinitive() == "be" {
-            let be = English::verb(head, person, number, &Self::low_level_tense(context.tense), &Form::Finite);
+            let be = self.finite_form(&Verb::new(head), person, number, context.tense);
             return self.with_particle(format!("{be} not"), particle);
         }
 
-        let do_aux = English::verb("do", person, number, &Self::low_level_tense(context.tense), &Form::Finite);
+        let do_aux = self.finite_form(&Verb::new("do"), person, number, context.tense);
         let main = self.with_particle(Verb::new(head).infinitive(), particle);
         format!("{do_aux} not {main}")
     }
@@ -692,25 +729,12 @@ impl<TenseState, AspectState, PolarityState, SubjectState, ModalState>
         context: &FiniteRenderContext,
     ) -> String {
         let (person, number) = (&context.subject.0, &context.subject.1);
-        let finite_aux = English::verb(
-            auxiliary,
-            person,
-            number,
-            &Self::low_level_tense(context.tense),
-            &Form::Finite,
-        );
+        let finite_aux = self.finite_form(&Verb::new(auxiliary), person, number, context.tense);
 
         if context.polarity == Polarity::Negative {
             format!("{finite_aux} not {tail}")
         } else {
             format!("{finite_aux} {tail}")
-        }
-    }
-
-    fn low_level_tense(tense: BaseTense) -> Tense {
-        match tense {
-            BaseTense::Present => Tense::Present,
-            BaseTense::Past => Tense::Past,
         }
     }
 }

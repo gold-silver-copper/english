@@ -9,3 +9,4 @@ repository.workspace = true
 
 [dependencies]
 english = { workspace = true }
+english-core = { workspace = true }
