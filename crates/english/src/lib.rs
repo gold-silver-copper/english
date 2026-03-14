@@ -35,10 +35,10 @@ fn strip_trailing_number(word: &str) -> &str {
 
 /// Entry point for English inflection and morphology.
 ///
-/// This struct provides high-level methods for handling English
-/// nouns, verbs, adjectives, pronouns, and possessives.
-/// It delegates irregular forms to internal lookup tables
-/// and falls back on `EnglishCore` for regular inflection rules.
+/// `English` is the low-level `&str` API for handling English nouns, verbs,
+/// adjectives, pronouns, and possessives. It delegates irregular forms to
+/// lookup tables and falls back on [`EnglishCore`] for regular inflection
+/// rules.
 pub struct English;
 impl English {
     /// Inflects a noun into singular or plural form.
@@ -191,12 +191,13 @@ impl English {
         EnglishCore::add_possessive(word)
     }
 
-    /// Capitalize the first letter of a word
+    /// Capitalizes the first letter of a string.
     ///
     /// # Examples
     /// ```rust
     /// use english::English;
     ///
+    /// assert_eq!(English::capitalize_first(""), "");
     /// assert_eq!(English::capitalize_first("house"), "House");
     /// ```
     pub fn capitalize_first(s: &str) -> String {

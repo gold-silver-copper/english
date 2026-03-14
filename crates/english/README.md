@@ -50,6 +50,8 @@ fn main() {
     let sentence = format!("The {} {} {}.", subject, verb, object);
     assert_eq!(sentence, "The running children stole 7 potatoes.");
 
+    // For higher-level phrase builders, use the `english-phrase` crate.
+
     // --- Nouns ---
     assert_eq!(
         format!("{} of jeans", Noun::new("pair").count_with_number(3)),
@@ -134,8 +136,8 @@ fn main() {
 
 * Combines optimized data generated from `extractor` with inflection logic from `english-core`
 * Pure Rust, only one dependency: phf
-* Fast Binary search over pre-sorted arrays: `O(log n)` lookup.
-* Code generation ensures no runtime penalty.
+* PHF-backed irregular lookups with regular-rule fallback
+* Code generation ensures no runtime penalty
 
 ### `english-core`
 
@@ -153,7 +155,7 @@ fn main() {
 * Parses large English Wiktionary dumps
 * Extracts all verb, noun, and adjective forms
 * Uses `english-core` to filter out regular forms, preserving only irregulars
-* Generates sorted static arrays for use in `english`
+* Generates the static PHF tables used in `english`
 
 ---
 
@@ -179,7 +181,7 @@ Performance benchmarks were run on my M2 Macbook.
 Writing benchmarks and tests for such a project is rather difficult and requires opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of words may be inconsistent. This library includes a few uncountable words in its dataset, but not all. Uncountable words require special handling anyway. Take all benchmarks with a pound of salt, write your own tests for your own usecases. Any suggestions to improve the benchmarking are highly appreciated.
 
 ## Disclaimer
-Wiktionary data is often unstable and subject to weird changes. This means that the provided inflections may change unexpectedly. You can look at the diffs of *_array.rs files for a source of truth.
+Wiktionary data is often unstable and subject to weird changes. This means that the provided inflections may change unexpectedly. The generated lookup tables in `crates/english/generated/*_phf.rs` are the source of truth for a given revision.
 
 ## Inspirations and Thanks
 - Ole in the bevy discord suggested I use ```phf``` instead of sorted arrays, this resulted in up to 40% speedups

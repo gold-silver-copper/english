@@ -1,7 +1,9 @@
 use crate::*;
 
-/// The Noun struct is a lightweight noun lemma wrapper.
-/// It is interchangeable with strings for all noun functions such as `count_with_number()`.
+/// A lightweight wrapper around a noun lemma.
+///
+/// Use [`English::noun`] for low-level `&str` inflection, or the methods on
+/// `Noun` for a more ergonomic typed API.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Noun(String);
 
@@ -23,7 +25,7 @@ impl Noun {
 }
 
 impl Noun {
-    /// Returns a noun inflected according to the count. Wrapper around English::noun()
+    /// Inflects the noun according to the given count.
     ///
     /// # Examples
     /// ```rust
@@ -40,7 +42,7 @@ impl Noun {
         }
     }
 
-    /// Returns a noun inflected according to the count, preserves the number in output
+    /// Inflects the noun according to the given count and keeps the number in the output.
     ///
     /// # Examples
     /// ```rust

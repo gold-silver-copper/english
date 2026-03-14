@@ -1,12 +1,14 @@
 use crate::*;
 
-/// The Verb struct is a lightweight verb lemma wrapper.
-/// It is interchangeable with strings for all verb inflection helpers such as `present_participle()`.
+/// A lightweight wrapper around a verb lemma.
+///
+/// Use [`English::verb`] for low-level `&str` conjugation, or the methods on
+/// `Verb` for common inflection helpers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Verb(String);
 
 impl Verb {
-    /// Create a new verb with just the head.
+    /// Creates a new verb from its lemma.
     pub fn new(head: impl Into<String>) -> Self {
         Self(head.into())
     }
@@ -101,7 +103,7 @@ impl Verb {
     /// ```
     /// use english::Verb;
     ///
-    /// assert_eq!(Verb::new("lie2").infinitive(), "lie");
+    /// assert_eq!(Verb::new("go").infinitive(), "go");
     /// ```
     pub fn infinitive(&self) -> String {
         English::verb(

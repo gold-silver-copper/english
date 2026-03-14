@@ -1,6 +1,9 @@
 use crate::*;
 
-/// The Adj struct is a lightweight adjective lemma wrapper.
+/// A lightweight wrapper around an adjective lemma.
+///
+/// Use [`English::adj`] for low-level `&str` inflection, or the methods on
+/// `Adj` for common degree transformations.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Adj(String);
 
