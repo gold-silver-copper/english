@@ -109,7 +109,7 @@ fn modal_simple_renders_positive_and_negative_forms() {
             .aspect(Aspect::Simple)
             .polarity(Polarity::Affirmative)
             .subject(Person::Third, Number::Singular)
-            .modal(Modal::Will)
+            .modal(Modal::Will(ModalTense::Present))
             .render(),
         "will eat"
     );
@@ -119,7 +119,7 @@ fn modal_simple_renders_positive_and_negative_forms() {
             .aspect(Aspect::Simple)
             .polarity(Polarity::Affirmative)
             .subject(Person::Third, Number::Singular)
-            .modal(Modal::Would)
+            .modal(Modal::Will(ModalTense::Preterite))
             .render(),
         "would eat"
     );
@@ -129,7 +129,7 @@ fn modal_simple_renders_positive_and_negative_forms() {
             .aspect(Aspect::Simple)
             .polarity(Polarity::Affirmative)
             .subject(Person::Third, Number::Singular)
-            .modal(Modal::Could)
+            .modal(Modal::Can(ModalTense::Preterite))
             .render(),
         "could eat"
     );
@@ -139,7 +139,7 @@ fn modal_simple_renders_positive_and_negative_forms() {
             .aspect(Aspect::Simple)
             .polarity(Polarity::Affirmative)
             .subject(Person::Third, Number::Singular)
-            .modal(Modal::Can)
+            .modal(Modal::Can(ModalTense::Present))
             .render(),
         "can eat"
     );
@@ -149,7 +149,7 @@ fn modal_simple_renders_positive_and_negative_forms() {
             .aspect(Aspect::Simple)
             .polarity(Polarity::Affirmative)
             .subject(Person::Third, Number::Singular)
-            .modal(Modal::Should)
+            .modal(Modal::Shall(ModalTense::Preterite))
             .render(),
         "should eat"
     );
@@ -157,7 +157,7 @@ fn modal_simple_renders_positive_and_negative_forms() {
         main_verb("eat")
             .tense(BaseTense::Present)
             .aspect(Aspect::Simple)
-            .modal(Modal::Will)
+            .modal(Modal::Will(ModalTense::Present))
             .polarity(Polarity::Negative)
             .subject(Person::Third, Number::Singular)
             .render(),
@@ -217,7 +217,7 @@ fn modal_perfect_renders_future_and_conditional_forms() {
             .aspect(Aspect::Perfect)
             .polarity(Polarity::Affirmative)
             .subject(Person::Third, Number::Singular)
-            .modal(Modal::Will)
+            .modal(Modal::Will(ModalTense::Present))
             .render(),
         "will have eaten"
     );
@@ -225,7 +225,7 @@ fn modal_perfect_renders_future_and_conditional_forms() {
         main_verb("eat")
             .tense(BaseTense::Present)
             .aspect(Aspect::Perfect)
-            .modal(Modal::Would)
+            .modal(Modal::Will(ModalTense::Preterite))
             .polarity(Polarity::Negative)
             .subject(Person::Third, Number::Singular)
             .render(),
@@ -270,7 +270,7 @@ fn progressive_negative_renders_after_be() {
         main_verb("eat")
             .tense(BaseTense::Present)
             .aspect(Aspect::Progressive)
-            .modal(Modal::Will)
+            .modal(Modal::Will(ModalTense::Present))
             .polarity(Polarity::Negative)
             .subject(Person::Third, Number::Singular)
             .render(),
@@ -304,7 +304,7 @@ fn perfect_progressive_renders_composed_auxiliaries() {
             .aspect(Aspect::PerfectProgressive)
             .polarity(Polarity::Affirmative)
             .subject(Person::Third, Number::Singular)
-            .modal(Modal::Will)
+            .modal(Modal::Will(ModalTense::Present))
             .render(),
         "will have been eating"
     );
@@ -370,7 +370,7 @@ fn irregular_auxiliary_edge_cases_render_cleanly() {
             .aspect(Aspect::Perfect)
             .polarity(Polarity::Affirmative)
             .subject(Person::Third, Number::Singular)
-            .modal(Modal::Should)
+            .modal(Modal::Shall(ModalTense::Preterite))
             .render(),
         "should have gone"
     );

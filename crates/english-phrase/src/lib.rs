@@ -23,55 +23,104 @@ pub enum Polarity {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModalTense {
+    Present,
+    Preterite,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Modal {
-    Will,
-    Would,
-    Could,
-    Can,
-    Should,
+    Will(ModalTense),
+    Can(ModalTense),
+    Shall(ModalTense),
+    May(ModalTense),
+    Must,
 }
 
 impl Modal {
     fn as_str(self) -> &'static str {
         match self {
-            Modal::Will => "will",
-            Modal::Would => "would",
-            Modal::Could => "could",
-            Modal::Can => "can",
-            Modal::Should => "should",
+            Modal::Will(ModalTense::Present) => "will",
+            Modal::Will(ModalTense::Preterite) => "would",
+            Modal::Can(ModalTense::Present) => "can",
+            Modal::Can(ModalTense::Preterite) => "could",
+            Modal::Shall(ModalTense::Present) => "shall",
+            Modal::Shall(ModalTense::Preterite) => "should",
+            Modal::May(ModalTense::Present) => "may",
+            Modal::May(ModalTense::Preterite) => "might",
+            Modal::Must => "must",
         }
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MissingDegree;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HasDegree;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MissingQuantity;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HasQuantity;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MissingTense;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HasTense;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MissingAspect;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HasAspect;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MissingPolarity;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HasPolarity;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MissingSubject;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HasSubject;
+
 #[derive(Debug, Clone, PartialEq)]
-pub struct AdjPhrase<const HAS_DEGREE: bool = false> {
+pub struct AdjPhrase<DegreeState = MissingDegree> {
     adjective: String,
     degree: Option<Degree>,
     intensifier: Option<String>,
     complements: Vec<String>,
+    _state: std::marker::PhantomData<DegreeState>,
 }
 
-impl AdjPhrase<false> {
+impl AdjPhrase<MissingDegree> {
     pub fn new(adjective: impl Into<String>) -> Self {
         Self {
             adjective: adjective.into(),
             degree: None,
             intensifier: None,
             complements: Vec::new(),
+            _state: std::marker::PhantomData,
         }
     }
 
-    pub fn degree(self, degree: Degree) -> AdjPhrase<true> {
+    pub fn degree(self, degree: Degree) -> AdjPhrase<HasDegree> {
         AdjPhrase {
             adjective: self.adjective,
             degree: Some(degree),
             intensifier: self.intensifier,
             complements: self.complements,
+            _state: std::marker::PhantomData,
         }
     }
 }
 
-impl<const HAS_DEGREE: bool> AdjPhrase<HAS_DEGREE> {
+impl<DegreeState> AdjPhrase<DegreeState> {
     pub fn intensifier(mut self, intensifier: impl Into<String>) -> Self {
         self.intensifier = Some(intensifier.into());
         self
@@ -83,7 +132,7 @@ impl<const HAS_DEGREE: bool> AdjPhrase<HAS_DEGREE> {
     }
 }
 
-impl AdjPhrase<true> {
+impl AdjPhrase<HasDegree> {
     pub fn render(&self) -> String {
         let mut parts = Vec::new();
 
@@ -111,15 +160,16 @@ enum QuantitySpec {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct NounPhrase<const HAS_QUANTITY: bool = false> {
+pub struct NounPhrase<QuantityState = MissingQuantity> {
     head: String,
     quantity: Option<QuantitySpec>,
     determiner: Option<String>,
     modifiers: Vec<String>,
     complements: Vec<String>,
+    _state: std::marker::PhantomData<QuantityState>,
 }
 
-impl NounPhrase<false> {
+impl NounPhrase<MissingQuantity> {
     pub fn new<T: Into<Noun>>(noun: T) -> Self {
         let noun = noun.into();
         let mut modifiers = Vec::new();
@@ -138,39 +188,42 @@ impl NounPhrase<false> {
             determiner: None,
             modifiers,
             complements,
+            _state: std::marker::PhantomData,
         }
     }
 
-    pub fn number(self, number: Number) -> NounPhrase<true> {
+    pub fn number(self, number: Number) -> NounPhrase<HasQuantity> {
         NounPhrase {
             head: self.head,
             quantity: Some(QuantitySpec::Number(number)),
             determiner: self.determiner,
             modifiers: self.modifiers,
             complements: self.complements,
+            _state: std::marker::PhantomData,
         }
     }
 
-    pub fn singular(self) -> NounPhrase<true> {
+    pub fn singular(self) -> NounPhrase<HasQuantity> {
         self.number(Number::Singular)
     }
 
-    pub fn plural(self) -> NounPhrase<true> {
+    pub fn plural(self) -> NounPhrase<HasQuantity> {
         self.number(Number::Plural)
     }
 
-    pub fn count(self, count: u32) -> NounPhrase<true> {
+    pub fn count(self, count: u32) -> NounPhrase<HasQuantity> {
         NounPhrase {
             head: self.head,
             quantity: Some(QuantitySpec::Count(count)),
             determiner: self.determiner,
             modifiers: self.modifiers,
             complements: self.complements,
+            _state: std::marker::PhantomData,
         }
     }
 }
 
-impl<const HAS_QUANTITY: bool> NounPhrase<HAS_QUANTITY> {
+impl<QuantityState> NounPhrase<QuantityState> {
     pub fn determiner(mut self, determiner: impl Into<String>) -> Self {
         self.determiner = Some(determiner.into());
         self
@@ -181,7 +234,7 @@ impl<const HAS_QUANTITY: bool> NounPhrase<HAS_QUANTITY> {
         self
     }
 
-    pub fn modifier_phrase(mut self, phrase: AdjPhrase<true>) -> Self {
+    pub fn modifier_phrase(mut self, phrase: AdjPhrase<HasDegree>) -> Self {
         self.modifiers.push(phrase.render());
         self
     }
@@ -192,7 +245,7 @@ impl<const HAS_QUANTITY: bool> NounPhrase<HAS_QUANTITY> {
     }
 }
 
-impl NounPhrase<true> {
+impl NounPhrase<HasQuantity> {
     pub fn render(&self) -> String {
         let noun = self.to_english_noun();
 
@@ -240,10 +293,10 @@ impl NounPhrase<true> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VerbPhrase<
-    const HAS_TENSE: bool = false,
-    const HAS_ASPECT: bool = false,
-    const HAS_POLARITY: bool = false,
-    const HAS_SUBJECT: bool = false,
+    TenseState = MissingTense,
+    AspectState = MissingAspect,
+    PolarityState = MissingPolarity,
+    SubjectState = MissingSubject,
 > {
     verb: Verb,
     tense: Option<BaseTense>,
@@ -251,6 +304,7 @@ pub struct VerbPhrase<
     polarity: Option<Polarity>,
     modal: Option<Modal>,
     subject: Option<(Person, Number)>,
+    _state: std::marker::PhantomData<(TenseState, AspectState, PolarityState, SubjectState)>,
 }
 
 #[derive(Debug, Clone)]
@@ -261,7 +315,7 @@ struct RenderContext {
     subject: (Person, Number),
 }
 
-impl VerbPhrase<false, false, false, false> {
+impl VerbPhrase<MissingTense, MissingAspect, MissingPolarity, MissingSubject> {
     pub fn new<T: Into<Verb>>(verb: T) -> Self {
         Self {
             verb: verb.into(),
@@ -270,17 +324,18 @@ impl VerbPhrase<false, false, false, false> {
             polarity: None,
             modal: None,
             subject: None,
+            _state: std::marker::PhantomData,
         }
     }
 }
 
-impl<const HAS_ASPECT: bool, const HAS_POLARITY: bool, const HAS_SUBJECT: bool>
-    VerbPhrase<false, HAS_ASPECT, HAS_POLARITY, HAS_SUBJECT>
+impl<AspectState, PolarityState, SubjectState>
+    VerbPhrase<MissingTense, AspectState, PolarityState, SubjectState>
 {
     pub fn tense(
         self,
         tense: BaseTense,
-    ) -> VerbPhrase<true, HAS_ASPECT, HAS_POLARITY, HAS_SUBJECT> {
+    ) -> VerbPhrase<HasTense, AspectState, PolarityState, SubjectState> {
         VerbPhrase {
             verb: self.verb,
             tense: Some(tense),
@@ -288,14 +343,18 @@ impl<const HAS_ASPECT: bool, const HAS_POLARITY: bool, const HAS_SUBJECT: bool>
             polarity: self.polarity,
             modal: self.modal,
             subject: self.subject,
+            _state: std::marker::PhantomData,
         }
     }
 }
 
-impl<const HAS_TENSE: bool, const HAS_POLARITY: bool, const HAS_SUBJECT: bool>
-    VerbPhrase<HAS_TENSE, false, HAS_POLARITY, HAS_SUBJECT>
+impl<TenseState, PolarityState, SubjectState>
+    VerbPhrase<TenseState, MissingAspect, PolarityState, SubjectState>
 {
-    pub fn aspect(self, aspect: Aspect) -> VerbPhrase<HAS_TENSE, true, HAS_POLARITY, HAS_SUBJECT> {
+    pub fn aspect(
+        self,
+        aspect: Aspect,
+    ) -> VerbPhrase<TenseState, HasAspect, PolarityState, SubjectState> {
         VerbPhrase {
             verb: self.verb,
             tense: self.tense,
@@ -303,17 +362,18 @@ impl<const HAS_TENSE: bool, const HAS_POLARITY: bool, const HAS_SUBJECT: bool>
             polarity: self.polarity,
             modal: self.modal,
             subject: self.subject,
+            _state: std::marker::PhantomData,
         }
     }
 }
 
-impl<const HAS_TENSE: bool, const HAS_ASPECT: bool, const HAS_SUBJECT: bool>
-    VerbPhrase<HAS_TENSE, HAS_ASPECT, false, HAS_SUBJECT>
+impl<TenseState, AspectState, SubjectState>
+    VerbPhrase<TenseState, AspectState, MissingPolarity, SubjectState>
 {
     pub fn polarity(
         self,
         polarity: Polarity,
-    ) -> VerbPhrase<HAS_TENSE, HAS_ASPECT, true, HAS_SUBJECT> {
+    ) -> VerbPhrase<TenseState, AspectState, HasPolarity, SubjectState> {
         VerbPhrase {
             verb: self.verb,
             tense: self.tense,
@@ -321,18 +381,19 @@ impl<const HAS_TENSE: bool, const HAS_ASPECT: bool, const HAS_SUBJECT: bool>
             polarity: Some(polarity),
             modal: self.modal,
             subject: self.subject,
+            _state: std::marker::PhantomData,
         }
     }
 }
 
-impl<const HAS_TENSE: bool, const HAS_ASPECT: bool, const HAS_POLARITY: bool>
-    VerbPhrase<HAS_TENSE, HAS_ASPECT, HAS_POLARITY, false>
+impl<TenseState, AspectState, PolarityState>
+    VerbPhrase<TenseState, AspectState, PolarityState, MissingSubject>
 {
     pub fn subject(
         self,
         person: Person,
         number: Number,
-    ) -> VerbPhrase<HAS_TENSE, HAS_ASPECT, HAS_POLARITY, true> {
+    ) -> VerbPhrase<TenseState, AspectState, PolarityState, HasSubject> {
         VerbPhrase {
             verb: self.verb,
             tense: self.tense,
@@ -340,24 +401,21 @@ impl<const HAS_TENSE: bool, const HAS_ASPECT: bool, const HAS_POLARITY: bool>
             polarity: self.polarity,
             modal: self.modal,
             subject: Some((person, number)),
+            _state: std::marker::PhantomData,
         }
     }
 
     pub fn subject_noun_phrase(
         self,
-        phrase: &NounPhrase<true>,
-    ) -> VerbPhrase<HAS_TENSE, HAS_ASPECT, HAS_POLARITY, true> {
+        phrase: &NounPhrase<HasQuantity>,
+    ) -> VerbPhrase<TenseState, AspectState, PolarityState, HasSubject> {
         let (person, number) = phrase.agreement();
         self.subject(person, number)
     }
 }
 
-impl<
-    const HAS_TENSE: bool,
-    const HAS_ASPECT: bool,
-    const HAS_POLARITY: bool,
-    const HAS_SUBJECT: bool,
-> VerbPhrase<HAS_TENSE, HAS_ASPECT, HAS_POLARITY, HAS_SUBJECT>
+impl<TenseState, AspectState, PolarityState, SubjectState>
+    VerbPhrase<TenseState, AspectState, PolarityState, SubjectState>
 {
     pub fn modal(mut self, modal: Modal) -> Self {
         self.modal = Some(modal);
@@ -365,7 +423,7 @@ impl<
     }
 }
 
-impl VerbPhrase<true, true, true, true> {
+impl VerbPhrase<HasTense, HasAspect, HasPolarity, HasSubject> {
     pub fn render(&self) -> String {
         let context = RenderContext {
             tense: self.tense.expect("tense set by typestate"),
