@@ -71,12 +71,6 @@ impl From<String> for Adj {
     }
 }
 
-impl From<&String> for Adj {
-    fn from(s: &String) -> Self {
-        Self(s.clone())
-    }
-}
-
 impl From<&str> for Adj {
     fn from(s: &str) -> Self {
         Self(s.to_string())

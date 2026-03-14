@@ -84,11 +84,6 @@ impl From<String> for Noun {
         Self(s)
     }
 }
-impl From<&String> for Noun {
-    fn from(s: &String) -> Self {
-        Self(s.clone())
-    }
-}
 
 impl From<&str> for Noun {
     fn from(s: &str) -> Self {

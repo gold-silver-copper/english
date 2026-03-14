@@ -192,7 +192,8 @@ impl English {
     /// assert_eq!(English::add_possessive("dog"), "dog's");
     /// assert_eq!(English::add_possessive("dogs"), "dogs'");
     /// ```
-    pub fn add_possessive(word: &str) -> String {
+    pub fn add_possessive(word: impl AsRef<str>) -> String {
+        let word = word.as_ref();
         EnglishCore::add_possessive(word)
     }
 
@@ -204,8 +205,8 @@ impl English {
     ///
     /// assert_eq!(English::capitalize_first("house"), "House");
     /// ```
-    pub fn capitalize_first(s: &str) -> String {
-        let mut c = s.chars();
+    pub fn capitalize_first(s: impl AsRef<str>) -> String {
+        let mut c = s.as_ref().chars();
         match c.next() {
             None => String::new(),
             Some(first) => first.to_uppercase().collect::<String>() + c.as_str(),

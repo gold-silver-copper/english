@@ -120,12 +120,6 @@ impl From<String> for Verb {
     }
 }
 
-impl From<&String> for Verb {
-    fn from(s: &String) -> Self {
-        Self(s.clone())
-    }
-}
-
 impl From<&str> for Verb {
     fn from(s: &str) -> Self {
         Self(s.to_string())
