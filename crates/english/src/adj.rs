@@ -36,7 +36,7 @@ impl Adj {
     /// assert_eq!(Adj::new("fun").comparative(), "more fun");
     /// ```
     pub fn comparative(&self) -> String {
-        English::adj(self, &Degree::Comparative)
+        English::adj(self.as_str(), &Degree::Comparative)
     }
 
     /// Returns the superlative form of an adjective.
@@ -49,7 +49,7 @@ impl Adj {
     /// assert_eq!(Adj::new("fun").superlative(), "most fun");
     /// ```
     pub fn superlative(&self) -> String {
-        English::adj(self, &Degree::Superlative)
+        English::adj(self.as_str(), &Degree::Superlative)
     }
 
     /// Returns the positive (base) form of an adjective.
@@ -61,7 +61,7 @@ impl Adj {
     /// assert_eq!(Adj::new("fast").positive(), "fast");
     /// ```
     pub fn positive(&self) -> String {
-        English::adj(self, &Degree::Positive)
+        English::adj(self.as_str(), &Degree::Positive)
     }
 }
 
@@ -74,11 +74,5 @@ impl From<String> for Adj {
 impl From<&str> for Adj {
     fn from(s: &str) -> Self {
         Self(s.to_string())
-    }
-}
-
-impl AsRef<str> for Adj {
-    fn as_ref(&self) -> &str {
-        self.as_str()
     }
 }

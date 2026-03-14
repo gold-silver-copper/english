@@ -33,7 +33,7 @@ impl Verb {
     /// ```
     pub fn third_person(&self) -> String {
         English::verb(
-            self,
+            self.as_str(),
             &Person::Third,
             &Number::Singular,
             &Tense::Present,
@@ -51,7 +51,7 @@ impl Verb {
     /// ```
     pub fn past(&self) -> String {
         English::verb(
-            self,
+            self.as_str(),
             &Person::Third,    // person doesn’t matter in past tense finite
             &Number::Singular, // irrelevant
             &Tense::Past,
@@ -69,7 +69,7 @@ impl Verb {
     /// ```
     pub fn present_participle(&self) -> String {
         English::verb(
-            self,
+            self.as_str(),
             &Person::First,    // irrelevant for participles
             &Number::Singular, // irrelevant
             &Tense::Present,
@@ -87,7 +87,7 @@ impl Verb {
     /// ```
     pub fn past_participle(&self) -> String {
         English::verb(
-            self,
+            self.as_str(),
             &Person::First,    // irrelevant
             &Number::Singular, // irrelevant
             &Tense::Past,
@@ -105,7 +105,7 @@ impl Verb {
     /// ```
     pub fn infinitive(&self) -> String {
         English::verb(
-            self,
+            self.as_str(),
             &Person::First,    // irrelevant
             &Number::Singular, // irrelevant
             &Tense::Present,   // irrelevant
@@ -123,11 +123,5 @@ impl From<String> for Verb {
 impl From<&str> for Verb {
     fn from(s: &str) -> Self {
         Self(s.to_string())
-    }
-}
-
-impl AsRef<str> for Verb {
-    fn as_ref(&self) -> &str {
-        self.as_str()
     }
 }

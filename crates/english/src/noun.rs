@@ -34,9 +34,9 @@ impl Noun {
     /// ```
     pub fn count(&self, count: u32) -> String {
         if count == 1 {
-            English::noun(self, &Number::Singular)
+            English::noun(self.as_str(), &Number::Singular)
         } else {
-            English::noun(self, &Number::Plural)
+            English::noun(self.as_str(), &Number::Plural)
         }
     }
 
@@ -63,7 +63,7 @@ impl Noun {
     /// assert_eq!(Noun::new("cat").plural(), "cats");
     /// ```
     pub fn plural(&self) -> String {
-        English::noun(self, &Number::Plural)
+        English::noun(self.as_str(), &Number::Plural)
     }
 
     /// Returns the singular form of a noun.
@@ -75,7 +75,7 @@ impl Noun {
     /// assert_eq!(Noun::new("cat2").singular(), "cat");
     /// ```
     pub fn singular(&self) -> String {
-        English::noun(self, &Number::Singular)
+        English::noun(self.as_str(), &Number::Singular)
     }
 }
 
@@ -88,11 +88,5 @@ impl From<String> for Noun {
 impl From<&str> for Noun {
     fn from(s: &str) -> Self {
         Self(s.to_string())
-    }
-}
-
-impl AsRef<str> for Noun {
-    fn as_ref(&self) -> &str {
-        self.as_str()
     }
 }

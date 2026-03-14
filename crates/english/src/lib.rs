@@ -57,8 +57,7 @@ impl English {
     /// assert_eq!(English::noun("child", &Number::Plural), "children");
     /// assert_eq!(English::noun("die2", &Number::Plural), "dice");
     /// ```
-    pub fn noun(word: impl AsRef<str>, number: &Number) -> String {
-        let word = word.as_ref();
+    pub fn noun(word: &str, number: &Number) -> String {
         let base_word = strip_trailing_number(word);
 
         match number {
@@ -88,8 +87,7 @@ impl English {
     /// assert_eq!(English::adj("good2", &Degree::Superlative), "best");
     /// assert_eq!(English::adj("fun", &Degree::Comparative), "more fun");
     /// ```
-    pub fn adj(word: impl AsRef<str>, degree: &Degree) -> String {
-        let word = word.as_ref();
+    pub fn adj(word: &str, degree: &Degree) -> String {
         let base_word = strip_trailing_number(word);
         match degree {
             Degree::Positive => base_word.to_owned(),
@@ -139,13 +137,12 @@ impl English {
     /// );
     /// ```
     pub fn verb(
-        wordish: impl AsRef<str>,
+        word: &str,
         person: &Person,
         number: &Number,
         tense: &Tense,
         form: &Form,
     ) -> String {
-        let word = wordish.as_ref();
         let base_word = strip_trailing_number(word);
         match get_verb_forms(word) {
             Some(wordik) => match (person, number, tense, form) {
@@ -192,8 +189,7 @@ impl English {
     /// assert_eq!(English::add_possessive("dog"), "dog's");
     /// assert_eq!(English::add_possessive("dogs"), "dogs'");
     /// ```
-    pub fn add_possessive(word: impl AsRef<str>) -> String {
-        let word = word.as_ref();
+    pub fn add_possessive(word: &str) -> String {
         EnglishCore::add_possessive(word)
     }
 
@@ -205,8 +201,8 @@ impl English {
     ///
     /// assert_eq!(English::capitalize_first("house"), "House");
     /// ```
-    pub fn capitalize_first(s: impl AsRef<str>) -> String {
-        let mut c = s.as_ref().chars();
+    pub fn capitalize_first(s: &str) -> String {
+        let mut c = s.chars();
         match c.next() {
             None => String::new(),
             Some(first) => first.to_uppercase().collect::<String>() + c.as_str(),
