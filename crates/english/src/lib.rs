@@ -26,13 +26,11 @@ mod verb_phf {
 }
 use verb_phf::*;
 
-fn strip_trailing_number(word: &str) -> String {
-    if let Some(last_char) = word.chars().last()
-        && last_char.is_ascii_digit()
-    {
-        return word[..word.len() - 1].to_string();
+fn strip_trailing_number(word: &str) -> &str {
+    match word.as_bytes().last() {
+        Some(b'0'..=b'9') => &word[..word.len() - 1],
+        _ => word,
     }
-    word.to_string()
 }
 
 /// Entry point for English inflection and morphology.
@@ -61,12 +59,12 @@ impl English {
         let base_word = strip_trailing_number(word);
 
         match number {
-            Number::Singular => base_word,
+            Number::Singular => base_word.to_string(),
             Number::Plural => {
                 if let Some(x) = get_plural(word) {
                     x.to_owned()
                 } else {
-                    EnglishCore::noun(&base_word, number)
+                    EnglishCore::noun(base_word, number)
                 }
             }
         }
@@ -95,14 +93,14 @@ impl English {
                 if let Some((comp, _)) = get_adjective_forms(word) {
                     comp.to_owned()
                 } else {
-                    EnglishCore::comparative(&base_word)
+                    EnglishCore::comparative(base_word)
                 }
             }
             Degree::Superlative => {
                 if let Some((_, sup)) = get_adjective_forms(word) {
                     sup.to_owned()
                 } else {
-                    EnglishCore::superlative(&base_word)
+                    EnglishCore::superlative(base_word)
                 }
             }
         }
@@ -155,7 +153,7 @@ impl English {
                 (_, _, Tense::Past, Form::Participle) => wordik.3.to_owned(),
                 (_, _, Tense::Past, Form::Finite) => wordik.1.to_owned(),
             },
-            None => EnglishCore::verb(&base_word, person, number, tense, form),
+            None => EnglishCore::verb(base_word, person, number, tense, form),
         }
     }
     /// Returns the correct English pronoun for the given grammatical features.
