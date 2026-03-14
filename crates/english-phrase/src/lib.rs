@@ -1,774 +1,926 @@
 use english_core::EnglishCore;
 
-pub use english::{Adj, Degree, Form, Noun, Number, Person, Tense, Verb};
+pub use english::{Adj, Noun, Number, Person, Verb};
 
-#[doc(hidden)]
-pub mod state {
-    use super::{Aspect, BaseTense, Degree, Modal, Number, Person, Polarity};
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Text(String);
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-    pub struct MissingDegree;
+impl Text {
+    pub fn new(text: impl Into<String>) -> Self {
+        Self(text.into())
+    }
 
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct HasDegree(pub(crate) Degree);
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-    pub struct MissingIntensifier;
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-    pub struct HasIntensifier;
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-    pub struct MissingQuantity;
-
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct HasQuantity(pub(crate) super::QuantitySpec);
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-    pub struct MissingDeterminer;
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-    pub struct HasDeterminer;
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-    pub struct MissingTense;
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub struct HasTense(pub(crate) BaseTense);
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-    pub struct MissingAspect;
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub struct HasAspect(pub(crate) Aspect);
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-    pub struct MissingPolarity;
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub struct HasPolarity(pub(crate) Polarity);
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-    pub struct MissingSubject;
-
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct HasSubject(pub(crate) Person, pub(crate) Number);
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-    pub struct MissingModal;
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub struct HasModal(pub(crate) Modal);
+    fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
-use state::*;
+impl From<&str> for Text {
+    fn from(text: &str) -> Self {
+        Self::new(text)
+    }
+}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BaseTense {
+impl From<String> for Text {
+    fn from(text: String) -> Self {
+        Self(text)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Determiner {
+    The,
+    A,
+    An,
+    This,
+    That,
+    These,
+    Those,
+    Text(Text),
+}
+
+impl Determiner {
+    pub fn the() -> Self {
+        Self::The
+    }
+
+    pub fn a() -> Self {
+        Self::A
+    }
+
+    pub fn an() -> Self {
+        Self::An
+    }
+
+    pub fn this() -> Self {
+        Self::This
+    }
+
+    pub fn that() -> Self {
+        Self::That
+    }
+
+    pub fn these() -> Self {
+        Self::These
+    }
+
+    pub fn those() -> Self {
+        Self::Those
+    }
+
+    pub fn text(text: impl Into<Text>) -> Self {
+        Self::Text(text.into())
+    }
+
+    fn render(&self) -> &str {
+        match self {
+            Determiner::The => "the",
+            Determiner::A => "a",
+            Determiner::An => "an",
+            Determiner::This => "this",
+            Determiner::That => "that",
+            Determiner::These => "these",
+            Determiner::Those => "those",
+            Determiner::Text(text) => text.as_str(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Intensifier {
+    Text(Text),
+}
+
+impl Intensifier {
+    fn render(&self) -> &str {
+        match self {
+            Intensifier::Text(text) => text.as_str(),
+        }
+    }
+}
+
+impl From<&str> for Intensifier {
+    fn from(text: &str) -> Self {
+        Self::Text(text.into())
+    }
+}
+
+impl From<String> for Intensifier {
+    fn from(text: String) -> Self {
+        Self::Text(text.into())
+    }
+}
+
+impl From<Text> for Intensifier {
+    fn from(text: Text) -> Self {
+        Self::Text(text)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Degree {
+    #[default]
+    Positive,
+    Comparative,
+    Superlative,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AdjComplement {
+    Text(Text),
+    NounPhrase(Box<NounPhrase>),
+}
+
+impl AdjComplement {
+    fn render(&self) -> String {
+        match self {
+            AdjComplement::Text(text) => text.as_str().to_string(),
+            AdjComplement::NounPhrase(phrase) => phrase.render(),
+        }
+    }
+}
+
+impl From<&str> for AdjComplement {
+    fn from(text: &str) -> Self {
+        Self::Text(text.into())
+    }
+}
+
+impl From<String> for AdjComplement {
+    fn from(text: String) -> Self {
+        Self::Text(text.into())
+    }
+}
+
+impl From<Text> for AdjComplement {
+    fn from(text: Text) -> Self {
+        Self::Text(text)
+    }
+}
+
+impl From<NounPhrase> for AdjComplement {
+    fn from(phrase: NounPhrase) -> Self {
+        Self::NounPhrase(Box::new(phrase))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AdjPhrase {
+    head: Adj,
+    degree: Degree,
+    intensifier: Option<Intensifier>,
+    complements: Vec<AdjComplement>,
+}
+
+impl AdjPhrase {
+    pub fn new<T: Into<Adj>>(head: T) -> Self {
+        Self {
+            head: head.into(),
+            degree: Degree::Positive,
+            intensifier: None,
+            complements: Vec::new(),
+        }
+    }
+
+    pub fn positive(mut self) -> Self {
+        self.degree = Degree::Positive;
+        self
+    }
+
+    pub fn comparative(mut self) -> Self {
+        self.degree = Degree::Comparative;
+        self
+    }
+
+    pub fn superlative(mut self) -> Self {
+        self.degree = Degree::Superlative;
+        self
+    }
+
+    pub fn intensifier<I: Into<Intensifier>>(mut self, intensifier: I) -> Self {
+        self.intensifier = Some(intensifier.into());
+        self
+    }
+
+    pub fn complement<C: Into<AdjComplement>>(mut self, complement: C) -> Self {
+        self.complements.push(complement.into());
+        self
+    }
+
+    pub fn render(&self) -> String {
+        let mut parts = Vec::new();
+
+        if let Some(intensifier) = &self.intensifier {
+            parts.push(intensifier.render().to_string());
+        }
+
+        parts.push(match self.degree {
+            Degree::Positive => self.head.positive(),
+            Degree::Comparative => self.head.comparative(),
+            Degree::Superlative => self.head.superlative(),
+        });
+
+        parts.extend(self.complements.iter().map(AdjComplement::render));
+        parts.join(" ")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NounModifier {
+    Text(Text),
+    Adjective(AdjPhrase),
+}
+
+impl NounModifier {
+    fn render(&self) -> String {
+        match self {
+            NounModifier::Text(text) => text.as_str().to_string(),
+            NounModifier::Adjective(phrase) => phrase.render(),
+        }
+    }
+}
+
+impl From<&str> for NounModifier {
+    fn from(text: &str) -> Self {
+        Self::Text(text.into())
+    }
+}
+
+impl From<String> for NounModifier {
+    fn from(text: String) -> Self {
+        Self::Text(text.into())
+    }
+}
+
+impl From<Text> for NounModifier {
+    fn from(text: Text) -> Self {
+        Self::Text(text)
+    }
+}
+
+impl From<AdjPhrase> for NounModifier {
+    fn from(phrase: AdjPhrase) -> Self {
+        Self::Adjective(phrase)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NounComplement {
+    Text(Text),
+    NounPhrase(Box<NounPhrase>),
+}
+
+impl NounComplement {
+    fn render(&self) -> String {
+        match self {
+            NounComplement::Text(text) => text.as_str().to_string(),
+            NounComplement::NounPhrase(phrase) => phrase.render(),
+        }
+    }
+}
+
+impl From<&str> for NounComplement {
+    fn from(text: &str) -> Self {
+        Self::Text(text.into())
+    }
+}
+
+impl From<String> for NounComplement {
+    fn from(text: String) -> Self {
+        Self::Text(text.into())
+    }
+}
+
+impl From<Text> for NounComplement {
+    fn from(text: Text) -> Self {
+        Self::Text(text)
+    }
+}
+
+impl From<NounPhrase> for NounComplement {
+    fn from(phrase: NounPhrase) -> Self {
+        Self::NounPhrase(Box::new(phrase))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum Quantity {
+    #[default]
+    Singular,
+    Plural,
+    Count(u32),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NounPhrase {
+    head: Noun,
+    quantity: Quantity,
+    determiner: Option<Determiner>,
+    modifiers: Vec<NounModifier>,
+    complements: Vec<NounComplement>,
+}
+
+impl NounPhrase {
+    pub fn new<T: Into<Noun>>(head: T) -> Self {
+        Self {
+            head: head.into(),
+            quantity: Quantity::Singular,
+            determiner: None,
+            modifiers: Vec::new(),
+            complements: Vec::new(),
+        }
+    }
+
+    pub fn determiner(mut self, determiner: Determiner) -> Self {
+        self.determiner = Some(determiner);
+        self
+    }
+
+    pub fn the(self) -> Self {
+        self.determiner(Determiner::the())
+    }
+
+    pub fn singular(mut self) -> Self {
+        self.quantity = Quantity::Singular;
+        self
+    }
+
+    pub fn plural(mut self) -> Self {
+        self.quantity = Quantity::Plural;
+        self
+    }
+
+    pub fn count(mut self, count: u32) -> Self {
+        self.quantity = Quantity::Count(count);
+        self
+    }
+
+    pub fn modifier<M: Into<NounModifier>>(mut self, modifier: M) -> Self {
+        self.modifiers.push(modifier.into());
+        self
+    }
+
+    pub fn complement<C: Into<NounComplement>>(mut self, complement: C) -> Self {
+        self.complements.push(complement.into());
+        self
+    }
+
+    pub fn agreement(&self) -> (Person, Number) {
+        let number = match self.quantity {
+            Quantity::Singular => Number::Singular,
+            Quantity::Plural => Number::Plural,
+            Quantity::Count(1) => Number::Singular,
+            Quantity::Count(_) => Number::Plural,
+        };
+
+        (Person::Third, number)
+    }
+
+    pub fn render(&self) -> String {
+        let mut parts = Vec::new();
+
+        if let Some(determiner) = &self.determiner {
+            parts.push(determiner.render().to_string());
+        }
+
+        if let Quantity::Count(count) = self.quantity {
+            parts.push(count.to_string());
+        }
+
+        parts.extend(self.modifiers.iter().map(NounModifier::render));
+
+        let head = match self.quantity {
+            Quantity::Singular => self.head.singular(),
+            Quantity::Plural => self.head.plural(),
+            Quantity::Count(count) => self.head.count(count),
+        };
+        parts.push(head);
+
+        parts.extend(self.complements.iter().map(NounComplement::render));
+
+        parts.join(" ")
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Tense {
+    #[default]
     Present,
     Past,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Aspect {
+    #[default]
     Simple,
     Perfect,
     Progressive,
     PerfectProgressive,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Polarity {
+    #[default]
     Affirmative,
     Negative,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ModalTense {
-    Present,
-    Preterite,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Modal {
-    Will(ModalTense),
-    Can(ModalTense),
-    Shall(ModalTense),
-    May(ModalTense),
+    Will,
+    Would,
+    Can,
+    Could,
+    Shall,
+    Should,
+    May,
+    Might,
     Must,
 }
 
 impl Modal {
-    fn as_str(self) -> &'static str {
+    fn render(self) -> &'static str {
         match self {
-            Modal::Will(ModalTense::Present) => "will",
-            Modal::Will(ModalTense::Preterite) => "would",
-            Modal::Can(ModalTense::Present) => "can",
-            Modal::Can(ModalTense::Preterite) => "could",
-            Modal::Shall(ModalTense::Present) => "shall",
-            Modal::Shall(ModalTense::Preterite) => "should",
-            Modal::May(ModalTense::Present) => "may",
-            Modal::May(ModalTense::Preterite) => "might",
+            Modal::Will => "will",
+            Modal::Would => "would",
+            Modal::Can => "can",
+            Modal::Could => "could",
+            Modal::Shall => "shall",
+            Modal::Should => "should",
+            Modal::May => "may",
+            Modal::Might => "might",
             Modal::Must => "must",
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-struct AdjPhraseData {
-    adjective: Adj,
-    intensifier: Option<String>,
-    complements: Vec<String>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AuxForm {
+    Finite,
+    Infinitive,
+    PastParticiple,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-struct ResolvedAdjPhrase {
-    adjective: Adj,
-    degree: Degree,
-    intensifier: Option<String>,
-    complements: Vec<String>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MainForm {
+    Finite,
+    Infinitive,
+    PastParticiple,
+    PresentParticiple,
 }
 
-impl ResolvedAdjPhrase {
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum AuxLemma {
+    Modal(Modal),
+    Verb(Verb),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Auxiliary {
+    lemma: AuxLemma,
+    form: AuxForm,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct VerbPlan {
+    auxiliaries: Vec<Auxiliary>,
+    negated: bool,
+    main_form: Option<MainForm>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PrepositionalPhrase {
+    preposition: Text,
+    object: NounPhrase,
+}
+
+impl PrepositionalPhrase {
     fn render(&self) -> String {
-        let mut parts = Vec::new();
-
-        if let Some(intensifier) = &self.intensifier {
-            parts.push(intensifier.clone());
-        }
-
-        parts.push(match self.degree {
-            Degree::Positive => self.adjective.positive(),
-            Degree::Comparative => self.adjective.comparative(),
-            Degree::Superlative => self.adjective.superlative(),
-        });
-
-        if !self.complements.is_empty() {
-            parts.push(self.complements.join(" "));
-        }
-
-        parts.join(" ")
+        format!("{} {}", self.preposition.as_str(), self.object.render())
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct AdjPhrase<DegreeState = MissingDegree, IntensifierState = MissingIntensifier> {
-    data: AdjPhraseData,
-    degree_state: DegreeState,
-    intensifier_state: IntensifierState,
+pub struct VerbPhrase {
+    head: Verb,
+    tense: Tense,
+    aspect: Aspect,
+    polarity: Polarity,
+    modal: Option<Modal>,
+    particle: Option<Text>,
+    agreement: Option<(Person, Number)>,
 }
 
-impl AdjPhrase<MissingDegree, MissingIntensifier> {
-    pub fn new<T: Into<Adj>>(adjective: T) -> Self {
+impl VerbPhrase {
+    pub fn new<T: Into<Verb>>(head: T) -> Self {
         Self {
-            data: AdjPhraseData {
-                adjective: adjective.into(),
-                intensifier: None,
-                complements: Vec::new(),
-            },
-            degree_state: MissingDegree,
-            intensifier_state: MissingIntensifier,
+            head: head.into(),
+            tense: Tense::Present,
+            aspect: Aspect::Simple,
+            polarity: Polarity::Affirmative,
+            modal: None,
+            particle: None,
+            agreement: None,
         }
     }
-}
 
-impl<IntensifierState> AdjPhrase<MissingDegree, IntensifierState> {
-    pub fn degree(self, degree: Degree) -> AdjPhrase<HasDegree, IntensifierState> {
-        AdjPhrase {
-            data: self.data,
-            degree_state: HasDegree(degree),
-            intensifier_state: self.intensifier_state,
-        }
-    }
-}
-
-impl<DegreeState> AdjPhrase<DegreeState, MissingIntensifier> {
-    pub fn intensifier(self, intensifier: impl Into<String>) -> AdjPhrase<DegreeState, HasIntensifier> {
-        let mut data = self.data;
-        data.intensifier = Some(intensifier.into());
-        AdjPhrase {
-            data,
-            degree_state: self.degree_state,
-            intensifier_state: HasIntensifier,
-        }
-    }
-}
-
-impl<DegreeState, IntensifierState> AdjPhrase<DegreeState, IntensifierState> {
-    pub fn complement(mut self, complement: impl Into<String>) -> Self {
-        self.data.complements.push(complement.into());
+    pub fn present(mut self) -> Self {
+        self.tense = Tense::Present;
         self
     }
-}
 
-impl<IntensifierState> AdjPhrase<HasDegree, IntensifierState> {
-    fn resolve(&self) -> ResolvedAdjPhrase {
-        ResolvedAdjPhrase {
-            adjective: self.data.adjective.clone(),
-            degree: self.degree_state.0.clone(),
-            intensifier: self.data.intensifier.clone(),
-            complements: self.data.complements.clone(),
+    pub fn past(mut self) -> Self {
+        self.tense = Tense::Past;
+        self
+    }
+
+    pub fn simple(mut self) -> Self {
+        self.aspect = Aspect::Simple;
+        self
+    }
+
+    pub fn perfect(mut self) -> Self {
+        self.aspect = Aspect::Perfect;
+        self
+    }
+
+    pub fn progressive(mut self) -> Self {
+        self.aspect = Aspect::Progressive;
+        self
+    }
+
+    pub fn perfect_progressive(mut self) -> Self {
+        self.aspect = Aspect::PerfectProgressive;
+        self
+    }
+
+    pub fn affirmative(mut self) -> Self {
+        self.polarity = Polarity::Affirmative;
+        self
+    }
+
+    pub fn negative(mut self) -> Self {
+        self.polarity = Polarity::Negative;
+        self
+    }
+
+    pub fn modal(mut self, modal: Modal) -> Self {
+        self.modal = Some(modal);
+        self
+    }
+
+    pub fn particle(mut self, particle: impl Into<Text>) -> Self {
+        self.particle = Some(particle.into());
+        self
+    }
+
+    pub fn subject(mut self, person: Person, number: Number) -> Self {
+        self.agreement = Some((person, number));
+        self
+    }
+
+    pub fn agree_with(mut self, subject: &NounPhrase) -> Self {
+        self.agreement = Some(subject.agreement());
+        self
+    }
+
+    fn default_agreement() -> (Person, Number) {
+        (Person::Third, Number::Singular)
+    }
+
+    fn effective_agreement(&self, fallback: Option<(Person, Number)>) -> (Person, Number) {
+        self.agreement
+            .clone()
+            .or(fallback)
+            .unwrap_or_else(Self::default_agreement)
+    }
+
+    fn plan(&self) -> VerbPlan {
+        match self.modal {
+            Some(modal) => self.modal_plan(modal),
+            None => self.finite_plan(),
         }
     }
 
-    pub fn render(&self) -> String {
-        self.resolve().render()
-    }
-}
+    fn modal_plan(&self, modal: Modal) -> VerbPlan {
+        let mut auxiliaries = vec![Auxiliary {
+            lemma: AuxLemma::Modal(modal),
+            form: AuxForm::Finite,
+        }];
 
-#[derive(Debug, Clone, PartialEq)]
-enum QuantitySpec {
-    Number(Number),
-    Count(u32),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-enum NounModifier {
-    Text(String),
-    Adjective(ResolvedAdjPhrase),
-}
-
-impl NounModifier {
-    fn render(&self) -> String {
-        match self {
-            NounModifier::Text(text) => text.clone(),
-            NounModifier::Adjective(phrase) => phrase.render(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-enum NounComplement {
-    Text(String),
-}
-
-impl NounComplement {
-    fn render(&self) -> String {
-        match self {
-            NounComplement::Text(text) => text.clone(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct NounPhraseData {
-    head: Noun,
-    determiner: Option<String>,
-    modifiers: Vec<NounModifier>,
-    complements: Vec<NounComplement>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct ResolvedNounPhrase {
-    head: Noun,
-    modifiers: Vec<NounModifier>,
-    complements: Vec<NounComplement>,
-    quantity: QuantitySpec,
-    determiner: Option<String>,
-}
-
-impl ResolvedNounPhrase {
-    fn render(&self) -> String {
-        let mut parts = Vec::new();
-        if let Some(determiner) = &self.determiner {
-            parts.push(determiner.clone());
-        }
-
-        parts.extend(self.modifiers.iter().map(NounModifier::render));
-
-        match &self.quantity {
-            QuantitySpec::Number(Number::Singular) => parts.push(self.head.singular()),
-            QuantitySpec::Number(Number::Plural) => parts.push(self.head.plural()),
-            QuantitySpec::Count(count) => parts.push(self.head.count_with_number(*count)),
-        }
-
-        if !self.complements.is_empty() {
-            parts.push(
-                self.complements
-                    .iter()
-                    .map(NounComplement::render)
-                    .collect::<Vec<_>>()
-                    .join(" "),
-            );
-        }
-
-        parts.join(" ")
-    }
-
-    fn agreement(&self) -> (Person, Number) {
-        let number = match &self.quantity {
-            QuantitySpec::Number(number) => number.clone(),
-            QuantitySpec::Count(count) => {
-                if *count == 1 {
-                    Number::Singular
-                } else {
-                    Number::Plural
-                }
+        let main_form = match self.aspect {
+            Aspect::Simple => Some(MainForm::Infinitive),
+            Aspect::Perfect => {
+                auxiliaries.push(Auxiliary {
+                    lemma: AuxLemma::Verb(Verb::new("have")),
+                    form: AuxForm::Infinitive,
+                });
+                Some(MainForm::PastParticiple)
+            }
+            Aspect::Progressive => {
+                auxiliaries.push(Auxiliary {
+                    lemma: AuxLemma::Verb(Verb::new("be")),
+                    form: AuxForm::Infinitive,
+                });
+                Some(MainForm::PresentParticiple)
+            }
+            Aspect::PerfectProgressive => {
+                auxiliaries.push(Auxiliary {
+                    lemma: AuxLemma::Verb(Verb::new("have")),
+                    form: AuxForm::Infinitive,
+                });
+                auxiliaries.push(Auxiliary {
+                    lemma: AuxLemma::Verb(Verb::new("be")),
+                    form: AuxForm::PastParticiple,
+                });
+                Some(MainForm::PresentParticiple)
             }
         };
 
-        (Person::Third, number)
+        VerbPlan {
+            auxiliaries,
+            negated: self.polarity == Polarity::Negative,
+            main_form,
+        }
     }
-}
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct NounPhrase<QuantityState = MissingQuantity, DeterminerState = MissingDeterminer> {
-    data: NounPhraseData,
-    quantity_state: QuantityState,
-    determiner_state: DeterminerState,
-}
-
-impl NounPhrase<MissingQuantity, MissingDeterminer> {
-    pub fn new<T: Into<Noun>>(noun: T) -> Self {
-        let noun = noun.into();
-
-        Self {
-            data: NounPhraseData {
-                head: noun,
-                determiner: None,
-                modifiers: Vec::new(),
-                complements: Vec::new(),
+    fn finite_plan(&self) -> VerbPlan {
+        match self.aspect {
+            Aspect::Simple if self.polarity == Polarity::Affirmative => VerbPlan {
+                auxiliaries: Vec::new(),
+                negated: false,
+                main_form: Some(MainForm::Finite),
             },
-            quantity_state: MissingQuantity,
-            determiner_state: MissingDeterminer,
-        }
-    }
-}
-
-impl<DeterminerState> NounPhrase<MissingQuantity, DeterminerState> {
-    pub fn number(self, number: Number) -> NounPhrase<HasQuantity, DeterminerState> {
-        NounPhrase {
-            data: self.data,
-            quantity_state: HasQuantity(QuantitySpec::Number(number)),
-            determiner_state: self.determiner_state,
-        }
-    }
-
-    pub fn singular(self) -> NounPhrase<HasQuantity, DeterminerState> {
-        self.number(Number::Singular)
-    }
-
-    pub fn plural(self) -> NounPhrase<HasQuantity, DeterminerState> {
-        self.number(Number::Plural)
-    }
-
-    pub fn count(self, count: u32) -> NounPhrase<HasQuantity, DeterminerState> {
-        NounPhrase {
-            data: self.data,
-            quantity_state: HasQuantity(QuantitySpec::Count(count)),
-            determiner_state: self.determiner_state,
-        }
-    }
-}
-
-impl<QuantityState> NounPhrase<QuantityState, MissingDeterminer> {
-    pub fn determiner(self, determiner: impl Into<String>) -> NounPhrase<QuantityState, HasDeterminer> {
-        let mut data = self.data;
-        data.determiner = Some(determiner.into());
-        NounPhrase {
-            data,
-            quantity_state: self.quantity_state,
-            determiner_state: HasDeterminer,
-        }
-    }
-}
-
-impl<QuantityState, DeterminerState> NounPhrase<QuantityState, DeterminerState> {
-    pub fn modifier(mut self, modifier: impl Into<String>) -> Self {
-        self.data.modifiers.push(NounModifier::Text(modifier.into()));
-        self
-    }
-
-    pub fn modifier_phrase<IntensifierState>(
-        mut self,
-        phrase: AdjPhrase<HasDegree, IntensifierState>,
-    ) -> Self {
-        self.data
-            .modifiers
-            .push(NounModifier::Adjective(phrase.resolve()));
-        self
-    }
-
-    pub fn complement(mut self, complement: impl Into<String>) -> Self {
-        self.data
-            .complements
-            .push(NounComplement::Text(complement.into()));
-        self
-    }
-}
-
-impl<DeterminerState> NounPhrase<HasQuantity, DeterminerState> {
-    fn resolve(&self) -> ResolvedNounPhrase {
-        ResolvedNounPhrase {
-            head: self.data.head.clone(),
-            modifiers: self.data.modifiers.clone(),
-            complements: self.data.complements.clone(),
-            quantity: self.quantity_state.0.clone(),
-            determiner: self.data.determiner.clone(),
-        }
-    }
-
-    pub fn render(&self) -> String {
-        self.resolve().render()
-    }
-
-    pub fn agreement(&self) -> (Person, Number) {
-        self.resolve().agreement()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct VerbPhraseData {
-    head: Verb,
-    particle: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct ResolvedFiniteVerbPhrase {
-    head: Verb,
-    particle: Option<String>,
-    tense: BaseTense,
-    aspect: Aspect,
-    polarity: Polarity,
-    subject: (Person, Number),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct ResolvedModalVerbPhrase {
-    head: Verb,
-    particle: Option<String>,
-    modal: Modal,
-    aspect: Aspect,
-    polarity: Polarity,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct VerbPhrase<
-    TenseState = MissingTense,
-    AspectState = MissingAspect,
-    PolarityState = MissingPolarity,
-    SubjectState = MissingSubject,
-    ModalState = MissingModal,
-> {
-    data: VerbPhraseData,
-    tense_state: TenseState,
-    aspect_state: AspectState,
-    polarity_state: PolarityState,
-    subject_state: SubjectState,
-    modal_state: ModalState,
-}
-
-#[derive(Debug, Clone)]
-struct FiniteRenderContext {
-    tense: BaseTense,
-    aspect: Aspect,
-    polarity: Polarity,
-    subject: (Person, Number),
-}
-
-impl VerbPhrase<MissingTense, MissingAspect, MissingPolarity, MissingSubject, MissingModal> {
-    pub fn new<T: Into<Verb>>(verb: T) -> Self {
-        let verb = verb.into();
-        Self {
-            data: VerbPhraseData {
-                head: verb,
-                particle: None,
+            Aspect::Simple if self.head.infinitive() == "be" => VerbPlan {
+                auxiliaries: vec![Auxiliary {
+                    lemma: AuxLemma::Verb(self.head.clone()),
+                    form: AuxForm::Finite,
+                }],
+                negated: true,
+                main_form: None,
             },
-            tense_state: MissingTense,
-            aspect_state: MissingAspect,
-            polarity_state: MissingPolarity,
-            subject_state: MissingSubject,
-            modal_state: MissingModal,
+            Aspect::Simple => VerbPlan {
+                auxiliaries: vec![Auxiliary {
+                    lemma: AuxLemma::Verb(Verb::new("do")),
+                    form: AuxForm::Finite,
+                }],
+                negated: true,
+                main_form: Some(MainForm::Infinitive),
+            },
+            Aspect::Perfect => VerbPlan {
+                auxiliaries: vec![Auxiliary {
+                    lemma: AuxLemma::Verb(Verb::new("have")),
+                    form: AuxForm::Finite,
+                }],
+                negated: self.polarity == Polarity::Negative,
+                main_form: Some(MainForm::PastParticiple),
+            },
+            Aspect::Progressive => VerbPlan {
+                auxiliaries: vec![Auxiliary {
+                    lemma: AuxLemma::Verb(Verb::new("be")),
+                    form: AuxForm::Finite,
+                }],
+                negated: self.polarity == Polarity::Negative,
+                main_form: Some(MainForm::PresentParticiple),
+            },
+            Aspect::PerfectProgressive => VerbPlan {
+                auxiliaries: vec![
+                    Auxiliary {
+                        lemma: AuxLemma::Verb(Verb::new("have")),
+                        form: AuxForm::Finite,
+                    },
+                    Auxiliary {
+                        lemma: AuxLemma::Verb(Verb::new("be")),
+                        form: AuxForm::PastParticiple,
+                    },
+                ],
+                negated: self.polarity == Polarity::Negative,
+                main_form: Some(MainForm::PresentParticiple),
+            },
         }
     }
-}
 
-impl<TenseState, AspectState, PolarityState, SubjectState, ModalState>
-    VerbPhrase<TenseState, AspectState, PolarityState, SubjectState, ModalState>
-{
-    fn finite_form(
-        &self,
-        verb: &Verb,
-        person: &Person,
-        number: &Number,
-        tense: BaseTense,
-    ) -> String {
+    fn finite_form(&self, verb: &Verb, person: &Person, number: &Number, tense: Tense) -> String {
         if verb.infinitive() == "be" {
             return EnglishCore::to_be(
                 person,
                 number,
                 &match tense {
-                    BaseTense::Present => Tense::Present,
-                    BaseTense::Past => Tense::Past,
+                    Tense::Present => english::Tense::Present,
+                    Tense::Past => english::Tense::Past,
                 },
-                &Form::Finite,
+                &english::Form::Finite,
             )
             .to_string();
         }
 
         match tense {
-            BaseTense::Present => {
+            Tense::Present => {
                 if matches!(person, Person::Third) && matches!(number, Number::Singular) {
                     verb.third_person()
                 } else {
                     verb.infinitive()
                 }
             }
-            BaseTense::Past => verb.past(),
+            Tense::Past => verb.past(),
         }
     }
 
-    pub fn particle(mut self, particle: impl Into<String>) -> Self {
-        self.data.particle = Some(particle.into());
+    fn render_verb_form(
+        &self,
+        verb: &Verb,
+        form: MainForm,
+        agreement: &(Person, Number),
+        tense: Tense,
+    ) -> String {
+        match form {
+            MainForm::Finite => self.finite_form(verb, &agreement.0, &agreement.1, tense),
+            MainForm::Infinitive => verb.infinitive(),
+            MainForm::PastParticiple => verb.past_participle(),
+            MainForm::PresentParticiple => verb.present_participle(),
+        }
+    }
+
+    fn render_auxiliary(
+        &self,
+        auxiliary: &Auxiliary,
+        agreement: &(Person, Number),
+        tense: Tense,
+    ) -> String {
+        match &auxiliary.lemma {
+            AuxLemma::Modal(modal) => modal.render().to_string(),
+            AuxLemma::Verb(verb) => match auxiliary.form {
+                AuxForm::Finite => self.finite_form(verb, &agreement.0, &agreement.1, tense),
+                AuxForm::Infinitive => verb.infinitive(),
+                AuxForm::PastParticiple => verb.past_participle(),
+            },
+        }
+    }
+
+    fn render_with_subject(&self, fallback: Option<(Person, Number)>) -> String {
+        let agreement = self.effective_agreement(fallback);
+        let plan = self.plan();
+        let mut parts = Vec::new();
+
+        if plan.auxiliaries.is_empty() {
+            if let Some(main_form) = plan.main_form {
+                parts.push(self.render_verb_form(&self.head, main_form, &agreement, self.tense));
+            }
+        } else {
+            for (index, auxiliary) in plan.auxiliaries.iter().enumerate() {
+                parts.push(self.render_auxiliary(auxiliary, &agreement, self.tense));
+                if index == 0 && plan.negated {
+                    parts.push("not".to_string());
+                }
+            }
+
+            if let Some(main_form) = plan.main_form {
+                parts.push(self.render_verb_form(&self.head, main_form, &agreement, self.tense));
+            }
+        }
+
+        if let Some(particle) = &self.particle {
+            parts.push(particle.as_str().to_string());
+        }
+
+        parts.join(" ")
+    }
+
+    pub fn render(&self) -> String {
+        self.render_with_subject(None)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Clause {
+    subject: NounPhrase,
+    predicate: VerbPhrase,
+    object: Option<NounPhrase>,
+    prepositionals: Vec<PrepositionalPhrase>,
+}
+
+impl Clause {
+    pub fn new(subject: NounPhrase, predicate: VerbPhrase) -> Self {
+        Self {
+            subject,
+            predicate,
+            object: None,
+            prepositionals: Vec::new(),
+        }
+    }
+
+    pub fn object(mut self, object: NounPhrase) -> Self {
+        self.object = Some(object);
         self
     }
 
-    fn with_particle(&self, head: String, particle: &Option<String>) -> String {
-        if let Some(particle) = particle {
-            format!("{head} {particle}")
-        } else {
-            head
-        }
-    }
-}
-
-impl<AspectState, PolarityState, SubjectState>
-    VerbPhrase<MissingTense, AspectState, PolarityState, SubjectState, MissingModal>
-{
-    pub fn tense(
-        self,
-        tense: BaseTense,
-    ) -> VerbPhrase<HasTense, AspectState, PolarityState, SubjectState, MissingModal> {
-        VerbPhrase {
-            data: self.data,
-            tense_state: HasTense(tense),
-            aspect_state: self.aspect_state,
-            polarity_state: self.polarity_state,
-            subject_state: self.subject_state,
-            modal_state: MissingModal,
-        }
-    }
-}
-
-impl<TenseState, PolarityState, SubjectState, ModalState>
-    VerbPhrase<TenseState, MissingAspect, PolarityState, SubjectState, ModalState>
-{
-    pub fn aspect(
-        self,
-        aspect: Aspect,
-    ) -> VerbPhrase<TenseState, HasAspect, PolarityState, SubjectState, ModalState> {
-        VerbPhrase {
-            data: self.data,
-            tense_state: self.tense_state,
-            aspect_state: HasAspect(aspect),
-            polarity_state: self.polarity_state,
-            subject_state: self.subject_state,
-            modal_state: self.modal_state,
-        }
-    }
-}
-
-impl<TenseState, AspectState, SubjectState, ModalState>
-    VerbPhrase<TenseState, AspectState, MissingPolarity, SubjectState, ModalState>
-{
-    pub fn polarity(
-        self,
-        polarity: Polarity,
-    ) -> VerbPhrase<TenseState, AspectState, HasPolarity, SubjectState, ModalState> {
-        VerbPhrase {
-            data: self.data,
-            tense_state: self.tense_state,
-            aspect_state: self.aspect_state,
-            polarity_state: HasPolarity(polarity),
-            subject_state: self.subject_state,
-            modal_state: self.modal_state,
-        }
-    }
-}
-
-impl<TenseState, AspectState, PolarityState>
-    VerbPhrase<TenseState, AspectState, PolarityState, MissingSubject, MissingModal>
-{
-    pub fn subject(
-        self,
-        person: Person,
-        number: Number,
-    ) -> VerbPhrase<TenseState, AspectState, PolarityState, HasSubject, MissingModal> {
-        VerbPhrase {
-            data: self.data,
-            tense_state: self.tense_state,
-            aspect_state: self.aspect_state,
-            polarity_state: self.polarity_state,
-            subject_state: HasSubject(person, number),
-            modal_state: MissingModal,
-        }
-    }
-
-    pub fn subject_noun_phrase<DeterminerState>(
-        self,
-        phrase: &NounPhrase<HasQuantity, DeterminerState>,
-    ) -> VerbPhrase<TenseState, AspectState, PolarityState, HasSubject, MissingModal> {
-        let (person, number) = phrase.agreement();
-        self.subject(person, number)
-    }
-}
-
-impl<TenseState, AspectState, PolarityState, SubjectState>
-    VerbPhrase<TenseState, AspectState, PolarityState, SubjectState, MissingModal>
-{
-    pub fn modal(
-        self,
-        modal: Modal,
-    ) -> VerbPhrase<MissingTense, AspectState, PolarityState, MissingSubject, HasModal> {
-        VerbPhrase {
-            data: self.data,
-            tense_state: MissingTense,
-            aspect_state: self.aspect_state,
-            polarity_state: self.polarity_state,
-            subject_state: MissingSubject,
-            modal_state: HasModal(modal),
-        }
-    }
-}
-
-impl<TenseState, AspectState, PolarityState, SubjectState, ModalState>
-    VerbPhrase<TenseState, AspectState, PolarityState, SubjectState, ModalState>
-{
-    fn render_modal(&self, phrase: ResolvedModalVerbPhrase) -> String {
-        let mut chunks = vec![phrase.modal.as_str().to_string()];
-
-        if phrase.polarity == Polarity::Negative {
-            chunks.push("not".to_string());
-        }
-
-        match phrase.aspect {
-            Aspect::Simple => {
-                let head = phrase.head.infinitive();
-                chunks.push(self.with_particle(head, &phrase.particle));
-            }
-            Aspect::Perfect => {
-                chunks.push("have".to_string());
-                let head = phrase.head.past_participle();
-                chunks.push(self.with_particle(head, &phrase.particle));
-            }
-            Aspect::Progressive => {
-                chunks.push("be".to_string());
-                let head = phrase.head.present_participle();
-                chunks.push(self.with_particle(head, &phrase.particle));
-            }
-            Aspect::PerfectProgressive => {
-                chunks.push("have".to_string());
-                chunks.push(Verb::new("be").past_participle());
-                let head = phrase.head.present_participle();
-                chunks.push(self.with_particle(head, &phrase.particle));
-            }
-        }
-
-        chunks.join(" ")
-    }
-
-    fn render_finite(&self, phrase: ResolvedFiniteVerbPhrase) -> String {
-        let context = FiniteRenderContext {
-            tense: phrase.tense,
-            aspect: phrase.aspect,
-            polarity: phrase.polarity,
-            subject: phrase.subject,
-        };
-
-        match context.aspect {
-            Aspect::Simple => self.render_simple(&context, phrase.head.as_str(), &phrase.particle),
-            Aspect::Perfect => self.render_without_modal(
-                "have",
-                self.with_particle(phrase.head.past_participle(), &phrase.particle),
-                &context,
-            ),
-            Aspect::Progressive => self.render_without_modal(
-                "be",
-                self.with_particle(phrase.head.present_participle(), &phrase.particle),
-                &context,
-            ),
-            Aspect::PerfectProgressive => self.render_without_modal(
-                "have",
-                format!(
-                    "{} {}",
-                    Verb::new("be").past_participle(),
-                    self.with_particle(phrase.head.present_participle(), &phrase.particle)
-                ),
-                &context,
-            ),
-        }
-    }
-
-    fn render_simple(
-        &self,
-        context: &FiniteRenderContext,
-        head: &str,
-        particle: &Option<String>,
-    ) -> String {
-        let (person, number) = (&context.subject.0, &context.subject.1);
-
-        if context.polarity == Polarity::Affirmative {
-            let finite = self.finite_form(&Verb::new(head), person, number, context.tense);
-            return self.with_particle(finite, particle);
-        }
-
-        if Verb::new(head).infinitive() == "be" {
-            let be = self.finite_form(&Verb::new(head), person, number, context.tense);
-            return self.with_particle(format!("{be} not"), particle);
-        }
-
-        let do_aux = self.finite_form(&Verb::new("do"), person, number, context.tense);
-        let main = self.with_particle(Verb::new(head).infinitive(), particle);
-        format!("{do_aux} not {main}")
-    }
-
-    fn render_without_modal(
-        &self,
-        auxiliary: &str,
-        tail: String,
-        context: &FiniteRenderContext,
-    ) -> String {
-        let (person, number) = (&context.subject.0, &context.subject.1);
-        let finite_aux = self.finite_form(&Verb::new(auxiliary), person, number, context.tense);
-
-        if context.polarity == Polarity::Negative {
-            format!("{finite_aux} not {tail}")
-        } else {
-            format!("{finite_aux} {tail}")
-        }
-    }
-}
-
-impl VerbPhrase<HasTense, HasAspect, HasPolarity, HasSubject, MissingModal> {
-    fn resolve_finite(&self) -> ResolvedFiniteVerbPhrase {
-        ResolvedFiniteVerbPhrase {
-            head: self.data.head.clone(),
-            particle: self.data.particle.clone(),
-            tense: self.tense_state.0,
-            aspect: self.aspect_state.0,
-            polarity: self.polarity_state.0,
-            subject: (self.subject_state.0.clone(), self.subject_state.1.clone()),
-        }
+    pub fn prepositional(
+        mut self,
+        preposition: impl Into<Text>,
+        object: NounPhrase,
+    ) -> Self {
+        self.prepositionals.push(PrepositionalPhrase {
+            preposition: preposition.into(),
+            object,
+        });
+        self
     }
 
     pub fn render(&self) -> String {
-        self.render_finite(self.resolve_finite())
+        let mut parts = vec![
+            self.subject.render(),
+            self.predicate.render_with_subject(Some(self.subject.agreement())),
+        ];
+
+        if let Some(object) = &self.object {
+            parts.push(object.render());
+        }
+
+        parts.extend(
+            self.prepositionals
+                .iter()
+                .map(PrepositionalPhrase::render),
+        );
+
+        parts.join(" ")
+    }
+
+    pub fn sentence(self) -> Sentence {
+        Sentence::new(self)
     }
 }
 
-impl<TenseState, SubjectState> VerbPhrase<TenseState, HasAspect, HasPolarity, SubjectState, HasModal> {
-    fn resolve_modal(&self) -> ResolvedModalVerbPhrase {
-        ResolvedModalVerbPhrase {
-            head: self.data.head.clone(),
-            particle: self.data.particle.clone(),
-            modal: self.modal_state.0,
-            aspect: self.aspect_state.0,
-            polarity: self.polarity_state.0,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Terminal {
+    #[default]
+    None,
+    Period,
+    QuestionMark,
+    ExclamationMark,
+}
+
+impl Terminal {
+    fn render(self) -> &'static str {
+        match self {
+            Terminal::None => "",
+            Terminal::Period => ".",
+            Terminal::QuestionMark => "?",
+            Terminal::ExclamationMark => "!",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Sentence {
+    clause: Clause,
+    capitalize: bool,
+    terminal: Terminal,
+}
+
+impl Sentence {
+    pub fn new(clause: Clause) -> Self {
+        Self {
+            clause,
+            capitalize: false,
+            terminal: Terminal::None,
         }
     }
 
+    pub fn capitalize(mut self) -> Self {
+        self.capitalize = true;
+        self
+    }
+
+    pub fn period(mut self) -> Self {
+        self.terminal = Terminal::Period;
+        self
+    }
+
+    pub fn question_mark(mut self) -> Self {
+        self.terminal = Terminal::QuestionMark;
+        self
+    }
+
+    pub fn exclamation_mark(mut self) -> Self {
+        self.terminal = Terminal::ExclamationMark;
+        self
+    }
+
     pub fn render(&self) -> String {
-        self.render_modal(self.resolve_modal())
+        let mut text = self.clause.render();
+        if self.capitalize {
+            text = capitalize_first(&text);
+        }
+        text.push_str(self.terminal.render());
+        text
+    }
+}
+
+fn capitalize_first(text: &str) -> String {
+    let mut chars = text.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
     }
 }
 
@@ -777,46 +929,50 @@ mod tests {
     use super::*;
 
     #[test]
-    fn builder_renders_negative_perfect() {
-        let text = VerbPhrase::new("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Perfect)
-            .polarity(Polarity::Negative)
-            .subject(Person::Third, Number::Singular)
-            .render();
+    fn adjective_phrase_example() {
+        let adj = AdjPhrase::new("bad3")
+            .comparative()
+            .intensifier("far")
+            .complement("than yesterday");
 
-        assert_eq!(text, "has not eaten");
+        assert_eq!(adj.render(), "far worse than yesterday");
     }
 
     #[test]
-    fn builder_handles_do_support_for_simple_negatives() {
-        let present = VerbPhrase::new("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Negative)
-            .subject(Person::Third, Number::Singular)
-            .render();
-        let past = VerbPhrase::new("eat")
-            .tense(BaseTense::Past)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Negative)
-            .subject(Person::First, Number::Plural)
-            .render();
+    fn noun_phrase_example() {
+        let np = NounPhrase::new("child")
+            .determiner(Determiner::the())
+            .modifier(AdjPhrase::new("small").comparative())
+            .complement("from the next building")
+            .plural();
 
-        assert_eq!(present, "does not eat");
-        assert_eq!(past, "did not eat");
+        assert_eq!(np.render(), "the smaller children from the next building");
     }
 
     #[test]
-    fn builder_preserves_phrasal_verbs() {
-        let text = VerbPhrase::new("give")
-            .particle("up")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Perfect)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::Third, Number::Singular)
-            .render();
+    fn verb_phrase_example() {
+        let subject = NounPhrase::new("child").the().plural();
 
-        assert_eq!(text, "has given up");
+        let vp = VerbPhrase::new("eat")
+            .present()
+            .perfect()
+            .negative()
+            .agree_with(&subject);
+
+        assert_eq!(vp.render(), "have not eaten");
+    }
+
+    #[test]
+    fn clause_and_sentence_example() {
+        let clause = Clause::new(
+            NounPhrase::new("child").the().plural(),
+            VerbPhrase::new("steal").past().simple().affirmative(),
+        )
+        .object(NounPhrase::new("potato").count(7));
+
+        assert_eq!(clause.render(), "the children stole 7 potatoes");
+
+        let sentence = clause.sentence().capitalize().period();
+        assert_eq!(sentence.render(), "The children stole 7 potatoes.");
     }
 }

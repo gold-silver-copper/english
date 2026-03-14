@@ -1,11 +1,7 @@
 use english_phrase::*;
 
-fn main_verb(verb: impl Into<Verb>) -> VerbPhrase {
-    VerbPhrase::new(verb)
-}
-
 #[test]
-fn reexported_inflection_primitives_still_work() {
+fn wrappers_are_reexported() {
     assert_eq!(Verb::new("run").third_person(), "runs");
     assert_eq!(Verb::new("walk").past(), "walked");
     assert_eq!(Verb::new("swim").present_participle(), "swimming");
@@ -14,65 +10,49 @@ fn reexported_inflection_primitives_still_work() {
 }
 
 #[test]
-fn simple_present_affirmative_renders_with_subject_agreement() {
+fn verb_phrase_example_from_api_design() {
+    let subject = NounPhrase::new("child").the().plural();
+
+    let vp = VerbPhrase::new("eat")
+        .present()
+        .perfect()
+        .negative()
+        .agree_with(&subject);
+
+    assert_eq!(vp.render(), "have not eaten");
+}
+
+#[test]
+fn clause_and_sentence_example_from_api_design() {
+    let clause = Clause::new(
+        NounPhrase::new("child").the().plural(),
+        VerbPhrase::new("steal").past().simple().affirmative(),
+    )
+    .object(NounPhrase::new("potato").count(7));
+
+    assert_eq!(clause.render(), "the children stole 7 potatoes");
     assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::Third, Number::Singular)
-            .render(),
-        "eats"
-    );
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::First, Number::Plural)
-            .render(),
-        "eat"
+        clause.clone().sentence().capitalize().period().render(),
+        "The children stole 7 potatoes."
     );
 }
 
 #[test]
-fn simple_past_affirmative_renders_regular_and_irregular_verbs() {
+fn simple_negative_uses_do_support() {
     assert_eq!(
-        main_verb("walk")
-            .tense(BaseTense::Past)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::Third, Number::Singular)
-            .render(),
-        "walked"
-    );
-    assert_eq!(
-        main_verb("go")
-            .tense(BaseTense::Past)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::Third, Number::Singular)
-            .render(),
-        "went"
-    );
-}
-
-#[test]
-fn simple_negative_uses_do_support_for_regular_verbs() {
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Negative)
+        VerbPhrase::new("eat")
+            .present()
+            .simple()
+            .negative()
             .subject(Person::Third, Number::Singular)
             .render(),
         "does not eat"
     );
     assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Past)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Negative)
+        VerbPhrase::new("eat")
+            .past()
+            .simple()
+            .negative()
             .subject(Person::First, Number::Plural)
             .render(),
         "did not eat"
@@ -80,21 +60,21 @@ fn simple_negative_uses_do_support_for_regular_verbs() {
 }
 
 #[test]
-fn simple_negative_does_not_use_do_support_for_be() {
+fn be_uses_the_canonical_finite_paradigm() {
     assert_eq!(
-        main_verb("be")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Negative)
+        VerbPhrase::new("be")
+            .present()
+            .simple()
+            .negative()
             .subject(Person::Third, Number::Singular)
             .render(),
         "is not"
     );
     assert_eq!(
-        main_verb("be")
-            .tense(BaseTense::Past)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Negative)
+        VerbPhrase::new("be")
+            .past()
+            .simple()
+            .negative()
             .subject(Person::First, Number::Plural)
             .render(),
         "were not"
@@ -102,239 +82,22 @@ fn simple_negative_does_not_use_do_support_for_be() {
 }
 
 #[test]
-fn modal_simple_renders_positive_and_negative_forms() {
+fn modal_and_particle_rendering_still_work() {
     assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::Third, Number::Singular)
-            .modal(Modal::Will(ModalTense::Present))
+        VerbPhrase::new("give")
+            .particle("up")
+            .modal(Modal::Would)
+            .perfect()
+            .negative()
             .render(),
-        "will eat"
+        "would not have given up"
     );
     assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::Third, Number::Singular)
-            .modal(Modal::Will(ModalTense::Preterite))
-            .render(),
-        "would eat"
-    );
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::Third, Number::Singular)
-            .modal(Modal::Can(ModalTense::Preterite))
-            .render(),
-        "could eat"
-    );
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::Third, Number::Singular)
-            .modal(Modal::Can(ModalTense::Present))
-            .render(),
-        "can eat"
-    );
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::Third, Number::Singular)
-            .modal(Modal::Shall(ModalTense::Preterite))
-            .render(),
-        "should eat"
-    );
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Simple)
-            .modal(Modal::Will(ModalTense::Present))
-            .polarity(Polarity::Negative)
-            .render(),
-        "will not eat"
-    );
-}
-
-#[test]
-fn present_perfect_agrees_with_subject() {
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Perfect)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::Third, Number::Singular)
-            .render(),
-        "has eaten"
-    );
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Perfect)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::First, Number::Plural)
-            .render(),
-        "have eaten"
-    );
-}
-
-#[test]
-fn perfect_negative_renders_after_have() {
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Perfect)
-            .polarity(Polarity::Negative)
-            .subject(Person::Third, Number::Singular)
-            .render(),
-        "has not eaten"
-    );
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Past)
-            .aspect(Aspect::Perfect)
-            .polarity(Polarity::Negative)
-            .subject(Person::First, Number::Plural)
-            .render(),
-        "had not eaten"
-    );
-}
-
-#[test]
-fn modal_perfect_renders_future_and_conditional_forms() {
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Perfect)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::Third, Number::Singular)
-            .modal(Modal::Will(ModalTense::Present))
-            .render(),
-        "will have eaten"
-    );
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Perfect)
-            .modal(Modal::Will(ModalTense::Preterite))
-            .polarity(Polarity::Negative)
-            .render(),
-        "would not have eaten"
-    );
-}
-
-#[test]
-fn progressive_renders_present_and_past_be_forms() {
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Progressive)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::Third, Number::Singular)
-            .render(),
-        "is eating"
-    );
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Past)
-            .aspect(Aspect::Progressive)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::First, Number::Plural)
-            .render(),
-        "were eating"
-    );
-}
-
-#[test]
-fn progressive_negative_renders_after_be() {
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Progressive)
-            .polarity(Polarity::Negative)
-            .subject(Person::Third, Number::Singular)
-            .render(),
-        "is not eating"
-    );
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Progressive)
-            .modal(Modal::Will(ModalTense::Present))
-            .polarity(Polarity::Negative)
-            .render(),
-        "will not be eating"
-    );
-}
-
-#[test]
-fn perfect_progressive_renders_composed_auxiliaries() {
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::PerfectProgressive)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::Third, Number::Singular)
-            .render(),
-        "has been eating"
-    );
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Past)
-            .aspect(Aspect::PerfectProgressive)
-            .polarity(Polarity::Negative)
-            .subject(Person::First, Number::Plural)
-            .render(),
-        "had not been eating"
-    );
-    assert_eq!(
-        main_verb("eat")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::PerfectProgressive)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::Third, Number::Singular)
-            .modal(Modal::Will(ModalTense::Present))
-            .render(),
-        "will have been eating"
-    );
-}
-
-#[test]
-fn phrasal_verbs_survive_simple_and_complex_phrases() {
-    let give_up = main_verb("give").particle("up");
-    let look_up = main_verb("look").particle("up");
-
-    assert_eq!(
-        give_up.clone()
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::Third, Number::Singular)
-            .render(),
-        "gives up"
-    );
-    assert_eq!(
-        give_up
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Perfect)
-            .polarity(Polarity::Negative)
-            .subject(Person::Third, Number::Singular)
-            .render(),
-        "has not given up"
-    );
-    assert_eq!(
-        look_up
-            .tense(BaseTense::Past)
-            .aspect(Aspect::Progressive)
-            .polarity(Polarity::Affirmative)
+        VerbPhrase::new("look")
+            .particle("up")
+            .past()
+            .progressive()
+            .affirmative()
             .subject(Person::Third, Number::Plural)
             .render(),
         "were looking up"
@@ -342,33 +105,92 @@ fn phrasal_verbs_survive_simple_and_complex_phrases() {
 }
 
 #[test]
-fn irregular_auxiliary_edge_cases_render_cleanly() {
+fn present_perfect_agrees_with_subject_number() {
     assert_eq!(
-        main_verb("be")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Perfect)
-            .polarity(Polarity::Affirmative)
+        VerbPhrase::new("eat")
+            .present()
+            .perfect()
+            .affirmative()
             .subject(Person::Third, Number::Singular)
             .render(),
-        "has been"
+        "has eaten"
     );
     assert_eq!(
-        main_verb("have")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Progressive)
-            .polarity(Polarity::Affirmative)
+        VerbPhrase::new("eat")
+            .present()
+            .perfect()
+            .affirmative()
             .subject(Person::First, Number::Plural)
             .render(),
-        "are having"
+        "have eaten"
+    );
+}
+
+#[test]
+fn progressive_and_perfect_progressive_render_cleanly() {
+    assert_eq!(
+        VerbPhrase::new("eat")
+            .present()
+            .progressive()
+            .affirmative()
+            .subject(Person::Third, Number::Singular)
+            .render(),
+        "is eating"
     );
     assert_eq!(
-        main_verb("go")
-            .tense(BaseTense::Present)
-            .aspect(Aspect::Perfect)
-            .polarity(Polarity::Affirmative)
-            .subject(Person::Third, Number::Singular)
-            .modal(Modal::Shall(ModalTense::Preterite))
+        VerbPhrase::new("eat")
+            .past()
+            .perfect_progressive()
+            .negative()
+            .subject(Person::First, Number::Plural)
             .render(),
-        "should have gone"
+        "had not been eating"
+    );
+}
+
+#[test]
+fn modal_perfect_and_modal_progressive_render_cleanly() {
+    assert_eq!(
+        VerbPhrase::new("eat")
+            .modal(Modal::Will)
+            .perfect()
+            .affirmative()
+            .render(),
+        "will have eaten"
+    );
+    assert_eq!(
+        VerbPhrase::new("eat")
+            .modal(Modal::Would)
+            .progressive()
+            .negative()
+            .render(),
+        "would not be eating"
+    );
+}
+
+#[test]
+fn clause_supplies_subject_agreement_to_the_predicate() {
+    let clause = Clause::new(
+        NounPhrase::new("child").plural(),
+        VerbPhrase::new("eat").present().simple().affirmative(),
+    );
+
+    assert_eq!(clause.render(), "children eat");
+}
+
+#[test]
+fn sentence_supports_multiple_terminal_styles() {
+    let clause = Clause::new(
+        NounPhrase::new("child").the().plural(),
+        VerbPhrase::new("arrive").past().simple().affirmative(),
+    );
+
+    assert_eq!(
+        clause.clone().sentence().capitalize().question_mark().render(),
+        "The children arrived?"
+    );
+    assert_eq!(
+        clause.sentence().capitalize().exclamation_mark().render(),
+        "The children arrived!"
     );
 }

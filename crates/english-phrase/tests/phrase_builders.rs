@@ -1,67 +1,72 @@
 use english_phrase::*;
 
 #[test]
-fn adjective_phrase_renders_complex_forms() {
-    let rendered = AdjPhrase::new("bad3")
-        .degree(Degree::Comparative)
+fn noun_phrase_example_from_api_design() {
+    let np = NounPhrase::new("child")
+        .determiner(Determiner::the())
+        .modifier(AdjPhrase::new("small").comparative())
+        .complement("from the next building")
+        .plural();
+
+    assert_eq!(np.render(), "the smaller children from the next building");
+}
+
+#[test]
+fn adjective_phrase_example_from_api_design() {
+    let adj = AdjPhrase::new("bad3")
+        .comparative()
         .intensifier("far")
-        .complement("than yesterday")
-        .render();
+        .complement("than yesterday");
 
-    assert_eq!(rendered, "far worse than yesterday");
+    assert_eq!(adj.render(), "far worse than yesterday");
 }
 
 #[test]
-fn noun_phrase_renders_modifiers() {
-    let rendered = NounPhrase::new("child")
-        .plural()
-        .determiner("the")
-        .modifier("running")
-        .render();
-
-    assert_eq!(rendered, "the running children");
-}
-
-#[test]
-fn noun_phrase_supports_counted_complements() {
-    let rendered = NounPhrase::new("pair")
+fn counted_noun_phrases_place_the_number_before_modifiers() {
+    let np = NounPhrase::new("child")
         .count(3)
-        .complement("of jeans")
-        .render();
+        .modifier("running")
+        .complement("from the park");
 
-    assert_eq!(rendered, "3 pairs of jeans");
+    assert_eq!(np.render(), "3 running children from the park");
 }
 
 #[test]
-fn adjective_phrase_can_be_used_as_a_noun_modifier() {
-    let adjective = AdjPhrase::new("bad3").degree(Degree::Superlative).render();
+fn adjective_phrases_work_as_noun_modifiers() {
+    let np = NounPhrase::new("day")
+        .the()
+        .modifier(AdjPhrase::new("bad3").superlative());
 
-    let rendered = NounPhrase::new("day")
-        .singular()
-        .determiner("the")
-        .modifier_phrase(AdjPhrase::new("bad3").degree(Degree::Superlative))
-        .render();
-
-    assert_eq!(adjective, "worst");
-    assert_eq!(rendered, "the worst day");
+    assert_eq!(np.render(), "the worst day");
 }
 
 #[test]
-fn noun_phrase_and_verb_phrase_compose_cleanly() {
-    let subject = NounPhrase::new("child").plural().modifier("running");
-    let object = NounPhrase::new("potato").count(7);
+fn noun_phrase_agreement_tracks_count() {
+    assert_eq!(NounPhrase::new("child").count(1).agreement(), (Person::Third, Number::Singular));
+    assert_eq!(NounPhrase::new("child").count(2).agreement(), (Person::Third, Number::Plural));
+}
 
-    let sentence = format!(
-        "The {} {} {}.",
-        subject.render(),
-        VerbPhrase::new("steal")
-            .tense(BaseTense::Past)
-            .aspect(Aspect::Simple)
-            .polarity(Polarity::Affirmative)
-            .subject_noun_phrase(&subject)
-            .render(),
-        object.render()
-    );
+#[test]
+fn noun_phrase_supports_recursive_boxed_complements() {
+    let np = NounPhrase::new("photo")
+        .the()
+        .complement("of")
+        .complement(
+            NounPhrase::new("child")
+                .the()
+                .complement("with")
+                .complement(NounPhrase::new("toy").the()),
+        );
 
-    assert_eq!(sentence, "The running children stole 7 potatoes.");
+    assert_eq!(np.render(), "the photo of the child with the toy");
+}
+
+#[test]
+fn adjective_phrase_supports_boxed_noun_phrase_complements() {
+    let adj = AdjPhrase::new("full")
+        .positive()
+        .complement("of")
+        .complement(NounPhrase::new("bean").plural());
+
+    assert_eq!(adj.render(), "full of beans");
 }
