@@ -116,14 +116,14 @@ impl Modal {
 
 #[derive(Debug, Clone, PartialEq)]
 struct AdjPhraseData {
-    adjective: String,
+    adjective: Adj,
     intensifier: Option<String>,
     complements: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 struct ResolvedAdjPhrase {
-    adjective: String,
+    adjective: Adj,
     degree: Degree,
     intensifier: Option<String>,
     complements: Vec<String>,
@@ -137,7 +137,7 @@ impl ResolvedAdjPhrase {
             parts.push(intensifier.clone());
         }
 
-        parts.push(English::adj(&self.adjective, &self.degree));
+        parts.push(English::adj(self.adjective.as_str(), &self.degree));
 
         if !self.complements.is_empty() {
             parts.push(self.complements.join(" "));
@@ -155,7 +155,7 @@ pub struct AdjPhrase<DegreeState = MissingDegree, IntensifierState = MissingInte
 }
 
 impl AdjPhrase<MissingDegree, MissingIntensifier> {
-    pub fn new(adjective: impl Into<String>) -> Self {
+    pub fn new<T: Into<Adj>>(adjective: T) -> Self {
         Self {
             data: AdjPhraseData {
                 adjective: adjective.into(),
@@ -234,18 +234,31 @@ impl NounModifier {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+enum NounComplement {
+    Text(String),
+}
+
+impl NounComplement {
+    fn render(&self) -> String {
+        match self {
+            NounComplement::Text(text) => text.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 struct NounPhraseData {
-    head: String,
+    head: Noun,
     determiner: Option<String>,
     modifiers: Vec<NounModifier>,
-    complements: Vec<String>,
+    complements: Vec<NounComplement>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 struct ResolvedNounPhrase {
-    head: String,
-    modifiers: Vec<String>,
-    complements: Vec<String>,
+    head: Noun,
+    modifiers: Vec<NounModifier>,
+    complements: Vec<NounComplement>,
     quantity: QuantitySpec,
     determiner: Option<String>,
 }
@@ -257,17 +270,21 @@ impl ResolvedNounPhrase {
             parts.push(determiner.clone());
         }
 
-        parts.extend(self.modifiers.iter().cloned());
+        parts.extend(self.modifiers.iter().map(NounModifier::render));
 
         match &self.quantity {
             QuantitySpec::Number(number) => parts.push(English::noun(self.head.as_str(), number)),
-            QuantitySpec::Count(count) => {
-                parts.push(Noun::new(self.head.as_str()).count_with_number(*count))
-            }
+            QuantitySpec::Count(count) => parts.push(self.head.count_with_number(*count)),
         }
 
         if !self.complements.is_empty() {
-            parts.push(self.complements.join(" "));
+            parts.push(
+                self.complements
+                    .iter()
+                    .map(NounComplement::render)
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            );
         }
 
         parts.join(" ")
@@ -302,7 +319,7 @@ impl NounPhrase<MissingQuantity, MissingDeterminer> {
 
         Self {
             data: NounPhraseData {
-                head: noun.into_inner(),
+                head: noun,
                 determiner: None,
                 modifiers: Vec::new(),
                 complements: Vec::new(),
@@ -368,23 +385,18 @@ impl<QuantityState, DeterminerState> NounPhrase<QuantityState, DeterminerState> 
     }
 
     pub fn complement(mut self, complement: impl Into<String>) -> Self {
-        self.data.complements.push(complement.into());
+        self.data
+            .complements
+            .push(NounComplement::Text(complement.into()));
         self
     }
 }
 
 impl<DeterminerState> NounPhrase<HasQuantity, DeterminerState> {
     fn resolve(&self) -> ResolvedNounPhrase {
-        let rendered_modifiers = self
-            .data
-            .modifiers
-            .iter()
-            .map(NounModifier::render)
-            .collect::<Vec<_>>();
-
         ResolvedNounPhrase {
             head: self.data.head.clone(),
-            modifiers: rendered_modifiers,
+            modifiers: self.data.modifiers.clone(),
             complements: self.data.complements.clone(),
             quantity: self.quantity_state.0.clone(),
             determiner: self.data.determiner.clone(),
@@ -402,13 +414,13 @@ impl<DeterminerState> NounPhrase<HasQuantity, DeterminerState> {
 
 #[derive(Debug, Clone, PartialEq)]
 struct VerbPhraseData {
-    head: String,
+    head: Verb,
     particle: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 struct ResolvedFiniteVerbPhrase {
-    head: String,
+    head: Verb,
     particle: Option<String>,
     tense: BaseTense,
     aspect: Aspect,
@@ -418,7 +430,7 @@ struct ResolvedFiniteVerbPhrase {
 
 #[derive(Debug, Clone, PartialEq)]
 struct ResolvedModalVerbPhrase {
-    head: String,
+    head: Verb,
     particle: Option<String>,
     modal: Modal,
     aspect: Aspect,
@@ -454,7 +466,7 @@ impl VerbPhrase<MissingTense, MissingAspect, MissingPolarity, MissingSubject, Mi
         let verb = verb.into();
         Self {
             data: VerbPhraseData {
-                head: verb.into_inner(),
+                head: verb,
                 particle: None,
             },
             tense_state: MissingTense,
@@ -594,23 +606,23 @@ impl<TenseState, AspectState, PolarityState, SubjectState, ModalState>
 
         match phrase.aspect {
             Aspect::Simple => {
-                let head = Verb::new(phrase.head.as_str()).infinitive();
+                let head = phrase.head.infinitive();
                 chunks.push(self.with_particle(head, &phrase.particle));
             }
             Aspect::Perfect => {
                 chunks.push("have".to_string());
-                let head = Verb::new(phrase.head.as_str()).past_participle();
+                let head = phrase.head.past_participle();
                 chunks.push(self.with_particle(head, &phrase.particle));
             }
             Aspect::Progressive => {
                 chunks.push("be".to_string());
-                let head = Verb::new(phrase.head.as_str()).present_participle();
+                let head = phrase.head.present_participle();
                 chunks.push(self.with_particle(head, &phrase.particle));
             }
             Aspect::PerfectProgressive => {
                 chunks.push("have".to_string());
                 chunks.push(Verb::new("be").past_participle());
-                let head = Verb::new(phrase.head.as_str()).present_participle();
+                let head = phrase.head.present_participle();
                 chunks.push(self.with_particle(head, &phrase.particle));
             }
         }
@@ -630,18 +642,12 @@ impl<TenseState, AspectState, PolarityState, SubjectState, ModalState>
             Aspect::Simple => self.render_simple(&context, phrase.head.as_str(), &phrase.particle),
             Aspect::Perfect => self.render_without_modal(
                 "have",
-                self.with_particle(
-                    Verb::new(phrase.head.as_str()).past_participle(),
-                    &phrase.particle,
-                ),
+                self.with_particle(phrase.head.past_participle(), &phrase.particle),
                 &context,
             ),
             Aspect::Progressive => self.render_without_modal(
                 "be",
-                self.with_particle(
-                    Verb::new(phrase.head.as_str()).present_participle(),
-                    &phrase.particle,
-                ),
+                self.with_particle(phrase.head.present_participle(), &phrase.particle),
                 &context,
             ),
             Aspect::PerfectProgressive => self.render_without_modal(
@@ -649,10 +655,7 @@ impl<TenseState, AspectState, PolarityState, SubjectState, ModalState>
                 format!(
                     "{} {}",
                     Verb::new("be").past_participle(),
-                    self.with_particle(
-                        Verb::new(phrase.head.as_str()).present_participle(),
-                        &phrase.particle
-                    )
+                    self.with_particle(phrase.head.present_participle(), &phrase.particle)
                 ),
                 &context,
             ),
