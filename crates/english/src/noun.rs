@@ -95,8 +95,9 @@ impl From<&str> for Noun {
         Self(s.to_string())
     }
 }
-impl From<&Noun> for Noun {
-    fn from(s: &Noun) -> Self {
-        s.clone()
+
+impl AsRef<str> for Noun {
+    fn as_ref(&self) -> &str {
+        self.as_str()
     }
 }

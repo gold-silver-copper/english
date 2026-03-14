@@ -41,7 +41,7 @@ fn strip_trailing_number(word: &str) -> String {
 /// nouns, verbs, adjectives, pronouns, and possessives.
 /// It delegates irregular forms to internal lookup tables
 /// and falls back on `EnglishCore` for regular inflection rules.
-pub struct English {}
+pub struct English;
 impl English {
     /// Inflects a noun into singular or plural form.
     ///
@@ -57,14 +57,14 @@ impl English {
     /// assert_eq!(English::noun("child", &Number::Plural), "children");
     /// assert_eq!(English::noun("die2", &Number::Plural), "dice");
     /// ```
-    pub fn noun<T: Into<Noun>>(word: T, number: &Number) -> String {
-        let noun: Noun = word.into();
-        let base_word = strip_trailing_number(noun.as_str());
+    pub fn noun(word: impl AsRef<str>, number: &Number) -> String {
+        let word = word.as_ref();
+        let base_word = strip_trailing_number(word);
 
         match number {
             Number::Singular => base_word,
             Number::Plural => {
-                if let Some(x) = get_plural(noun.as_str()) {
+                if let Some(x) = get_plural(word) {
                     x.to_owned()
                 } else {
                     EnglishCore::noun(&base_word, number)
@@ -88,20 +88,20 @@ impl English {
     /// assert_eq!(English::adj("good2", &Degree::Superlative), "best");
     /// assert_eq!(English::adj("fun", &Degree::Comparative), "more fun");
     /// ```
-    pub fn adj<T: Into<Adj>>(word: T, degree: &Degree) -> String {
-        let adjective: Adj = word.into();
-        let base_word = strip_trailing_number(adjective.as_str());
+    pub fn adj(word: impl AsRef<str>, degree: &Degree) -> String {
+        let word = word.as_ref();
+        let base_word = strip_trailing_number(word);
         match degree {
             Degree::Positive => base_word.to_owned(),
             Degree::Comparative => {
-                if let Some((comp, _)) = get_adjective_forms(adjective.as_str()) {
+                if let Some((comp, _)) = get_adjective_forms(word) {
                     comp.to_owned()
                 } else {
                     EnglishCore::comparative(&base_word)
                 }
             }
             Degree::Superlative => {
-                if let Some((_, sup)) = get_adjective_forms(adjective.as_str()) {
+                if let Some((_, sup)) = get_adjective_forms(word) {
                     sup.to_owned()
                 } else {
                     EnglishCore::superlative(&base_word)
@@ -138,16 +138,16 @@ impl English {
     ///     "gone"
     /// );
     /// ```
-    pub fn verb<T: Into<Verb>>(
-        wordish: T,
+    pub fn verb(
+        wordish: impl AsRef<str>,
         person: &Person,
         number: &Number,
         tense: &Tense,
         form: &Form,
     ) -> String {
-        let verb: Verb = wordish.into();
-        let base_word = strip_trailing_number(verb.as_str());
-        match get_verb_forms(verb.as_str()) {
+        let word = wordish.as_ref();
+        let base_word = strip_trailing_number(word);
+        match get_verb_forms(word) {
             Some(wordik) => match (person, number, tense, form) {
                 (_, _, _, Form::Infinitive) => base_word.to_owned(),
                 (Person::Third, Number::Singular, Tense::Present, Form::Finite) => {

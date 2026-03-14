@@ -132,9 +132,8 @@ impl From<&str> for Verb {
     }
 }
 
-/// Just clones it
-impl From<&Verb> for Verb {
-    fn from(s: &Verb) -> Self {
-        s.clone()
+impl AsRef<str> for Verb {
+    fn as_ref(&self) -> &str {
+        self.as_str()
     }
 }

@@ -83,8 +83,8 @@ impl From<&str> for Adj {
     }
 }
 
-impl From<&Adj> for Adj {
-    fn from(s: &Adj) -> Self {
-        s.clone()
+impl AsRef<str> for Adj {
+    fn as_ref(&self) -> &str {
+        self.as_str()
     }
 }
