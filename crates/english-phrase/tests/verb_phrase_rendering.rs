@@ -6,11 +6,11 @@ fn main_verb(verb: impl Into<Verb>) -> VerbPhrase {
 
 #[test]
 fn reexported_inflection_primitives_still_work() {
-    assert_eq!(Verb::third_person("run"), "runs");
-    assert_eq!(Verb::past("walk"), "walked");
-    assert_eq!(Verb::present_participle("swim"), "swimming");
-    assert_eq!(Verb::past_participle("eat"), "eaten");
-    assert_eq!(Verb::infinitive("go"), "go");
+    assert_eq!(Verb::new("run").third_person(), "runs");
+    assert_eq!(Verb::new("walk").past(), "walked");
+    assert_eq!(Verb::new("swim").present_participle(), "swimming");
+    assert_eq!(Verb::new("eat").past_participle(), "eaten");
+    assert_eq!(Verb::new("go").infinitive(), "go");
 }
 
 #[test]
@@ -159,7 +159,6 @@ fn modal_simple_renders_positive_and_negative_forms() {
             .aspect(Aspect::Simple)
             .modal(Modal::Will(ModalTense::Present))
             .polarity(Polarity::Negative)
-            .subject(Person::Third, Number::Singular)
             .render(),
         "will not eat"
     );
@@ -227,7 +226,6 @@ fn modal_perfect_renders_future_and_conditional_forms() {
             .aspect(Aspect::Perfect)
             .modal(Modal::Will(ModalTense::Preterite))
             .polarity(Polarity::Negative)
-            .subject(Person::Third, Number::Singular)
             .render(),
         "would not have eaten"
     );
@@ -272,7 +270,6 @@ fn progressive_negative_renders_after_be() {
             .aspect(Aspect::Progressive)
             .modal(Modal::Will(ModalTense::Present))
             .polarity(Polarity::Negative)
-            .subject(Person::Third, Number::Singular)
             .render(),
         "will not be eating"
     );
@@ -312,11 +309,11 @@ fn perfect_progressive_renders_composed_auxiliaries() {
 
 #[test]
 fn phrasal_verbs_survive_simple_and_complex_phrases() {
-    let give_up = Verb::new("give").with_particle("up");
-    let look_up = Verb::new("look").with_particle("up");
+    let give_up = main_verb("give").particle("up");
+    let look_up = main_verb("look").particle("up");
 
     assert_eq!(
-        main_verb(give_up.clone())
+        give_up.clone()
             .tense(BaseTense::Present)
             .aspect(Aspect::Simple)
             .polarity(Polarity::Affirmative)
@@ -325,7 +322,7 @@ fn phrasal_verbs_survive_simple_and_complex_phrases() {
         "gives up"
     );
     assert_eq!(
-        main_verb(give_up)
+        give_up
             .tense(BaseTense::Present)
             .aspect(Aspect::Perfect)
             .polarity(Polarity::Negative)
@@ -334,7 +331,7 @@ fn phrasal_verbs_survive_simple_and_complex_phrases() {
         "has not given up"
     );
     assert_eq!(
-        main_verb(look_up)
+        look_up
             .tense(BaseTense::Past)
             .aspect(Aspect::Progressive)
             .polarity(Polarity::Affirmative)

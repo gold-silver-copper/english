@@ -1,8 +1,25 @@
 use crate::*;
 
-///The Adj struct is used for holding adjective functions
+/// The Adj struct is a lightweight adjective lemma wrapper.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Adj {}
+pub struct Adj(String);
+
+impl Adj {
+    /// Creates a new adjective with the given head.
+    pub fn new(head: impl Into<String>) -> Self {
+        Self(head.into())
+    }
+
+    /// Borrows the underlying lemma.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Returns the underlying lemma.
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
 
 impl Adj {
     // ---------------------------
@@ -15,11 +32,11 @@ impl Adj {
     /// ```
     /// use english::Adj;
     ///
-    /// assert_eq!(Adj::comparative("fast"), "faster");
-    /// assert_eq!(Adj::comparative("fun"), "more fun");
+    /// assert_eq!(Adj::new("fast").comparative(), "faster");
+    /// assert_eq!(Adj::new("fun").comparative(), "more fun");
     /// ```
-    pub fn comparative(word: &str) -> String {
-        English::adj(word, &Degree::Comparative)
+    pub fn comparative(&self) -> String {
+        English::adj(self, &Degree::Comparative)
     }
 
     /// Returns the superlative form of an adjective.
@@ -28,11 +45,11 @@ impl Adj {
     /// ```
     /// use english::Adj;
     ///
-    /// assert_eq!(Adj::superlative("fast"), "fastest");
-    /// assert_eq!(Adj::superlative("fun"), "most fun");
+    /// assert_eq!(Adj::new("fast").superlative(), "fastest");
+    /// assert_eq!(Adj::new("fun").superlative(), "most fun");
     /// ```
-    pub fn superlative(word: &str) -> String {
-        English::adj(word, &Degree::Superlative)
+    pub fn superlative(&self) -> String {
+        English::adj(self, &Degree::Superlative)
     }
 
     /// Returns the positive (base) form of an adjective.
@@ -41,9 +58,33 @@ impl Adj {
     /// ```
     /// use english::Adj;
     ///
-    /// assert_eq!(Adj::positive("fast"), "fast");
+    /// assert_eq!(Adj::new("fast").positive(), "fast");
     /// ```
-    pub fn positive(word: &str) -> String {
-        English::adj(word, &Degree::Positive)
+    pub fn positive(&self) -> String {
+        English::adj(self, &Degree::Positive)
+    }
+}
+
+impl From<String> for Adj {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
+}
+
+impl From<&String> for Adj {
+    fn from(s: &String) -> Self {
+        Self(s.clone())
+    }
+}
+
+impl From<&str> for Adj {
+    fn from(s: &str) -> Self {
+        Self(s.to_string())
+    }
+}
+
+impl From<&Adj> for Adj {
+    fn from(s: &Adj) -> Self {
+        s.clone()
     }
 }

@@ -1,56 +1,24 @@
 use crate::*;
 
-///The Noun struct is used for handling more complicated noun phrases
-/// It is interchangeable with strings for all noun functions such as count_with_number()
-///
-/// # Examples
-/// ```
-/// use english::Noun;
-///
-///  let jeans = Noun::from("pair").with_complement("of jeans");
-///  assert_eq!(Noun::count_with_number(jeans, 3), "3 pairs of jeans");
-/// ```
+/// The Noun struct is a lightweight noun lemma wrapper.
+/// It is interchangeable with strings for all noun functions such as `count_with_number()`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Noun {
-    pub head: String,
-    pub modifier: Option<String>,   // words before the head
-    pub complement: Option<String>, // words after the head
-}
+pub struct Noun(String);
 
 impl Noun {
-    /// Creates a new Noun with the given head
+    /// Creates a new noun with the given head.
     pub fn new(head: impl Into<String>) -> Self {
-        Noun {
-            head: head.into(),
-            modifier: None,
-            complement: None,
-        }
+        Self(head.into())
     }
 
-    /// Goes before the head of the noun
-    /// # Examples
-    /// ```
-    /// use english::Noun;
-    ///
-    ///  let child = Noun::from("child").with_specifier("running");
-    ///  assert_eq!(Noun::count_with_number(child, 3), "3 running children");
-    /// ```
-    pub fn with_specifier(mut self, pre: impl Into<String>) -> Self {
-        self.modifier = Some(pre.into());
-        self
+    /// Borrows the underlying lemma.
+    pub fn as_str(&self) -> &str {
+        &self.0
     }
 
-    /// Goes after the head of the noun
-    /// # Examples
-    /// ```
-    /// use english::Noun;
-    ///
-    ///  let jeans = Noun::from("pair").with_complement("of jeans");
-    ///  assert_eq!(Noun::count_with_number(jeans, 3), "3 pairs of jeans");
-    /// ```
-    pub fn with_complement(mut self, post: impl Into<String>) -> Self {
-        self.complement = Some(post.into());
-        self
+    /// Returns the underlying lemma.
+    pub fn into_inner(self) -> String {
+        self.0
     }
 }
 
@@ -61,14 +29,14 @@ impl Noun {
     /// ```rust
     /// use english::Noun;
     ///
-    /// assert_eq!(Noun::count("cat", 1), "cat");
-    /// assert_eq!(Noun::count("cat", 2), "cats");
+    /// assert_eq!(Noun::new("cat").count(1), "cat");
+    /// assert_eq!(Noun::new("cat").count(2), "cats");
     /// ```
-    pub fn count<T: Into<Noun>>(word: T, count: u32) -> String {
+    pub fn count(&self, count: u32) -> String {
         if count == 1 {
-            English::noun(word, &Number::Singular)
+            English::noun(self, &Number::Singular)
         } else {
-            English::noun(word, &Number::Plural)
+            English::noun(self, &Number::Plural)
         }
     }
 
@@ -78,11 +46,11 @@ impl Noun {
     /// ```rust
     /// use english::Noun;
     ///
-    /// assert_eq!(Noun::count_with_number("cat", 1), "1 cat");
-    /// assert_eq!(Noun::count_with_number("cat", 2), "2 cats");
+    /// assert_eq!(Noun::new("cat").count_with_number(1), "1 cat");
+    /// assert_eq!(Noun::new("cat").count_with_number(2), "2 cats");
     /// ```
-    pub fn count_with_number<T: Into<Noun>>(word: T, count: u32) -> String {
-        format!("{} {}", count, Noun::count(word, count))
+    pub fn count_with_number(&self, count: u32) -> String {
+        format!("{} {}", count, self.count(count))
     }
 
     /// Returns the plural form of a noun.
@@ -91,11 +59,11 @@ impl Noun {
     /// ```
     /// use english::Noun;
     ///
-    /// assert_eq!(Noun::plural("child"), "children");
-    /// assert_eq!(Noun::plural("cat"), "cats");
+    /// assert_eq!(Noun::new("child").plural(), "children");
+    /// assert_eq!(Noun::new("cat").plural(), "cats");
     /// ```
-    pub fn plural<T: Into<Noun>>(word: T) -> String {
-        English::noun(word, &Number::Plural)
+    pub fn plural(&self) -> String {
+        English::noun(self, &Number::Plural)
     }
 
     /// Returns the singular form of a noun.
@@ -104,39 +72,27 @@ impl Noun {
     /// ```
     /// use english::Noun;
     ///
-    /// assert_eq!(Noun::singular("cat2"), "cat");
+    /// assert_eq!(Noun::new("cat2").singular(), "cat");
     /// ```
-    pub fn singular<T: Into<Noun>>(word: T) -> String {
-        English::noun(word, &Number::Singular)
+    pub fn singular(&self) -> String {
+        English::noun(self, &Number::Singular)
     }
 }
 
 impl From<String> for Noun {
     fn from(s: String) -> Self {
-        Noun {
-            head: s,
-            modifier: None,
-            complement: None,
-        }
+        Self(s)
     }
 }
 impl From<&String> for Noun {
     fn from(s: &String) -> Self {
-        Noun {
-            head: s.clone(),
-            modifier: None,
-            complement: None,
-        }
+        Self(s.clone())
     }
 }
 
 impl From<&str> for Noun {
     fn from(s: &str) -> Self {
-        Noun {
-            head: s.to_string(),
-            modifier: None,
-            complement: None,
-        }
+        Self(s.to_string())
     }
 }
 impl From<&Noun> for Noun {

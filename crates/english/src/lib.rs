@@ -27,10 +27,10 @@ mod verb_phf {
 use verb_phf::*;
 
 fn strip_trailing_number(word: &str) -> String {
-    if let Some(last_char) = word.chars().last() {
-        if last_char.is_ascii_digit() {
-            return word[..word.len() - 1].to_string();
-        }
+    if let Some(last_char) = word.chars().last()
+        && last_char.is_ascii_digit()
+    {
+        return word[..word.len() - 1].to_string();
     }
     word.to_string()
 }
@@ -59,33 +59,18 @@ impl English {
     /// ```
     pub fn noun<T: Into<Noun>>(word: T, number: &Number) -> String {
         let noun: Noun = word.into();
-        let base_word = strip_trailing_number(&noun.head);
+        let base_word = strip_trailing_number(noun.as_str());
 
-        let head_inflected = match number {
+        match number {
             Number::Singular => base_word,
             Number::Plural => {
-                if let Some(x) = get_plural(&noun.head) {
+                if let Some(x) = get_plural(noun.as_str()) {
                     x.to_owned()
                 } else {
                     EnglishCore::noun(&base_word, number)
                 }
             }
-        };
-        let mut result = String::new();
-
-        if let Some(modifier) = &noun.modifier {
-            result.push_str(modifier);
-            result.push(' ');
         }
-
-        result.push_str(&head_inflected);
-
-        if let Some(complement) = &noun.complement {
-            result.push(' ');
-            result.push_str(complement);
-        }
-
-        result
     }
 
     /// Inflects an adjective into positive, comparative, or superlative form.
@@ -103,19 +88,20 @@ impl English {
     /// assert_eq!(English::adj("good2", &Degree::Superlative), "best");
     /// assert_eq!(English::adj("fun", &Degree::Comparative), "more fun");
     /// ```
-    pub fn adj(word: &str, degree: &Degree) -> String {
-        let base_word = strip_trailing_number(word);
+    pub fn adj<T: Into<Adj>>(word: T, degree: &Degree) -> String {
+        let adjective: Adj = word.into();
+        let base_word = strip_trailing_number(adjective.as_str());
         match degree {
             Degree::Positive => base_word.to_owned(),
             Degree::Comparative => {
-                if let Some((comp, _)) = get_adjective_forms(word) {
+                if let Some((comp, _)) = get_adjective_forms(adjective.as_str()) {
                     comp.to_owned()
                 } else {
                     EnglishCore::comparative(&base_word)
                 }
             }
             Degree::Superlative => {
-                if let Some((_, sup)) = get_adjective_forms(word) {
+                if let Some((_, sup)) = get_adjective_forms(adjective.as_str()) {
                     sup.to_owned()
                 } else {
                     EnglishCore::superlative(&base_word)
@@ -160,9 +146,8 @@ impl English {
         form: &Form,
     ) -> String {
         let verb: Verb = wordish.into();
-        let base_word = strip_trailing_number(&verb.head);
-        // Conjugate the head verb
-        let conjugated_head = match get_verb_forms(&verb.head) {
+        let base_word = strip_trailing_number(verb.as_str());
+        match get_verb_forms(verb.as_str()) {
             Some(wordik) => match (person, number, tense, form) {
                 (_, _, _, Form::Infinitive) => base_word.to_owned(),
                 (Person::Third, Number::Singular, Tense::Present, Form::Finite) => {
@@ -174,16 +159,6 @@ impl English {
                 (_, _, Tense::Past, Form::Finite) => wordik.1.to_owned(),
             },
             None => EnglishCore::verb(&base_word, person, number, tense, form),
-        };
-        // Combine with particle efficiently
-        if let Some(particle) = verb.particle {
-            let mut result = String::with_capacity(conjugated_head.len() + 1 + particle.len());
-            result.push_str(&conjugated_head);
-            result.push(' ');
-            result.push_str(&particle);
-            result
-        } else {
-            conjugated_head
         }
     }
     /// Returns the correct English pronoun for the given grammatical features.

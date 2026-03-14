@@ -1,41 +1,24 @@
 use crate::*;
 
-///The Verb struct is used for inflecting simple and phrasal verbs.
-/// It is interchangeable with strings for all verb inflection helpers such as present_participle()
-///
-/// # Examples
-/// ```
-/// use english::Verb;
-///
-///  let pick_up = Verb::from("pick").with_particle("up");
-///  assert_eq!(Verb::past_participle(pick_up), "picked up");
-/// ```
+/// The Verb struct is a lightweight verb lemma wrapper.
+/// It is interchangeable with strings for all verb inflection helpers such as `present_participle()`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Verb {
-    pub head: String,             // "pick"
-    pub particle: Option<String>, // "up"
-}
+pub struct Verb(String);
 
 impl Verb {
     /// Create a new verb with just the head.
     pub fn new(head: impl Into<String>) -> Self {
-        Verb {
-            head: head.into(),
-            particle: None,
-        }
+        Self(head.into())
     }
 
-    /// Set the particle of a phrasal verb.
-    /// # Examples
-    /// ```
-    /// use english::Verb;
-    ///
-    ///  let pick_up = Verb::from("pick").with_particle("up");
-    ///  assert_eq!(Verb::past_participle(pick_up), "picked up");
-    /// ```
-    pub fn with_particle(mut self, particle: impl Into<String>) -> Self {
-        self.particle = Some(particle.into());
-        self
+    /// Borrows the underlying lemma.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Returns the underlying lemma.
+    pub fn into_inner(self) -> String {
+        self.0
     }
 }
 
@@ -46,11 +29,11 @@ impl Verb {
     /// ```
     /// use english::Verb;
     ///
-    /// assert_eq!(Verb::third_person("run"), "runs");
+    /// assert_eq!(Verb::new("run").third_person(), "runs");
     /// ```
-    pub fn third_person<T: Into<Verb>>(wordish: T) -> String {
+    pub fn third_person(&self) -> String {
         English::verb(
-            wordish,
+            self,
             &Person::Third,
             &Number::Singular,
             &Tense::Present,
@@ -64,11 +47,11 @@ impl Verb {
     /// ```
     /// use english::Verb;
     ///
-    /// assert_eq!(Verb::past("walk"), "walked");
+    /// assert_eq!(Verb::new("walk").past(), "walked");
     /// ```
-    pub fn past<T: Into<Verb>>(wordish: T) -> String {
+    pub fn past(&self) -> String {
         English::verb(
-            wordish,
+            self,
             &Person::Third,    // person doesn’t matter in past tense finite
             &Number::Singular, // irrelevant
             &Tense::Past,
@@ -82,11 +65,11 @@ impl Verb {
     /// ```
     /// use english::Verb;
     ///
-    /// assert_eq!(Verb::present_participle("swim"), "swimming");
+    /// assert_eq!(Verb::new("swim").present_participle(), "swimming");
     /// ```
-    pub fn present_participle<T: Into<Verb>>(wordish: T) -> String {
+    pub fn present_participle(&self) -> String {
         English::verb(
-            wordish,
+            self,
             &Person::First,    // irrelevant for participles
             &Number::Singular, // irrelevant
             &Tense::Present,
@@ -100,11 +83,11 @@ impl Verb {
     /// ```
     /// use english::Verb;
     ///
-    /// assert_eq!(Verb::past_participle("eat"), "eaten");
+    /// assert_eq!(Verb::new("eat").past_participle(), "eaten");
     /// ```
-    pub fn past_participle<T: Into<Verb>>(wordish: T) -> String {
+    pub fn past_participle(&self) -> String {
         English::verb(
-            wordish,
+            self,
             &Person::First,    // irrelevant
             &Number::Singular, // irrelevant
             &Tense::Past,
@@ -118,11 +101,11 @@ impl Verb {
     /// ```
     /// use english::Verb;
     ///
-    /// assert_eq!(Verb::infinitive("lie2"), "lie");
+    /// assert_eq!(Verb::new("lie2").infinitive(), "lie");
     /// ```
-    pub fn infinitive<T: Into<Verb>>(wordish: T) -> String {
+    pub fn infinitive(&self) -> String {
         English::verb(
-            wordish,
+            self,
             &Person::First,    // irrelevant
             &Number::Singular, // irrelevant
             &Tense::Present,   // irrelevant
@@ -133,28 +116,19 @@ impl Verb {
 
 impl From<String> for Verb {
     fn from(s: String) -> Self {
-        Verb {
-            head: s,
-            particle: None,
-        }
+        Self(s)
     }
 }
 
 impl From<&String> for Verb {
     fn from(s: &String) -> Self {
-        Verb {
-            head: s.clone(),
-            particle: None,
-        }
+        Self(s.clone())
     }
 }
 
 impl From<&str> for Verb {
     fn from(s: &str) -> Self {
-        Verb {
-            head: s.to_string(),
-            particle: None,
-        }
+        Self(s.to_string())
     }
 }
 

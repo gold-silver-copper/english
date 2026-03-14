@@ -33,9 +33,11 @@ use english::*;
 fn main() {
     // --- Mixed Sentence Example ---
     let subject_number = Number::Plural;
-    let run = Verb::present_participle("run"); // running
-    let child = Noun::from("child").with_specifier(run); //running child
-    let subject = English::noun(child, &subject_number); //running children
+    let subject = format!(
+        "{} {}",
+        Verb::new("run").present_participle(),
+        English::noun("child", &subject_number)
+    ); // running children
     let verb = English::verb(
         "steal",
         &Person::Third,
@@ -43,37 +45,37 @@ fn main() {
         &Tense::Past,
         &Form::Finite,
     ); //stole
-    let object = Noun::count_with_number("potato", 7); //7 potatoes
+    let object = Noun::new("potato").count_with_number(7); //7 potatoes
 
     let sentence = format!("The {} {} {}.", subject, verb, object);
     assert_eq!(sentence, "The running children stole 7 potatoes.");
 
     // --- Nouns ---
-    // Note that noun(), count(), etc can work on both strings and Noun struct
-    let jeans = Noun::from("pair").with_complement("of jeans");
-    assert_eq!(Noun::count_with_number(jeans, 3), "3 pairs of jeans");
+    assert_eq!(
+        format!("{} of jeans", Noun::new("pair").count_with_number(3)),
+        "3 pairs of jeans"
+    );
     // Regular plurals
     assert_eq!(English::noun("cat", &Number::Plural), "cats");
     // Add a number 2-9 to the end of the word to try different forms.
     // Can use plural()
-    assert_eq!(Noun::plural("die2"), "dice");
+    assert_eq!(Noun::new("die2").plural(), "dice");
     // Use count function for better ergonomics if needed
-    assert_eq!(Noun::count("man", 2), "men");
+    assert_eq!(Noun::new("man").count(2), "men");
     // Use count_with_number function to preserve the number
-    assert_eq!(Noun::count_with_number("nickel", 3), "3 nickels");
+    assert_eq!(Noun::new("nickel").count_with_number(3), "3 nickels");
     // Invariant nouns
     assert_eq!(English::noun("sheep", &Number::Plural), "sheep");
 
     // --- Verbs ---
-    // All verb functions can use either strings or Verb struct
-    let pick_up = Verb::from("pick").with_particle("up");
+    // Verb functions operate on the base lemma only.
     // Helper functions: past() , third_person(), present_participle(), infinitive() etc.
-    assert_eq!(Verb::past(&pick_up,), "picked up");
-    assert_eq!(Verb::present_participle("walk"), "walking");
-    assert_eq!(Verb::past_participle("go"), "gone");
+    assert_eq!(Verb::new("pick").past(), "picked");
+    assert_eq!(Verb::new("walk").present_participle(), "walking");
+    assert_eq!(Verb::new("go").past_participle(), "gone");
     // Add a number 2-9 to the end of the word to try different forms.
-    assert_eq!(Verb::past("lie"), "lay");
-    assert_eq!(Verb::past("lie2"), "lied");
+    assert_eq!(Verb::new("lie").past(), "lay");
+    assert_eq!(Verb::new("lie2").past(), "lied");
     // "to be" has the most verb forms in english and requires using verb()
     assert_eq!(
         English::verb(
@@ -90,11 +92,11 @@ fn main() {
     // Add a number 2-9 to the end of the word to try different forms. (Bad has the most forms at 3)
     assert_eq!(English::adj("bad", &Degree::Comparative), "more bad");
     assert_eq!(English::adj("bad", &Degree::Superlative), "most bad");
-    assert_eq!(Adj::comparative("bad2"), "badder");
-    assert_eq!(Adj::superlative("bad2"), "baddest");
-    assert_eq!(Adj::comparative("bad3"), "worse");
-    assert_eq!(Adj::superlative("bad3"), "worst");
-    assert_eq!(Adj::positive("bad3"), "bad");
+    assert_eq!(Adj::new("bad2").comparative(), "badder");
+    assert_eq!(Adj::new("bad2").superlative(), "baddest");
+    assert_eq!(Adj::new("bad3").comparative(), "worse");
+    assert_eq!(Adj::new("bad3").superlative(), "worst");
+    assert_eq!(Adj::new("bad3").positive(), "bad");
 
     // --- Pronouns ---
     assert_eq!(
