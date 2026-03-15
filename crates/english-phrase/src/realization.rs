@@ -3,11 +3,12 @@ use crate::desugar::{
 };
 use crate::error::RealizationResult;
 use crate::internal::{
-    ABar, AP, AdvBar, CBar, CHead, CP, DBar, DComplement, DHead, DP, NBar, NHead, NP, NegHead,
-    NegVBar, PBar, PP, SilentDeterminer, TBar, THead, TP, VBar, VP, VPBar, XP,
+    ABar, AP, AdvBar, CBar, CP, DBar, DComplement, DHead, DP, NBar, NHead, NP, NegHead, NegVBar,
+    PBar, PP, SilentDeterminer, TBar, THead, TP, VBar, VP, VPBar, XP,
 };
 use crate::syntax::{
-    AdjectivePhrase, AdverbPhrase, DeterminerPhrase, Phrase, PrepositionalPhrase, Tense, VerbPhrase,
+    AdjectivePhrase, AdverbPhrase, Clause, DeterminerPhrase, Phrase, PrepositionalPhrase, Sentence,
+    Tense, Terminal, VerbPhrase,
 };
 use english::{English, Form as MorphForm, Number, Person, Tense as MorphTense};
 use std::borrow::Borrow;
@@ -81,17 +82,15 @@ fn agreement_from_dp(dp: &DP) -> (Person, Number) {
             NHead::ProperName(_) => (Person::Third, Number::Singular),
             NHead::Pronoun(pronoun) => (pronoun.person(), pronoun.number()),
         },
-        DComplement::VP(_) | DComplement::Trace => (Person::Third, Number::Singular),
+        DComplement::Trace => (Person::Third, Number::Singular),
     }
 }
 
 fn render_xp(xp: &XP) -> RealizationResult<String> {
     match xp {
-        XP::CP(cp) => render_cp(cp),
         XP::TP(tp) => render_tp(tp),
         XP::VP(vp) => render_vp(vp),
         XP::DP(dp) => render_dp(dp),
-        XP::NP(np) => render_np(np),
         XP::AP(ap) => render_ap(ap),
         XP::AdvP(advp) => render_advp(advp),
         XP::PP(pp) => render_pp(pp),
@@ -99,20 +98,12 @@ fn render_xp(xp: &XP) -> RealizationResult<String> {
 }
 
 fn render_cp(cp: &CP) -> RealizationResult<String> {
-    let mut parts = Vec::new();
-    if let Some(specifier) = &cp.specifier {
-        parts.push(render_xp(specifier.as_ref())?);
-    }
-    parts.push(render_cbar(&cp.bar)?);
-    Ok(join_nonempty(parts))
+    render_cbar(&cp.bar)
 }
 
 fn render_cbar(cbar: &CBar) -> RealizationResult<String> {
-    let head = match &cbar.head {
-        CHead::Null => String::new(),
-        CHead::Overt(text) => text.clone(),
-    };
-    Ok(join_nonempty(vec![head, render_tp(&cbar.complement)?]))
+    let _ = cbar.head;
+    render_tp(&cbar.complement)
 }
 
 fn render_tp(tp: &TP) -> RealizationResult<String> {
@@ -252,17 +243,7 @@ fn render_vp_tail(vp: &VP) -> RealizationResult<Vec<String>> {
 }
 
 fn render_dp(dp: &DP) -> RealizationResult<String> {
-    let mut parts = Vec::new();
-
-    if let Some(specifier) = &dp.specifier {
-        let possessor = render_dp(specifier)?;
-        if !possessor.is_empty() {
-            parts.push(English::add_possessive(&possessor));
-        }
-    }
-
-    parts.push(render_dbar(&dp.bar)?);
-    Ok(join_nonempty(parts))
+    render_dbar(&dp.bar)
 }
 
 fn render_dbar(dbar: &DBar) -> RealizationResult<String> {
@@ -273,11 +254,6 @@ fn render_dbar(dbar: &DBar) -> RealizationResult<String> {
         ])),
         (DHead::Silent(SilentDeterminer::Trace), DComplement::Trace) => Ok(String::new()),
         (DHead::Silent(_), DComplement::NP(np)) => render_np(np),
-        (DHead::Overt(head), DComplement::VP(vp)) => Ok(join_nonempty(vec![
-            head.as_str().to_string(),
-            render_vp(vp)?,
-        ])),
-        (DHead::Silent(_), DComplement::VP(vp)) => render_vp(vp),
         (_, DComplement::Trace) => Ok(String::new()),
     }
 }
@@ -285,7 +261,6 @@ fn render_dbar(dbar: &DBar) -> RealizationResult<String> {
 fn render_np(np: &NP) -> RealizationResult<String> {
     let mut parts = render_xp_list(&np.left_adjuncts)?;
     parts.push(render_nbar(&np.bar)?);
-    parts.extend(render_xp_list(&np.right_adjuncts)?);
     Ok(join_nonempty(parts))
 }
 
@@ -337,20 +312,14 @@ fn render_advbar(advbar: &AdvBar) -> RealizationResult<String> {
 }
 
 fn render_pp(pp: &PP) -> RealizationResult<String> {
-    let mut parts = Vec::new();
-    if let Some(specifier) = &pp.specifier {
-        parts.push(render_xp(specifier.as_ref())?);
-    }
-    parts.push(render_pbar(&pp.bar)?);
-    Ok(join_nonempty(parts))
+    render_pbar(&pp.bar)
 }
 
 fn render_pbar(pbar: &PBar) -> RealizationResult<String> {
-    let mut parts = vec![pbar.head.entry.as_str().to_string()];
-    if let Some(complement) = &pbar.complement {
-        parts.push(render_xp(complement.as_ref())?);
-    }
-    Ok(join_nonempty(parts))
+    Ok(join_nonempty(vec![
+        pbar.head.entry.as_str().to_string(),
+        render_xp(pbar.complement.as_ref())?,
+    ]))
 }
 
 pub fn realize_phrase(phrase: impl Borrow<Phrase>) -> RealizationResult<String> {
@@ -381,19 +350,20 @@ pub fn realize_verb_phrase(phrase: impl Borrow<VerbPhrase>) -> RealizationResult
     render_tp(&lower_verb_projection(phrase.borrow(), None)?)
 }
 
-pub fn realize_clause(
-    subject: impl Borrow<DeterminerPhrase>,
-    predicate: impl Borrow<VerbPhrase>,
-) -> RealizationResult<String> {
-    render_cp(&lower_clause(subject.borrow(), predicate.borrow())?)
+pub fn realize_clause(clause: impl Borrow<Clause>) -> RealizationResult<String> {
+    render_cp(&lower_clause(clause.borrow())?)
 }
 
-pub fn realize_sentence(
-    subject: impl Borrow<DeterminerPhrase>,
-    predicate: impl Borrow<VerbPhrase>,
-) -> RealizationResult<String> {
-    let mut text = realize_clause(subject, predicate)?;
-    text = English::capitalize_first(&text);
-    text.push('.');
+pub fn realize_sentence(sentence: impl Borrow<Sentence>) -> RealizationResult<String> {
+    let sentence = sentence.borrow();
+    let mut text = realize_clause(sentence.clause())?;
+    if sentence.capitalize_flag() {
+        text = English::capitalize_first(&text);
+    }
+    text.push(match sentence.terminal() {
+        Terminal::Period => '.',
+        Terminal::QuestionMark => '?',
+        Terminal::ExclamationMark => '!',
+    });
     Ok(text)
 }

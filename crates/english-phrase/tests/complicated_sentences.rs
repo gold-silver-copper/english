@@ -1,7 +1,7 @@
 use english_phrase::*;
 
-fn assert_sentence(subject: DeterminerPhrase, predicate: VerbPhrase, expected: &str) {
-    assert_eq!(realize_sentence(subject, predicate).unwrap(), expected);
+fn assert_sentence(sentence: Sentence, expected: &str) {
+    assert_eq!(realize_sentence(sentence).unwrap(), expected);
 }
 
 #[test]
@@ -27,8 +27,7 @@ fn careful_plan_to_repair_bridge_impressed_council() {
     );
 
     assert_sentence(
-        subject,
-        predicate,
+        subject.predicate(predicate).sentence(),
         "The careful plan to repair the old bridge before the storm impressed the local council.",
     );
 }
@@ -58,8 +57,7 @@ fn we_did_not_expect_editor_to_read_manuscript_on_train() {
         );
 
     assert_sentence(
-        subject,
-        predicate,
+        subject.predicate(predicate).sentence(),
         "We did not expect the remarkably patient editor with a lantern to read the very long manuscript on the train.",
     );
 }
@@ -93,8 +91,7 @@ fn alice_mailed_report_about_storm_to_office_near_harbor() {
         ));
 
     assert_sentence(
-        subject,
-        predicate,
+        subject.predicate(predicate).sentence(),
         "Alice mailed the unusually detailed report about the storm over the northern coast to the quiet office near the harbor.",
     );
 }
@@ -115,8 +112,7 @@ fn old_machine_under_stairs_was_not_ready_to_move() {
     );
 
     assert_sentence(
-        subject,
-        predicate,
+        subject.predicate(predicate).sentence(),
         "The old machine under the stairs was not ready to move into the workshop.",
     );
 }
@@ -139,8 +135,7 @@ fn very_nearly_impossible_puzzle_confused_children_in_library() {
         .adjunct(pp("in", dp("library").determiner(Determiner::The)));
 
     assert_sentence(
-        subject,
-        predicate,
+        subject.predicate(predicate).sentence(),
         "The very nearly impossible puzzle from the museum confused the extremely patient children in the library.",
     );
 }
@@ -170,8 +165,7 @@ fn they_discussed_mapping_cave_with_old_guide_after_meal() {
         .adjunct(pp("after", dp("meal").determiner(Determiner::The)));
 
     assert_sentence(
-        subject,
-        predicate,
+        subject.predicate(predicate).sentence(),
         "They discussed mapping the narrow cave under the hill with the old guide after the meal.",
     );
 }
@@ -208,8 +202,7 @@ fn ambitious_attempt_to_persuade_pilot_to_land_plane_alarmed_team() {
     );
 
     assert_sentence(
-        subject,
-        predicate,
+        subject.predicate(predicate).sentence(),
         "The ambitious attempt to persuade the cautious pilot to land the damaged plane near the village alarmed the rescue team.",
     );
 }

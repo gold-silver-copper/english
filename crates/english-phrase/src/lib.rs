@@ -17,6 +17,8 @@ pub use crate::realization::{
     realize_phrase, realize_prepositional_phrase, realize_sentence, realize_verb_phrase,
 };
 pub use crate::syntax::{
-    AdjectivePhrase, AdverbPhrase, DeterminerHead, DeterminerPhrase, Phrase, PrepositionalPhrase,
-    Tense, VerbForm, VerbPhrase, adjp, advp, dp, pp, pronoun_dp, proper_name, vp,
+    AdjectivePhrase, AdverbPhrase, AdvpComplement, AdvpModifier, ApComplement, ApModifier, Clause,
+    DeterminerHead, DeterminerPhrase, DpComplement, DpModifier, Phrase, PpComplement,
+    PrepositionalPhrase, Sentence, Tense, Terminal, VerbForm, VerbPhrase, VpAdjunct, VpComplement,
+    adjp, advp, dp, pp, pronoun_dp, proper_name, vp,
 };

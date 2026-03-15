@@ -3,6 +3,10 @@ use crate::lexical::{
 };
 use english::Number;
 
+mod private {
+    pub trait Sealed {}
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Tense {
     #[default]
@@ -27,6 +31,51 @@ pub enum Phrase {
     PP(Box<PrepositionalPhrase>),
     AdjP(Box<AdjectivePhrase>),
     AdvP(Box<AdverbPhrase>),
+}
+
+#[doc(hidden)]
+pub trait DpModifier: private::Sealed {
+    fn into_phrase(self) -> Phrase;
+}
+
+#[doc(hidden)]
+pub trait DpComplement: private::Sealed {
+    fn into_phrase(self) -> Phrase;
+}
+
+#[doc(hidden)]
+pub trait ApModifier: private::Sealed {
+    fn into_phrase(self) -> Phrase;
+}
+
+#[doc(hidden)]
+pub trait ApComplement: private::Sealed {
+    fn into_phrase(self) -> Phrase;
+}
+
+#[doc(hidden)]
+pub trait AdvpModifier: private::Sealed {
+    fn into_phrase(self) -> Phrase;
+}
+
+#[doc(hidden)]
+pub trait AdvpComplement: private::Sealed {
+    fn into_phrase(self) -> Phrase;
+}
+
+#[doc(hidden)]
+pub trait PpComplement: private::Sealed {
+    fn into_phrase(self) -> Phrase;
+}
+
+#[doc(hidden)]
+pub trait VpComplement: private::Sealed {
+    fn into_phrase(self) -> Phrase;
+}
+
+#[doc(hidden)]
+pub trait VpAdjunct: private::Sealed {
+    fn into_phrase(self) -> Phrase;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -91,14 +140,21 @@ impl DeterminerPhrase {
         self
     }
 
-    pub fn modifier(mut self, modifier: impl Into<Phrase>) -> Self {
-        self.modifiers.push(Box::new(modifier.into()));
+    pub fn modifier<M: DpModifier>(mut self, modifier: M) -> Self {
+        self.modifiers.push(Box::new(modifier.into_phrase()));
         self
     }
 
-    pub fn complement(mut self, complement: impl Into<Phrase>) -> Self {
-        self.complements.push(Box::new(complement.into()));
+    pub fn complement<C: DpComplement>(mut self, complement: C) -> Self {
+        self.complements.push(Box::new(complement.into_phrase()));
         self
+    }
+
+    pub fn predicate(self, predicate: VerbPhrase) -> Clause {
+        Clause {
+            subject: self,
+            predicate,
+        }
     }
 
     pub fn determiner_opt(&self) -> Option<Determiner> {
@@ -138,13 +194,13 @@ impl AdjectivePhrase {
         }
     }
 
-    pub fn modifier(mut self, modifier: AdverbPhrase) -> Self {
-        self.modifier = Some(Box::new(modifier.into()));
+    pub fn modifier<M: ApModifier>(mut self, modifier: M) -> Self {
+        self.modifier = Some(Box::new(modifier.into_phrase()));
         self
     }
 
-    pub fn complement(mut self, complement: impl Into<Phrase>) -> Self {
-        self.complements.push(Box::new(complement.into()));
+    pub fn complement<C: ApComplement>(mut self, complement: C) -> Self {
+        self.complements.push(Box::new(complement.into_phrase()));
         self
     }
 
@@ -177,13 +233,13 @@ impl AdverbPhrase {
         }
     }
 
-    pub fn modifier(mut self, modifier: AdverbPhrase) -> Self {
-        self.modifier = Some(Box::new(modifier.into()));
+    pub fn modifier<M: AdvpModifier>(mut self, modifier: M) -> Self {
+        self.modifier = Some(Box::new(modifier.into_phrase()));
         self
     }
 
-    pub fn complement(mut self, complement: impl Into<Phrase>) -> Self {
-        self.complements.push(Box::new(complement.into()));
+    pub fn complement<C: AdvpComplement>(mut self, complement: C) -> Self {
+        self.complements.push(Box::new(complement.into_phrase()));
         self
     }
 
@@ -207,10 +263,10 @@ pub struct PrepositionalPhrase {
 }
 
 impl PrepositionalPhrase {
-    pub fn new(head: impl Into<PrepositionEntry>, complement: impl Into<Phrase>) -> Self {
+    pub fn new<C: PpComplement>(head: impl Into<PrepositionEntry>, complement: C) -> Self {
         Self {
             head: head.into(),
-            complement: Box::new(complement.into()),
+            complement: Box::new(complement.into_phrase()),
         }
     }
 
@@ -240,13 +296,6 @@ impl VerbPhrase {
             negative: false,
             complements: Vec::new(),
             adjuncts: Vec::new(),
-        }
-    }
-
-    pub fn finite(head: impl Into<VerbEntry>, tense: Tense) -> Self {
-        Self {
-            form: VerbForm::Finite(tense),
-            ..Self::new(head)
         }
     }
 
@@ -285,13 +334,13 @@ impl VerbPhrase {
         self
     }
 
-    pub fn complement(mut self, complement: impl Into<Phrase>) -> Self {
-        self.complements.push(Box::new(complement.into()));
+    pub fn complement<C: VpComplement>(mut self, complement: C) -> Self {
+        self.complements.push(Box::new(complement.into_phrase()));
         self
     }
 
-    pub fn adjunct(mut self, adjunct: impl Into<Phrase>) -> Self {
-        self.adjuncts.push(Box::new(adjunct.into()));
+    pub fn adjunct<A: VpAdjunct>(mut self, adjunct: A) -> Self {
+        self.adjuncts.push(Box::new(adjunct.into_phrase()));
         self
     }
 
@@ -316,6 +365,83 @@ impl VerbPhrase {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Clause {
+    subject: DeterminerPhrase,
+    predicate: VerbPhrase,
+}
+
+impl Clause {
+    pub fn subject(&self) -> &DeterminerPhrase {
+        &self.subject
+    }
+
+    pub fn predicate(&self) -> &VerbPhrase {
+        &self.predicate
+    }
+
+    pub fn sentence(self) -> Sentence {
+        Sentence {
+            clause: self,
+            capitalize: true,
+            terminal: Terminal::Period,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Terminal {
+    Period,
+    QuestionMark,
+    ExclamationMark,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Sentence {
+    clause: Clause,
+    capitalize: bool,
+    terminal: Terminal,
+}
+
+impl Sentence {
+    pub fn clause(&self) -> &Clause {
+        &self.clause
+    }
+
+    pub fn capitalize(mut self) -> Self {
+        self.capitalize = true;
+        self
+    }
+
+    pub fn lowercase(mut self) -> Self {
+        self.capitalize = false;
+        self
+    }
+
+    pub fn period(mut self) -> Self {
+        self.terminal = Terminal::Period;
+        self
+    }
+
+    pub fn question_mark(mut self) -> Self {
+        self.terminal = Terminal::QuestionMark;
+        self
+    }
+
+    pub fn exclamation_mark(mut self) -> Self {
+        self.terminal = Terminal::ExclamationMark;
+        self
+    }
+
+    pub fn capitalize_flag(&self) -> bool {
+        self.capitalize
+    }
+
+    pub fn terminal(&self) -> Terminal {
+        self.terminal
+    }
+}
+
 pub fn dp(head: impl Into<NounEntry>) -> DeterminerPhrase {
     DeterminerPhrase::common(head)
 }
@@ -336,7 +462,10 @@ pub fn advp(head: impl Into<AdverbEntry>) -> AdverbPhrase {
     AdverbPhrase::new(head)
 }
 
-pub fn pp(head: impl Into<PrepositionEntry>, complement: impl Into<Phrase>) -> PrepositionalPhrase {
+pub fn pp<C: PpComplement>(
+    head: impl Into<PrepositionEntry>,
+    complement: C,
+) -> PrepositionalPhrase {
     PrepositionalPhrase::new(head, complement)
 }
 
@@ -371,5 +500,113 @@ impl From<AdjectivePhrase> for Phrase {
 impl From<AdverbPhrase> for Phrase {
     fn from(value: AdverbPhrase) -> Self {
         Phrase::AdvP(Box::new(value))
+    }
+}
+
+impl private::Sealed for DeterminerPhrase {}
+impl private::Sealed for VerbPhrase {}
+impl private::Sealed for PrepositionalPhrase {}
+impl private::Sealed for AdjectivePhrase {}
+impl private::Sealed for AdverbPhrase {}
+
+impl DpModifier for AdjectivePhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl DpComplement for PrepositionalPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl DpComplement for VerbPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl ApModifier for AdverbPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl ApComplement for PrepositionalPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl ApComplement for VerbPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl AdvpModifier for AdverbPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl AdvpComplement for PrepositionalPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl PpComplement for DeterminerPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl PpComplement for PrepositionalPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl PpComplement for VerbPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl VpComplement for DeterminerPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl VpComplement for PrepositionalPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl VpComplement for AdjectivePhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl VpComplement for VerbPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl VpAdjunct for PrepositionalPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl VpAdjunct for AdverbPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
     }
 }

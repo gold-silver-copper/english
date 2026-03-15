@@ -53,11 +53,11 @@ fn verb_phrases_handle_finite_and_non_finite_forms_without_extra_spine_nodes() {
         "not to eat the apple"
     );
     assert_eq!(
-        realize_clause(pronoun_dp(Pronoun::We), finite.clone()).unwrap(),
+        realize_clause(pronoun_dp(Pronoun::We).predicate(finite.clone())).unwrap(),
         "we ate the apple"
     );
     assert_eq!(
-        realize_sentence(pronoun_dp(Pronoun::We), finite).unwrap(),
+        realize_sentence(pronoun_dp(Pronoun::We).predicate(finite).sentence()).unwrap(),
         "We ate the apple."
     );
 }

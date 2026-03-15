@@ -5,8 +5,8 @@ use crate::internal::{
     VPBar, XP,
 };
 use crate::syntax::{
-    AdjectivePhrase, AdverbPhrase, DeterminerHead, DeterminerPhrase, Phrase, PrepositionalPhrase,
-    VerbForm, VerbPhrase,
+    AdjectivePhrase, AdverbPhrase, Clause, DeterminerHead, DeterminerPhrase, Phrase,
+    PrepositionalPhrase, VerbForm, VerbPhrase,
 };
 
 fn t_head_from(form: VerbForm) -> THead {
@@ -21,7 +21,6 @@ fn t_head_from(form: VerbForm) -> THead {
 
 fn trace_dp() -> DP {
     DP {
-        specifier: None,
         bar: DBar {
             head: DHead::Silent(SilentDeterminer::Trace),
             complement: DComplement::Trace,
@@ -90,7 +89,6 @@ pub(crate) fn lower_dp(phrase: &DeterminerPhrase) -> RealizationResult<DP> {
         .collect::<RealizationResult<Vec<_>>>()?;
 
     Ok(DP {
-        specifier: None,
         bar: DBar {
             head: d_head,
             complement: DComplement::NP(Box::new(NP {
@@ -99,7 +97,6 @@ pub(crate) fn lower_dp(phrase: &DeterminerPhrase) -> RealizationResult<DP> {
                     head: n_head,
                     complements,
                 },
-                right_adjuncts: Vec::new(),
             })),
         },
     })
@@ -163,12 +160,11 @@ pub(crate) fn lower_advp(phrase: &AdverbPhrase) -> RealizationResult<crate::inte
 
 pub(crate) fn lower_pp(phrase: &PrepositionalPhrase) -> RealizationResult<PP> {
     Ok(PP {
-        specifier: None,
         bar: PBar {
             head: PHead {
                 entry: phrase.head().clone(),
             },
-            complement: Some(Box::new(lower_phrase(phrase.complement())?)),
+            complement: Box::new(lower_phrase(phrase.complement())?),
         },
     })
 }
@@ -225,15 +221,14 @@ pub(crate) fn lower_verb_projection(
     })
 }
 
-pub(crate) fn lower_clause(
-    subject: &DeterminerPhrase,
-    predicate: &VerbPhrase,
-) -> RealizationResult<CP> {
+pub(crate) fn lower_clause(clause: &Clause) -> RealizationResult<CP> {
     Ok(CP {
-        specifier: None,
         bar: CBar {
-            head: CHead::Null,
-            complement: Box::new(lower_verb_projection(predicate, Some(subject))?),
+            head: CHead,
+            complement: Box::new(lower_verb_projection(
+                clause.predicate(),
+                Some(clause.subject()),
+            )?),
         },
     })
 }
@@ -247,15 +242,15 @@ mod tests {
     #[test]
     fn finite_clause_lowers_to_cp_tp_and_negated_vp() {
         let clause = lower_clause(
-            &dp("child").determiner(Determiner::The),
-            &vp("eat")
-                .past()
-                .negative()
-                .complement(dp("apple").determiner(Determiner::The)),
+            &dp("child").determiner(Determiner::The).predicate(
+                vp("eat")
+                    .past()
+                    .negative()
+                    .complement(dp("apple").determiner(Determiner::The)),
+            ),
         )
         .unwrap();
 
-        assert!(matches!(clause.bar.head, CHead::Null));
         assert!(clause.bar.complement.specifier.is_some());
         assert!(matches!(clause.bar.complement.bar.head, THead::Finite(_)));
         assert!(matches!(

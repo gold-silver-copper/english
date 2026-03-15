@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::lexical::{
     AdjectiveEntry, AdverbEntry, Determiner, NounEntry, PrepositionEntry, Pronoun, VerbEntry,
 };
@@ -8,11 +6,9 @@ use english::Number;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum XP {
-    CP(Box<CP>),
     TP(Box<TP>),
     VP(Box<VP>),
     DP(Box<DP>),
-    NP(Box<NP>),
     AP(Box<AP>),
     AdvP(Box<AdvP>),
     PP(Box<PP>),
@@ -20,7 +16,6 @@ pub(crate) enum XP {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct CP {
-    pub specifier: Option<Box<XP>>,
     pub bar: CBar,
 }
 
@@ -30,11 +25,8 @@ pub(crate) struct CBar {
     pub complement: Box<TP>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum CHead {
-    Null,
-    Overt(String),
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) struct CHead;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct TP {
@@ -94,7 +86,6 @@ pub(crate) struct VHead {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct DP {
-    pub specifier: Option<Box<DP>>,
     pub bar: DBar,
 }
 
@@ -121,7 +112,6 @@ pub(crate) enum SilentDeterminer {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum DComplement {
     NP(Box<NP>),
-    VP(Box<VP>),
     Trace,
 }
 
@@ -129,7 +119,6 @@ pub(crate) enum DComplement {
 pub(crate) struct NP {
     pub left_adjuncts: Vec<Box<XP>>,
     pub bar: NBar,
-    pub right_adjuncts: Vec<Box<XP>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -181,25 +170,18 @@ pub(crate) struct AdvHead {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct PP {
-    pub specifier: Option<Box<XP>>,
     pub bar: PBar,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct PBar {
     pub head: PHead,
-    pub complement: Option<Box<XP>>,
+    pub complement: Box<XP>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct PHead {
     pub entry: PrepositionEntry,
-}
-
-impl From<CP> for XP {
-    fn from(value: CP) -> Self {
-        XP::CP(Box::new(value))
-    }
 }
 
 impl From<TP> for XP {
@@ -217,12 +199,6 @@ impl From<VP> for XP {
 impl From<DP> for XP {
     fn from(value: DP) -> Self {
         XP::DP(Box::new(value))
-    }
-}
-
-impl From<NP> for XP {
-    fn from(value: NP) -> Self {
-        XP::NP(Box::new(value))
     }
 }
 
