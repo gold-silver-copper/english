@@ -2,7 +2,7 @@ use english_phrase::*;
 
 #[test]
 fn noun_phrase_example_from_api_design() {
-    let np = NounPhrase::new("child")
+    let np = DeterminerPhrase::new("child")
         .determiner(Determiner::the())
         .modifier(AdjPhrase::new("small").comparative())
         .complement("from the next building")
@@ -23,7 +23,7 @@ fn adjective_phrase_example_from_api_design() {
 
 #[test]
 fn counted_noun_phrases_place_the_number_before_modifiers() {
-    let np = NounPhrase::new("child")
+    let np = DeterminerPhrase::new("child")
         .count(3)
         .modifier("running")
         .complement("from the park");
@@ -33,7 +33,7 @@ fn counted_noun_phrases_place_the_number_before_modifiers() {
 
 #[test]
 fn adjective_phrases_work_as_noun_modifiers() {
-    let np = NounPhrase::new("day")
+    let np = DeterminerPhrase::new("day")
         .the()
         .modifier(AdjPhrase::new("bad3").superlative());
 
@@ -42,20 +42,20 @@ fn adjective_phrases_work_as_noun_modifiers() {
 
 #[test]
 fn noun_phrase_agreement_tracks_count() {
-    assert_eq!(NounPhrase::new("child").count(1).agreement(), (Person::Third, Number::Singular));
-    assert_eq!(NounPhrase::new("child").count(2).agreement(), (Person::Third, Number::Plural));
+    assert_eq!(DeterminerPhrase::new("child").count(1).agreement(), (Person::Third, Number::Singular));
+    assert_eq!(DeterminerPhrase::new("child").count(2).agreement(), (Person::Third, Number::Plural));
 }
 
 #[test]
 fn noun_phrase_supports_recursive_boxed_complements() {
-    let np = NounPhrase::new("photo")
+    let np = DeterminerPhrase::new("photo")
         .the()
         .complement("of")
         .complement(
-            NounPhrase::new("child")
+            DeterminerPhrase::new("child")
                 .the()
                 .complement("with")
-                .complement(NounPhrase::new("toy").the()),
+                .complement(DeterminerPhrase::new("toy").the()),
         );
 
     assert_eq!(np.render(), "the photo of the child with the toy");
@@ -66,7 +66,83 @@ fn adjective_phrase_supports_boxed_noun_phrase_complements() {
     let adj = AdjPhrase::new("full")
         .positive()
         .complement("of")
-        .complement(NounPhrase::new("bean").plural());
+        .complement(DeterminerPhrase::new("bean").plural());
 
     assert_eq!(adj.render(), "full of beans");
+}
+
+#[test]
+fn prepositional_phrase_is_a_first_class_public_phrase() {
+    let pp = PrepositionalPhrase::new("on", DeterminerPhrase::new("wall").the());
+
+    assert_eq!(pp.render(), "on the wall");
+}
+
+#[test]
+fn prepositional_phrase_supports_recursive_phrase_structure() {
+    let pp = PrepositionalPhrase::new(
+        "on",
+        DeterminerPhrase::new("wall")
+            .the()
+            .complement(
+                PrepositionalPhrase::new("inside", DeterminerPhrase::new("hall").the()),
+            ),
+    );
+
+    assert_eq!(pp.render(), "on the wall inside the hall");
+}
+
+#[test]
+fn adverb_phrase_is_a_first_class_public_phrase() {
+    let advp = AdverbPhrase::new("independently")
+        .complement(PrepositionalPhrase::new("of", DeterminerPhrase::new("help")));
+
+    assert_eq!(advp.render(), "independently of help");
+}
+
+#[test]
+fn adjective_phrase_accepts_adverb_phrase_as_its_intensifier() {
+    let adj = AdjPhrase::new("small")
+        .comparative()
+        .intensifier(AdverbPhrase::new("much"));
+
+    assert_eq!(adj.render(), "much smaller");
+}
+
+#[test]
+fn nominal_postmodifiers_support_typed_relative_clauses() {
+    let dp = DeterminerPhrase::new("child")
+        .the()
+        .postmodifier(RelativeClause::who("waited outside"));
+
+    assert_eq!(dp.render(), "the child who waited outside");
+}
+
+#[test]
+fn pronoun_dps_render_as_full_determiner_phrases() {
+    assert_eq!(DeterminerPhrase::pronoun(Pronoun::they()).render(), "they");
+    assert_eq!(DeterminerPhrase::pronoun(Pronoun::he()).render(), "he");
+}
+
+#[test]
+fn proper_name_dps_render_as_full_determiner_phrases() {
+    assert_eq!(DeterminerPhrase::proper_name("Alice").render(), "Alice");
+    assert_eq!(DeterminerPhrase::proper_name("James").render(), "James");
+}
+
+#[test]
+fn possessors_render_in_spec_dp_position() {
+    let johns_book = DeterminerPhrase::new("book")
+        .possessor(DeterminerPhrase::proper_name("John"))
+        .render();
+    let their_house = DeterminerPhrase::new("house")
+        .possessor(DeterminerPhrase::pronoun(Pronoun::they()))
+        .render();
+    let james_book = DeterminerPhrase::new("book")
+        .possessor(DeterminerPhrase::proper_name("James"))
+        .render();
+
+    assert_eq!(johns_book, "John's book");
+    assert_eq!(their_house, "their house");
+    assert_eq!(james_book, "James' book");
 }

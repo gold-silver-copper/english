@@ -11,7 +11,7 @@ fn wrappers_are_reexported() {
 
 #[test]
 fn verb_phrase_example_from_api_design() {
-    let subject = NounPhrase::new("child").the().plural();
+    let subject = DeterminerPhrase::new("child").the().plural();
 
     let vp = VerbPhrase::new("eat")
         .present()
@@ -25,10 +25,10 @@ fn verb_phrase_example_from_api_design() {
 #[test]
 fn clause_and_sentence_example_from_api_design() {
     let clause = Clause::new(
-        NounPhrase::new("child").the().plural(),
+        DeterminerPhrase::new("child").the().plural(),
         VerbPhrase::new("steal").past().simple().affirmative(),
     )
-    .object(NounPhrase::new("potato").count(7));
+    .object(DeterminerPhrase::new("potato").count(7));
 
     assert_eq!(clause.render(), "the children stole 7 potatoes");
     assert_eq!(
@@ -171,7 +171,7 @@ fn modal_perfect_and_modal_progressive_render_cleanly() {
 #[test]
 fn clause_supplies_subject_agreement_to_the_predicate() {
     let clause = Clause::new(
-        NounPhrase::new("child").plural(),
+        DeterminerPhrase::new("child").plural(),
         VerbPhrase::new("eat").present().simple().affirmative(),
     );
 
@@ -181,7 +181,7 @@ fn clause_supplies_subject_agreement_to_the_predicate() {
 #[test]
 fn sentence_supports_multiple_terminal_styles() {
     let clause = Clause::new(
-        NounPhrase::new("child").the().plural(),
+        DeterminerPhrase::new("child").the().plural(),
         VerbPhrase::new("arrive").past().simple().affirmative(),
     );
 
@@ -192,5 +192,27 @@ fn sentence_supports_multiple_terminal_styles() {
     assert_eq!(
         clause.sentence().capitalize().exclamation_mark().render(),
         "The children arrived!"
+    );
+}
+
+#[test]
+fn pronoun_and_proper_name_dps_supply_agreement_to_verbs() {
+    assert_eq!(
+        VerbPhrase::new("eat")
+            .present()
+            .simple()
+            .affirmative()
+            .agree_with(&DeterminerPhrase::pronoun(Pronoun::they()))
+            .render(),
+        "eat"
+    );
+    assert_eq!(
+        VerbPhrase::new("eat")
+            .present()
+            .simple()
+            .affirmative()
+            .agree_with(&DeterminerPhrase::proper_name("Alice"))
+            .render(),
+        "eats"
     );
 }

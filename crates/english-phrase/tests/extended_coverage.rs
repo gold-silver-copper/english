@@ -1,7 +1,7 @@
 use english_phrase::*;
 
-fn np(noun: &str) -> NounPhrase {
-    NounPhrase::new(noun)
+fn dp(noun: &str) -> DeterminerPhrase {
+    DeterminerPhrase::new(noun)
 }
 
 fn vp(verb: &str) -> VerbPhrase {
@@ -10,15 +10,15 @@ fn vp(verb: &str) -> VerbPhrase {
 
 #[test]
 fn determiners_render_all_built_in_variants() {
-    assert_eq!(np("child").determiner(Determiner::the()).render(), "the child");
-    assert_eq!(np("child").determiner(Determiner::a()).render(), "a child");
-    assert_eq!(np("apple").determiner(Determiner::an()).render(), "an apple");
-    assert_eq!(np("child").determiner(Determiner::this()).render(), "this child");
-    assert_eq!(np("child").determiner(Determiner::that()).render(), "that child");
-    assert_eq!(np("child").plural().determiner(Determiner::these()).render(), "these children");
-    assert_eq!(np("child").plural().determiner(Determiner::those()).render(), "those children");
+    assert_eq!(dp("child").determiner(Determiner::the()).render(), "the child");
+    assert_eq!(dp("child").determiner(Determiner::a()).render(), "a child");
+    assert_eq!(dp("apple").determiner(Determiner::an()).render(), "an apple");
+    assert_eq!(dp("child").determiner(Determiner::this()).render(), "this child");
+    assert_eq!(dp("child").determiner(Determiner::that()).render(), "that child");
+    assert_eq!(dp("child").plural().determiner(Determiner::these()).render(), "these children");
+    assert_eq!(dp("child").plural().determiner(Determiner::those()).render(), "those children");
     assert_eq!(
-        np("child")
+        dp("child")
             .determiner(Determiner::text("each"))
             .render(),
         "each child"
@@ -28,21 +28,57 @@ fn determiners_render_all_built_in_variants() {
 #[test]
 fn text_wrappers_feed_determiners_modifiers_and_particles() {
     assert_eq!(
-        np("child")
-            .determiner(Determiner::text(Text::new("every")))
-            .modifier(Text::new("sleepy"))
+        dp("child")
+            .determiner(Determiner::text("every"))
+            .modifier("sleepy")
             .render(),
         "every sleepy child"
     );
     assert_eq!(
         vp("give")
-            .particle(Text::new("away"))
+            .particle("away")
             .past()
             .simple()
             .affirmative()
             .subject(Person::Third, Number::Plural)
             .render(),
         "gave away"
+    );
+}
+
+#[test]
+fn public_prepositional_phrases_render_with_noun_phrase_complements() {
+    assert_eq!(
+        PrepositionalPhrase::new("on", dp("wall").the()).render(),
+        "on the wall"
+    );
+    assert_eq!(
+        PrepositionalPhrase::new("near", dp("station").the()).render(),
+        "near the station"
+    );
+}
+
+#[test]
+fn public_prepositional_phrases_can_take_adverb_phrase_complements() {
+    assert_eq!(
+        PrepositionalPhrase::new("until", AdverbPhrase::new("recently")).render(),
+        "until recently"
+    );
+}
+
+#[test]
+fn adverb_phrases_support_modifiers_and_prepositional_complements() {
+    assert_eq!(
+        AdverbPhrase::new("far")
+            .modifier("very")
+            .render(),
+        "very far"
+    );
+    assert_eq!(
+        AdverbPhrase::new("independently")
+            .complement(PrepositionalPhrase::new("of", dp("help")))
+            .render(),
+        "independently of help"
     );
 }
 
@@ -87,7 +123,7 @@ fn adjective_phrase_supports_text_and_noun_phrase_complements() {
         AdjPhrase::new("full")
             .positive()
             .complement("of")
-            .complement(np("bean").plural())
+            .complement(dp("bean").plural())
             .render(),
         "full of beans"
     );
@@ -95,7 +131,7 @@ fn adjective_phrase_supports_text_and_noun_phrase_complements() {
         AdjPhrase::new("close")
             .positive()
             .complement("to")
-            .complement(np("station").the())
+            .complement(dp("station").the())
             .render(),
         "close to the station"
     );
@@ -103,24 +139,24 @@ fn adjective_phrase_supports_text_and_noun_phrase_complements() {
 
 #[test]
 fn noun_phrase_singular_plural_and_counts_render() {
-    assert_eq!(np("child").render(), "child");
-    assert_eq!(np("child").plural().render(), "children");
-    assert_eq!(np("child").count(0).render(), "0 children");
-    assert_eq!(np("child").count(1).render(), "1 child");
-    assert_eq!(np("child").count(2).render(), "2 children");
-    assert_eq!(np("potato").count(7).render(), "7 potatoes");
+    assert_eq!(dp("child").render(), "child");
+    assert_eq!(dp("child").plural().render(), "children");
+    assert_eq!(dp("child").count(0).render(), "0 children");
+    assert_eq!(dp("child").count(1).render(), "1 child");
+    assert_eq!(dp("child").count(2).render(), "2 children");
+    assert_eq!(dp("potato").count(7).render(), "7 potatoes");
 }
 
 #[test]
 fn noun_phrase_renders_text_modifiers_before_the_head() {
     assert_eq!(
-        np("child")
+        dp("child")
             .modifier("running")
             .render(),
         "running child"
     );
     assert_eq!(
-        np("child")
+        dp("child")
             .plural()
             .modifier("running")
             .modifier("hungry")
@@ -128,7 +164,7 @@ fn noun_phrase_renders_text_modifiers_before_the_head() {
         "running hungry children"
     );
     assert_eq!(
-        np("child")
+        dp("child")
             .count(3)
             .modifier("running")
             .modifier("hungry")
@@ -140,13 +176,13 @@ fn noun_phrase_renders_text_modifiers_before_the_head() {
 #[test]
 fn noun_phrase_renders_adjective_phrase_modifiers() {
     assert_eq!(
-        np("child")
+        dp("child")
             .modifier(AdjPhrase::new("small").positive())
             .render(),
         "small child"
     );
     assert_eq!(
-        np("child")
+        dp("child")
             .plural()
             .determiner(Determiner::the())
             .modifier(AdjPhrase::new("small").comparative())
@@ -154,7 +190,7 @@ fn noun_phrase_renders_adjective_phrase_modifiers() {
         "the smaller children"
     );
     assert_eq!(
-        np("day")
+        dp("day")
             .determiner(Determiner::the())
             .modifier(AdjPhrase::new("bad3").superlative())
             .render(),
@@ -165,17 +201,17 @@ fn noun_phrase_renders_adjective_phrase_modifiers() {
 #[test]
 fn noun_phrase_supports_text_and_phrase_complements() {
     assert_eq!(
-        np("pair")
+        dp("pair")
             .count(3)
             .complement("of jeans")
             .render(),
         "3 pairs of jeans"
     );
     assert_eq!(
-        np("door")
+        dp("door")
             .the()
             .complement("of")
-            .complement(np("house").the())
+            .complement(dp("house").the())
             .render(),
         "the door of the house"
     );
@@ -183,18 +219,18 @@ fn noun_phrase_supports_text_and_phrase_complements() {
 
 #[test]
 fn noun_phrase_supports_deep_recursive_boxed_complements() {
-    let phrase = np("photo")
+    let phrase = dp("photo")
         .the()
         .complement("of")
         .complement(
-            np("child")
+            dp("child")
                 .the()
                 .complement("with")
                 .complement(
-                    np("toy")
+                    dp("toy")
                         .the()
                         .complement("in")
-                        .complement(np("box").the()),
+                        .complement(dp("box").the()),
                 ),
         );
 
@@ -203,18 +239,18 @@ fn noun_phrase_supports_deep_recursive_boxed_complements() {
 
 #[test]
 fn noun_phrase_recursion_can_branch_through_multiple_boxed_levels() {
-    let phrase = np("map")
+    let phrase = dp("map")
         .the()
         .complement("of")
         .complement(
-            np("room")
+            dp("room")
                 .the()
                 .complement("inside")
                 .complement(
-                    np("house")
+                    dp("house")
                         .the()
                         .complement("near")
-                        .complement(np("river").the()),
+                        .complement(dp("river").the()),
                 ),
         );
 
@@ -223,11 +259,11 @@ fn noun_phrase_recursion_can_branch_through_multiple_boxed_levels() {
 
 #[test]
 fn agreement_tracks_default_singular_plural_and_counts() {
-    assert_eq!(np("child").agreement(), (Person::Third, Number::Singular));
-    assert_eq!(np("child").plural().agreement(), (Person::Third, Number::Plural));
-    assert_eq!(np("child").count(1).agreement(), (Person::Third, Number::Singular));
-    assert_eq!(np("child").count(2).agreement(), (Person::Third, Number::Plural));
-    assert_eq!(np("sheep").plural().agreement(), (Person::Third, Number::Plural));
+    assert_eq!(dp("child").agreement(), (Person::Third, Number::Singular));
+    assert_eq!(dp("child").plural().agreement(), (Person::Third, Number::Plural));
+    assert_eq!(dp("child").count(1).agreement(), (Person::Third, Number::Singular));
+    assert_eq!(dp("child").count(2).agreement(), (Person::Third, Number::Plural));
+    assert_eq!(dp("sheep").plural().agreement(), (Person::Third, Number::Plural));
 }
 
 #[test]
@@ -708,16 +744,16 @@ fn particles_survive_simple_perfect_progressive_and_modal_forms() {
 fn clause_renders_subject_predicate_and_object() {
     assert_eq!(
         Clause::new(
-            np("child").the().plural(),
+            dp("child").the().plural(),
             vp("steal").past().simple().affirmative(),
         )
-        .object(np("potato").count(7))
+        .object(dp("potato").count(7))
         .render(),
         "the children stole 7 potatoes"
     );
     assert_eq!(
         Clause::new(
-            np("dog").the(),
+            dp("dog").the(),
             vp("bark").present().simple().affirmative(),
         )
         .render(),
@@ -729,7 +765,7 @@ fn clause_renders_subject_predicate_and_object() {
 fn clause_supplies_subject_agreement_automatically() {
     assert_eq!(
         Clause::new(
-            np("child").plural(),
+            dp("child").plural(),
             vp("eat").present().simple().affirmative(),
         )
         .render(),
@@ -737,7 +773,7 @@ fn clause_supplies_subject_agreement_automatically() {
     );
     assert_eq!(
         Clause::new(
-            np("child").the(),
+            dp("child").the(),
             vp("eat").present().perfect().negative(),
         )
         .render(),
@@ -745,7 +781,7 @@ fn clause_supplies_subject_agreement_automatically() {
     );
     assert_eq!(
         Clause::new(
-            np("child").the().plural(),
+            dp("child").the().plural(),
             vp("be").past().simple().negative(),
         )
         .render(),
@@ -756,14 +792,14 @@ fn clause_supplies_subject_agreement_automatically() {
 #[test]
 fn clause_works_with_modified_subjects_and_objects() {
     let clause = Clause::new(
-        np("child")
+        dp("child")
             .the()
             .plural()
             .modifier(AdjPhrase::new("small").comparative()),
         vp("steal").past().simple().affirmative(),
     )
     .object(
-        np("potato")
+        dp("potato")
             .count(7)
             .modifier("red")
             .complement("from the cart"),
@@ -775,7 +811,7 @@ fn clause_works_with_modified_subjects_and_objects() {
 #[test]
 fn sentence_adds_capitalization_and_terminal_marks() {
     let clause = Clause::new(
-        np("child").the().plural(),
+        dp("child").the().plural(),
         vp("arrive").past().simple().affirmative(),
     );
 
@@ -798,14 +834,14 @@ fn sentence_adds_capitalization_and_terminal_marks() {
 
 #[test]
 fn clause_and_sentence_handle_recursive_phrase_material() {
-    let subject = np("photo")
+    let subject = dp("photo")
         .the()
         .complement("of")
         .complement(
-            np("child")
+            dp("child")
                 .the()
                 .complement("with")
-                .complement(np("toy").the()),
+                .complement(dp("toy").the()),
         );
 
     let clause = Clause::new(
@@ -814,10 +850,10 @@ fn clause_and_sentence_handle_recursive_phrase_material() {
     )
     .prepositional(
         "on",
-        np("wall")
+        dp("wall")
             .the()
             .complement("inside")
-            .complement(np("hall").the()),
+            .complement(dp("hall").the()),
     );
 
     assert_eq!(
@@ -833,15 +869,15 @@ fn clause_and_sentence_handle_recursive_phrase_material() {
 #[test]
 fn clause_supports_structured_prepositional_phrases() {
     let clause = Clause::new(
-        np("child").the().plural(),
+        dp("child").the().plural(),
         vp("wait").past().simple().affirmative(),
     )
     .prepositional(
         "near",
-        np("station")
+        dp("station")
             .the()
             .complement("by")
-            .complement(np("river").the()),
+            .complement(dp("river").the()),
     );
 
     assert_eq!(clause.render(), "the children waited near the station by the river");
