@@ -86,6 +86,26 @@ pub enum DeterminerHead {
     Pronoun(Pronoun),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum PronounOverride {
+    #[default]
+    Auto,
+    Reflexive,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Name(String);
+
+impl Name {
+    pub fn new(text: impl Into<String>) -> Self {
+        Self(text.into())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct NounPhrase {
     head: NounEntry,
@@ -143,30 +163,43 @@ impl NounPhrase {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DeterminerPhrase {
+    possessor: Option<Box<DeterminerPhrase>>,
     determiner: Option<Determiner>,
     head: DeterminerHead,
+    pronoun_override: PronounOverride,
 }
 
 impl DeterminerPhrase {
     pub fn new(nominal: NounPhrase) -> Self {
         Self {
+            possessor: None,
             determiner: None,
             head: DeterminerHead::Nominal(Box::new(nominal)),
+            pronoun_override: PronounOverride::Auto,
         }
     }
 
     pub fn proper_name(name: impl Into<String>) -> Self {
         Self {
+            possessor: None,
             determiner: None,
             head: DeterminerHead::ProperName(name.into()),
+            pronoun_override: PronounOverride::Auto,
         }
     }
 
     pub fn pronoun(pronoun: Pronoun) -> Self {
         Self {
+            possessor: None,
             determiner: None,
             head: DeterminerHead::Pronoun(pronoun),
+            pronoun_override: PronounOverride::Auto,
         }
+    }
+
+    pub fn possessor(mut self, possessor: DeterminerPhrase) -> Self {
+        self.possessor = Some(Box::new(possessor));
+        self
     }
 
     pub fn determiner(mut self, determiner: Determiner) -> Self {
@@ -178,12 +211,13 @@ impl DeterminerPhrase {
         self.determiner(Determiner::The)
     }
 
-    pub fn a(self) -> Self {
-        self.determiner(Determiner::A)
+    pub fn indefinite(self) -> Self {
+        self.determiner(Determiner::Indefinite)
     }
 
-    pub fn an(self) -> Self {
-        self.determiner(Determiner::An)
+    pub fn reflexive(mut self) -> Self {
+        self.pronoun_override = PronounOverride::Reflexive;
+        self
     }
 
     pub fn this(self) -> Self {
@@ -206,8 +240,16 @@ impl DeterminerPhrase {
         self.determiner
     }
 
+    pub fn possessor_opt(&self) -> Option<&DeterminerPhrase> {
+        self.possessor.as_deref()
+    }
+
     pub fn head(&self) -> &DeterminerHead {
         &self.head
+    }
+
+    pub(crate) fn pronoun_override(&self) -> PronounOverride {
+        self.pronoun_override
     }
 }
 
@@ -491,16 +533,12 @@ pub fn np(head: impl Into<NounEntry>) -> NounPhrase {
     NounPhrase::new(head)
 }
 
-pub fn dp(nominal: NounPhrase) -> DeterminerPhrase {
-    DeterminerPhrase::new(nominal)
+pub fn dp(head: impl Into<DeterminerPhrase>) -> DeterminerPhrase {
+    head.into()
 }
 
-pub fn proper_name(name: impl Into<String>) -> DeterminerPhrase {
-    DeterminerPhrase::proper_name(name)
-}
-
-pub fn pronoun_dp(pronoun: Pronoun) -> DeterminerPhrase {
-    DeterminerPhrase::pronoun(pronoun)
+pub fn name(text: impl Into<String>) -> Name {
+    Name::new(text)
 }
 
 pub fn adjp(head: impl Into<AdjectiveEntry>) -> AdjectivePhrase {
@@ -529,6 +567,24 @@ pub fn tp(predicate: VerbPhrase) -> TensePhrase {
 impl From<DeterminerPhrase> for Phrase {
     fn from(value: DeterminerPhrase) -> Self {
         Phrase::DP(Box::new(value))
+    }
+}
+
+impl From<NounPhrase> for DeterminerPhrase {
+    fn from(value: NounPhrase) -> Self {
+        DeterminerPhrase::new(value)
+    }
+}
+
+impl From<Pronoun> for DeterminerPhrase {
+    fn from(value: Pronoun) -> Self {
+        DeterminerPhrase::pronoun(value)
+    }
+}
+
+impl From<Name> for DeterminerPhrase {
+    fn from(value: Name) -> Self {
+        DeterminerPhrase::proper_name(value.0)
     }
 }
 

@@ -3,8 +3,7 @@ use english::{Adj, Noun, Number, Person, Verb};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Determiner {
     The,
-    A,
-    An,
+    Indefinite,
     This,
     That,
     These,
@@ -15,8 +14,7 @@ impl Determiner {
     pub fn as_str(self) -> &'static str {
         match self {
             Determiner::The => "the",
-            Determiner::A => "a",
-            Determiner::An => "an",
+            Determiner::Indefinite => "a",
             Determiner::This => "this",
             Determiner::That => "that",
             Determiner::These => "these",
@@ -37,7 +35,7 @@ pub enum Pronoun {
 }
 
 impl Pronoun {
-    pub fn as_str(self) -> &'static str {
+    pub fn subject_form(self) -> &'static str {
         match self {
             Pronoun::I => "i",
             Pronoun::You => "you",
@@ -47,6 +45,46 @@ impl Pronoun {
             Pronoun::We => "we",
             Pronoun::They => "they",
         }
+    }
+
+    pub fn object_form(self) -> &'static str {
+        match self {
+            Pronoun::I => "me",
+            Pronoun::You => "you",
+            Pronoun::He => "him",
+            Pronoun::She => "her",
+            Pronoun::It => "it",
+            Pronoun::We => "us",
+            Pronoun::They => "them",
+        }
+    }
+
+    pub fn possessive_dependent_form(self) -> &'static str {
+        match self {
+            Pronoun::I => "my",
+            Pronoun::You => "your",
+            Pronoun::He => "his",
+            Pronoun::She => "her",
+            Pronoun::It => "its",
+            Pronoun::We => "our",
+            Pronoun::They => "their",
+        }
+    }
+
+    pub fn reflexive_form(self) -> &'static str {
+        match self {
+            Pronoun::I => "myself",
+            Pronoun::You => "yourself",
+            Pronoun::He => "himself",
+            Pronoun::She => "herself",
+            Pronoun::It => "itself",
+            Pronoun::We => "ourselves",
+            Pronoun::They => "themselves",
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        self.subject_form()
     }
 
     pub fn person(self) -> Person {

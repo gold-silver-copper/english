@@ -26,7 +26,7 @@ fn careful_plan_to_repair_bridge_impressed_council() {
 
 #[test]
 fn we_did_not_expect_editor_to_read_manuscript_on_train() {
-    let subject = pronoun_dp(Pronoun::We);
+    let subject = dp(Pronoun::We);
 
     let predicate = vp("expect")
         .past()
@@ -34,7 +34,7 @@ fn we_did_not_expect_editor_to_read_manuscript_on_train() {
         .complement(
             dp(np("editor")
                 .modifier(adjp("patient").modifier(advp("remarkably")))
-                .complement(pp("with", dp(np("lantern")).a())))
+                .complement(pp("with", dp(np("lantern")).indefinite())))
             .the(),
         )
         .complement(
@@ -54,7 +54,7 @@ fn we_did_not_expect_editor_to_read_manuscript_on_train() {
 
 #[test]
 fn alice_mailed_report_about_storm_to_office_near_harbor() {
-    let subject = proper_name("Alice");
+    let subject = dp(name("Alice"));
 
     let predicate = vp("mail")
         .past()
@@ -129,7 +129,7 @@ fn very_nearly_impossible_puzzle_confused_children_in_library() {
 
 #[test]
 fn they_discussed_mapping_cave_with_old_guide_after_meal() {
-    let subject = pronoun_dp(Pronoun::They);
+    let subject = dp(Pronoun::They);
 
     let predicate = vp("discuss")
         .past()

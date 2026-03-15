@@ -19,7 +19,7 @@ pub use crate::realization::{
 };
 pub use crate::syntax::{
     AdjectivePhrase, AdverbPhrase, AdvpComplement, AdvpModifier, ApComplement, ApModifier,
-    DeterminerHead, DeterminerPhrase, NounPhrase, NpComplement, NpModifier, Phrase, PpComplement,
-    PrepositionalPhrase, Sentence, Tense, TensePhrase, Terminal, VerbForm, VerbPhrase, VpAdjunct,
-    VpComplement, adjp, advp, dp, np, pp, pronoun_dp, proper_name, tp, vp,
+    DeterminerHead, DeterminerPhrase, Name, NounPhrase, NpComplement, NpModifier, Phrase,
+    PpComplement, PrepositionalPhrase, Sentence, Tense, TensePhrase, Terminal, VerbForm,
+    VerbPhrase, VpAdjunct, VpComplement, adjp, advp, dp, name, np, pp, tp, vp,
 };

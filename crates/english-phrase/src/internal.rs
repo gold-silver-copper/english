@@ -87,6 +87,7 @@ pub(crate) struct VHead {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct DP {
+    pub specifier: Option<Box<DP>>,
     pub bar: DBar,
 }
 
@@ -132,7 +133,7 @@ pub(crate) struct NBar {
 pub(crate) enum NHead {
     CommonNoun { entry: NounEntry, number: Number },
     ProperName(String),
-    Pronoun(Pronoun),
+    Pronoun { entry: Pronoun, reflexive: bool },
 }
 
 #[derive(Debug, Clone, PartialEq)]

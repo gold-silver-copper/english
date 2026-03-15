@@ -21,6 +21,7 @@ fn t_head_from(form: VerbForm) -> THead {
 
 fn trace_dp() -> DP {
     DP {
+        specifier: None,
         bar: DBar {
             head: DHead::Silent(SilentDeterminer::Trace),
             complement: DComplement::Trace,
@@ -65,18 +66,48 @@ pub(crate) fn lower_np(phrase: &NounPhrase) -> RealizationResult<NP> {
 }
 
 pub(crate) fn lower_dp(phrase: &DeterminerPhrase) -> RealizationResult<DP> {
+    let possessor = phrase.possessor_opt();
     let (d_head, np) = match phrase.head() {
-        DeterminerHead::Nominal(nominal) => (
-            phrase
-                .determiner_opt()
-                .map(DHead::Overt)
-                .unwrap_or(DHead::Silent(SilentDeterminer::Bare)),
-            lower_np(nominal)?,
-        ),
+        DeterminerHead::Nominal(nominal) => {
+            if matches!(
+                phrase.pronoun_override(),
+                crate::syntax::PronounOverride::Reflexive
+            ) {
+                return Err(RealizationError::new(
+                    "only pronoun DPs can be marked reflexive in the fluent surface grammar",
+                ));
+            }
+            if possessor.is_some() && phrase.determiner_opt().is_some() {
+                return Err(RealizationError::new(
+                    "possessors and overt determiners do not cooccur in the fluent surface grammar",
+                ));
+            }
+
+            (
+                phrase
+                    .determiner_opt()
+                    .map(DHead::Overt)
+                    .unwrap_or(DHead::Silent(SilentDeterminer::Bare)),
+                lower_np(nominal)?,
+            )
+        }
         DeterminerHead::ProperName(name) => {
+            if matches!(
+                phrase.pronoun_override(),
+                crate::syntax::PronounOverride::Reflexive
+            ) {
+                return Err(RealizationError::new(
+                    "only pronoun DPs can be marked reflexive in the fluent surface grammar",
+                ));
+            }
             if phrase.determiner_opt().is_some() {
                 return Err(RealizationError::new(
                     "proper names do not take determiners in the fluent surface grammar",
+                ));
+            }
+            if possessor.is_some() {
+                return Err(RealizationError::new(
+                    "proper names do not take possessors in the fluent surface grammar",
                 ));
             }
 
@@ -97,13 +128,24 @@ pub(crate) fn lower_dp(phrase: &DeterminerPhrase) -> RealizationResult<DP> {
                     "pronouns do not take determiners in the fluent surface grammar",
                 ));
             }
+            if possessor.is_some() {
+                return Err(RealizationError::new(
+                    "pronouns do not take possessors in the fluent surface grammar",
+                ));
+            }
 
             (
                 DHead::Silent(SilentDeterminer::Pronoun),
                 NP {
                     left_adjuncts: Vec::new(),
                     bar: NBar {
-                        head: NHead::Pronoun(*pronoun),
+                        head: NHead::Pronoun {
+                            entry: *pronoun,
+                            reflexive: matches!(
+                                phrase.pronoun_override(),
+                                crate::syntax::PronounOverride::Reflexive
+                            ),
+                        },
                         complements: Vec::new(),
                     },
                 },
@@ -111,7 +153,10 @@ pub(crate) fn lower_dp(phrase: &DeterminerPhrase) -> RealizationResult<DP> {
         }
     };
 
+    let specifier = possessor.map(lower_dp).transpose()?.map(Box::new);
+
     Ok(DP {
+        specifier,
         bar: DBar {
             head: d_head,
             complement: DComplement::NP(Box::new(np)),
@@ -254,7 +299,7 @@ pub(crate) fn lower_tense_phrase(phrase: &TensePhrase) -> RealizationResult<CP> 
 mod tests {
     use super::*;
     use crate::lexical::{Determiner, Pronoun};
-    use crate::syntax::{adjp, advp, dp, np, pp, tp, vp};
+    use crate::syntax::{adjp, advp, dp, name, np, pp, tp, vp};
 
     #[test]
     fn finite_clause_lowers_to_cp_tp_and_negated_vp() {
@@ -286,7 +331,7 @@ mod tests {
         let lowered = lower_dp(
             &dp(np("child")
                 .modifier(adjp("happy").modifier(advp("very")))
-                .complement(pp("with", dp(np("friend")).a())))
+                .complement(pp("with", dp(np("friend")).indefinite())))
             .the(),
         )
         .unwrap();
@@ -302,8 +347,19 @@ mod tests {
     }
 
     #[test]
+    fn possessors_lower_to_dp_specifiers() {
+        let lowered = lower_dp(&dp(np("book")).possessor(dp(name("John")))).unwrap();
+
+        assert!(lowered.specifier.is_some());
+        assert!(matches!(
+            lowered.bar.head,
+            DHead::Silent(SilentDeterminer::Bare)
+        ));
+    }
+
+    #[test]
     fn pronouns_lower_to_silent_d_over_np() {
-        let lowered = lower_dp(&crate::syntax::pronoun_dp(Pronoun::They)).unwrap();
+        let lowered = lower_dp(&dp(Pronoun::They)).unwrap();
         assert!(matches!(
             lowered.bar.head,
             DHead::Silent(SilentDeterminer::Pronoun)
@@ -315,7 +371,7 @@ mod tests {
         let lowered = lower_np(
             &np("child")
                 .modifier(adjp("happy").modifier(advp("very")))
-                .complement(pp("with", dp(np("friend")).a())),
+                .complement(pp("with", dp(np("friend")).indefinite())),
         )
         .unwrap();
 

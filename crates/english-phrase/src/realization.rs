@@ -7,6 +7,7 @@ use crate::internal::{
     ABar, AP, AdvBar, CBar, CP, DBar, DComplement, DHead, DP, NBar, NHead, NP, NegHead, NegVBar,
     PBar, PP, SilentDeterminer, TBar, THead, TP, VBar, VP, VPBar, XP,
 };
+use crate::lexical::Determiner;
 use crate::syntax::{
     AdjectivePhrase, AdverbPhrase, DeterminerPhrase, NounPhrase, Phrase, PrepositionalPhrase,
     Sentence, Tense, TensePhrase, Terminal, VerbPhrase,
@@ -22,12 +23,30 @@ pub trait Realizable: private::Sealed {
     fn realize(&self) -> RealizationResult<String>;
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DpRenderRole {
+    Subject,
+    Object,
+    PossessiveDependent,
+}
+
 fn join_nonempty(parts: impl IntoIterator<Item = String>) -> String {
     parts
         .into_iter()
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+fn indefinite_article(next: &str) -> &'static str {
+    match next
+        .chars()
+        .find(|ch| ch.is_ascii_alphabetic())
+        .map(|ch| ch.to_ascii_lowercase())
+    {
+        Some('a' | 'e' | 'i' | 'o' | 'u') => "an",
+        _ => "a",
+    }
 }
 
 fn morph_tense(tense: Tense) -> MorphTense {
@@ -80,7 +99,7 @@ fn past_participle(lemma: &str) -> String {
 fn render_xp_list(values: &[Box<XP>]) -> RealizationResult<Vec<String>> {
     values
         .iter()
-        .map(|value| render_xp(value.as_ref()))
+        .map(|value| render_xp_in_context(value.as_ref(), DpRenderRole::Object))
         .collect()
 }
 
@@ -89,18 +108,22 @@ fn agreement_from_dp(dp: &DP) -> (Person, Number) {
         DComplement::NP(np) => match &np.bar.head {
             NHead::CommonNoun { number, .. } => (Person::Third, number.clone()),
             NHead::ProperName(_) => (Person::Third, Number::Singular),
-            NHead::Pronoun(pronoun) => (pronoun.person(), pronoun.number()),
+            NHead::Pronoun { entry, .. } => (entry.person(), entry.number()),
         },
         DComplement::Trace => (Person::Third, Number::Singular),
     }
 }
 
 fn render_xp(xp: &XP) -> RealizationResult<String> {
+    render_xp_in_context(xp, DpRenderRole::Subject)
+}
+
+fn render_xp_in_context(xp: &XP, dp_role: DpRenderRole) -> RealizationResult<String> {
     match xp {
         XP::TP(tp) => render_tp(tp),
         XP::VP(vp) => render_vp(vp),
-        XP::DP(dp) => render_dp(dp),
-        XP::NP(np) => render_np(np),
+        XP::DP(dp) => render_dp(dp, dp_role),
+        XP::NP(np) => render_np(np, dp_role),
         XP::AP(ap) => render_ap(ap),
         XP::AdvP(advp) => render_advp(advp),
         XP::PP(pp) => render_pp(pp),
@@ -120,7 +143,7 @@ fn render_tp(tp: &TP) -> RealizationResult<String> {
     let subject = tp
         .specifier
         .as_ref()
-        .map(|subject| render_dp(subject))
+        .map(|subject| render_dp(subject, DpRenderRole::Subject))
         .transpose()?;
 
     let predicate = render_tbar(&tp.bar, tp.specifier.as_deref())?;
@@ -212,7 +235,7 @@ fn render_negated_vp(negbar: &NegVBar, specifier: Option<&DP>) -> RealizationRes
     let mut parts = Vec::new();
 
     if let Some(specifier) = specifier {
-        parts.push(render_dp(specifier)?);
+        parts.push(render_dp(specifier, DpRenderRole::Subject)?);
     }
 
     parts.push(match negbar.head {
@@ -227,7 +250,7 @@ fn render_vbar(vbar: &VBar, specifier: Option<&DP>) -> RealizationResult<String>
     let mut parts = Vec::new();
 
     if let Some(specifier) = specifier {
-        parts.push(render_dp(specifier)?);
+        parts.push(render_dp(specifier, DpRenderRole::Subject)?);
     }
 
     parts.push(head);
@@ -241,7 +264,7 @@ fn render_vp_tail(vp: &VP) -> RealizationResult<Vec<String>> {
     let mut parts = Vec::new();
 
     if let Some(specifier) = &vp.specifier {
-        let rendered = render_dp(specifier)?;
+        let rendered = render_dp(specifier, DpRenderRole::Subject)?;
         if !rendered.is_empty() {
             parts.push(rendered);
         }
@@ -252,33 +275,78 @@ fn render_vp_tail(vp: &VP) -> RealizationResult<Vec<String>> {
     Ok(parts)
 }
 
-fn render_dp(dp: &DP) -> RealizationResult<String> {
-    render_dbar(&dp.bar)
+fn is_pronoun_dp(dp: &DP) -> bool {
+    matches!(
+        &dp.bar.complement,
+        DComplement::NP(np) if matches!(np.bar.head, NHead::Pronoun { .. })
+    )
 }
 
-fn render_dbar(dbar: &DBar) -> RealizationResult<String> {
+fn render_possessor(dp: &DP) -> RealizationResult<String> {
+    let rendered = render_dp(dp, DpRenderRole::PossessiveDependent)?;
+    if rendered.is_empty() {
+        Ok(rendered)
+    } else if is_pronoun_dp(dp) {
+        Ok(rendered)
+    } else {
+        Ok(English::add_possessive(&rendered))
+    }
+}
+
+fn render_dp(dp: &DP, role: DpRenderRole) -> RealizationResult<String> {
+    let mut parts = Vec::new();
+
+    if let Some(specifier) = &dp.specifier {
+        let possessor = render_possessor(specifier)?;
+        if !possessor.is_empty() {
+            parts.push(possessor);
+        }
+    }
+
+    parts.push(render_dbar(&dp.bar, role)?);
+    Ok(join_nonempty(parts))
+}
+
+fn render_dbar(dbar: &DBar, role: DpRenderRole) -> RealizationResult<String> {
     match (&dbar.head, &dbar.complement) {
-        (DHead::Overt(head), DComplement::NP(np)) => Ok(join_nonempty(vec![
-            head.as_str().to_string(),
-            render_np(np)?,
-        ])),
+        (DHead::Overt(head), DComplement::NP(np)) => {
+            let complement = render_np(np, role)?;
+            let determiner = match head {
+                Determiner::Indefinite => indefinite_article(&complement).to_string(),
+                _ => head.as_str().to_string(),
+            };
+
+            Ok(join_nonempty(vec![determiner, complement]))
+        }
         (DHead::Silent(SilentDeterminer::Trace), DComplement::Trace) => Ok(String::new()),
-        (DHead::Silent(_), DComplement::NP(np)) => render_np(np),
+        (DHead::Silent(_), DComplement::NP(np)) => render_np(np, role),
         (_, DComplement::Trace) => Ok(String::new()),
     }
 }
 
-fn render_np(np: &NP) -> RealizationResult<String> {
+fn render_np(np: &NP, role: DpRenderRole) -> RealizationResult<String> {
     let mut parts = render_xp_list(&np.left_adjuncts)?;
-    parts.push(render_nbar(&np.bar)?);
+    parts.push(render_nbar(&np.bar, role)?);
     Ok(join_nonempty(parts))
 }
 
-fn render_nbar(nbar: &NBar) -> RealizationResult<String> {
+fn render_pronoun(entry: &crate::lexical::Pronoun, reflexive: bool, role: DpRenderRole) -> String {
+    if reflexive {
+        entry.reflexive_form().to_string()
+    } else {
+        match role {
+            DpRenderRole::Subject => entry.subject_form().to_string(),
+            DpRenderRole::Object => entry.object_form().to_string(),
+            DpRenderRole::PossessiveDependent => entry.possessive_dependent_form().to_string(),
+        }
+    }
+}
+
+fn render_nbar(nbar: &NBar, role: DpRenderRole) -> RealizationResult<String> {
     let head = match &nbar.head {
         NHead::CommonNoun { entry, number } => English::noun(entry.as_str(), number),
         NHead::ProperName(name) => name.clone(),
-        NHead::Pronoun(pronoun) => pronoun.as_str().to_string(),
+        NHead::Pronoun { entry, reflexive } => render_pronoun(entry, *reflexive, role),
     };
 
     Ok(join_nonempty(
@@ -390,13 +458,13 @@ impl Realizable for Phrase {
 
 impl Realizable for DeterminerPhrase {
     fn realize(&self) -> RealizationResult<String> {
-        render_dp(&lower_dp(self)?)
+        render_dp(&lower_dp(self)?, DpRenderRole::Subject)
     }
 }
 
 impl Realizable for NounPhrase {
     fn realize(&self) -> RealizationResult<String> {
-        render_np(&lower_np(self)?)
+        render_np(&lower_np(self)?, DpRenderRole::Subject)
     }
 }
 
