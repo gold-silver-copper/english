@@ -12,10 +12,10 @@ pub use crate::error::{RealizationError, RealizationResult};
 pub use crate::lexical::{
     AdjectiveEntry, AdverbEntry, Determiner, NounEntry, PrepositionEntry, Pronoun, VerbEntry,
 };
-pub use crate::realization::Realizable;
+pub use crate::realization::{Realizable, RealizationOptions, Terminal};
 pub use crate::syntax::{
     AdjectivePhrase, AdverbPhrase, AdvpComplement, AdvpModifier, ApComplement, ApModifier,
-    DeterminerHead, DeterminerPhrase, Name, NounPhrase, NpComplement, NpModifier, Phrase,
-    PpComplement, PrepositionalPhrase, Sentence, Tense, TensePhrase, Terminal, VerbForm,
+    DeterminerPhrase, Name, NominalDeterminerPhrase, NounPhrase, NpComplement, NpModifier, Phrase,
+    PpComplement, PrepositionalPhrase, PronominalDeterminerPhrase, Tense, TensePhrase, VerbForm,
     VerbPhrase, VpAdjunct, VpComplement, adjp, advp, dp, name, np, pp, tp, vp,
 };

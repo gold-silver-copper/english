@@ -16,20 +16,6 @@ pub(crate) enum XP {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct CP {
-    pub bar: CBar,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct CBar {
-    pub head: CHead,
-    pub complement: Box<TP>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(crate) struct CHead;
-
-#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct TP {
     pub specifier: Option<Box<DP>>,
     pub bar: TBar,

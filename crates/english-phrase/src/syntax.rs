@@ -26,12 +26,20 @@ pub enum VerbForm {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Phrase {
+    TP(Box<TensePhrase>),
     DP(Box<DeterminerPhrase>),
     NP(Box<NounPhrase>),
     VP(Box<VerbPhrase>),
     PP(Box<PrepositionalPhrase>),
     AdjP(Box<AdjectivePhrase>),
     AdvP(Box<AdverbPhrase>),
+}
+
+#[doc(hidden)]
+pub trait DpHead: private::Sealed {
+    type Output;
+
+    fn into_dp(self) -> Self::Output;
 }
 
 #[doc(hidden)]
@@ -77,20 +85,6 @@ pub trait VpComplement: private::Sealed {
 #[doc(hidden)]
 pub trait VpAdjunct: private::Sealed {
     fn into_phrase(self) -> Phrase;
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum DeterminerHead {
-    Nominal(Box<NounPhrase>),
-    ProperName(String),
-    Pronoun(Pronoun),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(crate) enum PronounOverride {
-    #[default]
-    Auto,
-    Reflexive,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -162,94 +156,168 @@ impl NounPhrase {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DeterminerPhrase {
-    possessor: Option<Box<DeterminerPhrase>>,
-    determiner: Option<Determiner>,
-    head: DeterminerHead,
-    pronoun_override: PronounOverride,
+pub enum DeterminerPhrase {
+    BareNominal(Box<NounPhrase>),
+    DeterminedNominal {
+        determiner: Determiner,
+        nominal: Box<NounPhrase>,
+    },
+    PossessedNominal {
+        possessor: Box<DeterminerPhrase>,
+        nominal: Box<NounPhrase>,
+    },
+    ProperName(String),
+    Pronoun {
+        pronoun: Pronoun,
+        reflexive: bool,
+    },
 }
 
 impl DeterminerPhrase {
-    pub fn new(nominal: NounPhrase) -> Self {
-        Self {
-            possessor: None,
-            determiner: None,
-            head: DeterminerHead::Nominal(Box::new(nominal)),
-            pronoun_override: PronounOverride::Auto,
-        }
-    }
-
     pub fn proper_name(name: impl Into<String>) -> Self {
-        Self {
-            possessor: None,
-            determiner: None,
-            head: DeterminerHead::ProperName(name.into()),
-            pronoun_override: PronounOverride::Auto,
+        Self::ProperName(name.into())
+    }
+
+    pub fn nominal_opt(&self) -> Option<&NounPhrase> {
+        match self {
+            Self::BareNominal(nominal)
+            | Self::DeterminedNominal { nominal, .. }
+            | Self::PossessedNominal { nominal, .. } => Some(nominal),
+            Self::ProperName(_) | Self::Pronoun { .. } => None,
         }
-    }
-
-    pub fn pronoun(pronoun: Pronoun) -> Self {
-        Self {
-            possessor: None,
-            determiner: None,
-            head: DeterminerHead::Pronoun(pronoun),
-            pronoun_override: PronounOverride::Auto,
-        }
-    }
-
-    pub fn possessor(mut self, possessor: DeterminerPhrase) -> Self {
-        self.possessor = Some(Box::new(possessor));
-        self
-    }
-
-    pub fn determiner(mut self, determiner: Determiner) -> Self {
-        self.determiner = Some(determiner);
-        self
-    }
-
-    pub fn the(self) -> Self {
-        self.determiner(Determiner::The)
-    }
-
-    pub fn indefinite(self) -> Self {
-        self.determiner(Determiner::Indefinite)
-    }
-
-    pub fn reflexive(mut self) -> Self {
-        self.pronoun_override = PronounOverride::Reflexive;
-        self
-    }
-
-    pub fn this(self) -> Self {
-        self.determiner(Determiner::This)
-    }
-
-    pub fn that(self) -> Self {
-        self.determiner(Determiner::That)
-    }
-
-    pub fn these(self) -> Self {
-        self.determiner(Determiner::These)
-    }
-
-    pub fn those(self) -> Self {
-        self.determiner(Determiner::Those)
     }
 
     pub fn determiner_opt(&self) -> Option<Determiner> {
-        self.determiner
+        match self {
+            Self::DeterminedNominal { determiner, .. } => Some(*determiner),
+            Self::BareNominal(_)
+            | Self::PossessedNominal { .. }
+            | Self::ProperName(_)
+            | Self::Pronoun { .. } => None,
+        }
     }
 
     pub fn possessor_opt(&self) -> Option<&DeterminerPhrase> {
-        self.possessor.as_deref()
+        match self {
+            Self::PossessedNominal { possessor, .. } => Some(possessor),
+            Self::BareNominal(_)
+            | Self::DeterminedNominal { .. }
+            | Self::ProperName(_)
+            | Self::Pronoun { .. } => None,
+        }
     }
 
-    pub fn head(&self) -> &DeterminerHead {
-        &self.head
+    pub fn proper_name_opt(&self) -> Option<&str> {
+        match self {
+            Self::ProperName(name) => Some(name),
+            Self::BareNominal(_)
+            | Self::DeterminedNominal { .. }
+            | Self::PossessedNominal { .. }
+            | Self::Pronoun { .. } => None,
+        }
     }
 
-    pub(crate) fn pronoun_override(&self) -> PronounOverride {
-        self.pronoun_override
+    pub fn pronoun_opt(&self) -> Option<Pronoun> {
+        match self {
+            Self::Pronoun { pronoun, .. } => Some(*pronoun),
+            Self::BareNominal(_)
+            | Self::DeterminedNominal { .. }
+            | Self::PossessedNominal { .. }
+            | Self::ProperName(_) => None,
+        }
+    }
+
+    pub fn is_reflexive(&self) -> bool {
+        matches!(
+            self,
+            Self::Pronoun {
+                reflexive: true,
+                ..
+            }
+        )
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NominalDeterminerPhrase {
+    nominal: Box<NounPhrase>,
+}
+
+impl NominalDeterminerPhrase {
+    pub fn new(nominal: NounPhrase) -> Self {
+        Self {
+            nominal: Box::new(nominal),
+        }
+    }
+
+    pub fn determiner(self, determiner: Determiner) -> DeterminerPhrase {
+        DeterminerPhrase::DeterminedNominal {
+            determiner,
+            nominal: self.nominal,
+        }
+    }
+
+    pub fn the(self) -> DeterminerPhrase {
+        self.determiner(Determiner::The)
+    }
+
+    pub fn indefinite(self) -> DeterminerPhrase {
+        self.determiner(Determiner::Indefinite)
+    }
+
+    pub fn this(self) -> DeterminerPhrase {
+        self.determiner(Determiner::This)
+    }
+
+    pub fn that(self) -> DeterminerPhrase {
+        self.determiner(Determiner::That)
+    }
+
+    pub fn these(self) -> DeterminerPhrase {
+        self.determiner(Determiner::These)
+    }
+
+    pub fn those(self) -> DeterminerPhrase {
+        self.determiner(Determiner::Those)
+    }
+
+    pub fn possessor<P: Into<DeterminerPhrase>>(self, possessor: P) -> DeterminerPhrase {
+        DeterminerPhrase::PossessedNominal {
+            possessor: Box::new(possessor.into()),
+            nominal: self.nominal,
+        }
+    }
+
+    pub fn nominal(&self) -> &NounPhrase {
+        &self.nominal
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PronominalDeterminerPhrase {
+    pronoun: Pronoun,
+    reflexive: bool,
+}
+
+impl PronominalDeterminerPhrase {
+    pub fn new(pronoun: Pronoun) -> Self {
+        Self {
+            pronoun,
+            reflexive: false,
+        }
+    }
+
+    pub fn reflexive(mut self) -> Self {
+        self.reflexive = true;
+        self
+    }
+
+    pub fn pronoun(&self) -> Pronoun {
+        self.pronoun
+    }
+
+    pub fn is_reflexive(&self) -> bool {
+        self.reflexive
     }
 }
 
@@ -357,8 +425,6 @@ impl PrepositionalPhrase {
 #[derive(Debug, Clone, PartialEq)]
 pub struct VerbPhrase {
     head: VerbEntry,
-    form: VerbForm,
-    negative: bool,
     complements: Vec<Box<Phrase>>,
     adjuncts: Vec<Box<Phrase>>,
 }
@@ -367,11 +433,55 @@ impl VerbPhrase {
     pub fn new(head: impl Into<VerbEntry>) -> Self {
         Self {
             head: head.into(),
-            form: VerbForm::BareInfinitive,
-            negative: false,
             complements: Vec::new(),
             adjuncts: Vec::new(),
         }
+    }
+
+    pub fn complement<C: VpComplement>(mut self, complement: C) -> Self {
+        self.complements.push(Box::new(complement.into_phrase()));
+        self
+    }
+
+    pub fn adjunct<A: VpAdjunct>(mut self, adjunct: A) -> Self {
+        self.adjuncts.push(Box::new(adjunct.into_phrase()));
+        self
+    }
+
+    pub fn head(&self) -> &VerbEntry {
+        &self.head
+    }
+
+    pub fn complements(&self) -> &[Box<Phrase>] {
+        &self.complements
+    }
+
+    pub fn adjuncts(&self) -> &[Box<Phrase>] {
+        &self.adjuncts
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TensePhrase {
+    subject: Option<DeterminerPhrase>,
+    form: VerbForm,
+    negative: bool,
+    predicate: VerbPhrase,
+}
+
+impl TensePhrase {
+    pub fn new(predicate: VerbPhrase) -> Self {
+        Self {
+            subject: None,
+            form: VerbForm::BareInfinitive,
+            negative: false,
+            predicate,
+        }
+    }
+
+    pub fn subject<S: Into<DeterminerPhrase>>(mut self, subject: S) -> Self {
+        self.subject = Some(subject.into());
+        self
     }
 
     pub fn present(mut self) -> Self {
@@ -409,18 +519,8 @@ impl VerbPhrase {
         self
     }
 
-    pub fn complement<C: VpComplement>(mut self, complement: C) -> Self {
-        self.complements.push(Box::new(complement.into_phrase()));
-        self
-    }
-
-    pub fn adjunct<A: VpAdjunct>(mut self, adjunct: A) -> Self {
-        self.adjuncts.push(Box::new(adjunct.into_phrase()));
-        self
-    }
-
-    pub fn head(&self) -> &VerbEntry {
-        &self.head
+    pub fn subject_opt(&self) -> Option<&DeterminerPhrase> {
+        self.subject.as_ref()
     }
 
     pub fn form(&self) -> VerbForm {
@@ -431,101 +531,8 @@ impl VerbPhrase {
         self.negative
     }
 
-    pub fn complements(&self) -> &[Box<Phrase>] {
-        &self.complements
-    }
-
-    pub fn adjuncts(&self) -> &[Box<Phrase>] {
-        &self.adjuncts
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct TensePhrase {
-    subject: Option<DeterminerPhrase>,
-    predicate: VerbPhrase,
-}
-
-impl TensePhrase {
-    pub fn new(predicate: VerbPhrase) -> Self {
-        Self {
-            subject: None,
-            predicate,
-        }
-    }
-
-    pub fn subject(mut self, subject: DeterminerPhrase) -> Self {
-        self.subject = Some(subject);
-        self
-    }
-
-    pub fn subject_opt(&self) -> Option<&DeterminerPhrase> {
-        self.subject.as_ref()
-    }
-
     pub fn predicate(&self) -> &VerbPhrase {
         &self.predicate
-    }
-
-    pub fn sentence(self) -> Sentence {
-        Sentence {
-            tense_phrase: self,
-            capitalize: true,
-            terminal: Terminal::Period,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Terminal {
-    Period,
-    QuestionMark,
-    ExclamationMark,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Sentence {
-    tense_phrase: TensePhrase,
-    capitalize: bool,
-    terminal: Terminal,
-}
-
-impl Sentence {
-    pub fn tense_phrase(&self) -> &TensePhrase {
-        &self.tense_phrase
-    }
-
-    pub fn capitalize(mut self) -> Self {
-        self.capitalize = true;
-        self
-    }
-
-    pub fn lowercase(mut self) -> Self {
-        self.capitalize = false;
-        self
-    }
-
-    pub fn period(mut self) -> Self {
-        self.terminal = Terminal::Period;
-        self
-    }
-
-    pub fn question_mark(mut self) -> Self {
-        self.terminal = Terminal::QuestionMark;
-        self
-    }
-
-    pub fn exclamation_mark(mut self) -> Self {
-        self.terminal = Terminal::ExclamationMark;
-        self
-    }
-
-    pub fn capitalize_flag(&self) -> bool {
-        self.capitalize
-    }
-
-    pub fn terminal(&self) -> Terminal {
-        self.terminal
     }
 }
 
@@ -533,8 +540,8 @@ pub fn np(head: impl Into<NounEntry>) -> NounPhrase {
     NounPhrase::new(head)
 }
 
-pub fn dp(head: impl Into<DeterminerPhrase>) -> DeterminerPhrase {
-    head.into()
+pub fn dp<H: DpHead>(head: H) -> H::Output {
+    head.into_dp()
 }
 
 pub fn name(text: impl Into<String>) -> Name {
@@ -564,21 +571,54 @@ pub fn tp(predicate: VerbPhrase) -> TensePhrase {
     TensePhrase::new(predicate)
 }
 
+impl From<TensePhrase> for Phrase {
+    fn from(value: TensePhrase) -> Self {
+        Phrase::TP(Box::new(value))
+    }
+}
+
 impl From<DeterminerPhrase> for Phrase {
     fn from(value: DeterminerPhrase) -> Self {
         Phrase::DP(Box::new(value))
     }
 }
 
+impl From<NominalDeterminerPhrase> for DeterminerPhrase {
+    fn from(value: NominalDeterminerPhrase) -> Self {
+        DeterminerPhrase::BareNominal(value.nominal)
+    }
+}
+
+impl From<NominalDeterminerPhrase> for Phrase {
+    fn from(value: NominalDeterminerPhrase) -> Self {
+        Phrase::from(DeterminerPhrase::from(value))
+    }
+}
+
 impl From<NounPhrase> for DeterminerPhrase {
     fn from(value: NounPhrase) -> Self {
-        DeterminerPhrase::new(value)
+        NominalDeterminerPhrase::new(value).into()
+    }
+}
+
+impl From<PronominalDeterminerPhrase> for DeterminerPhrase {
+    fn from(value: PronominalDeterminerPhrase) -> Self {
+        DeterminerPhrase::Pronoun {
+            pronoun: value.pronoun,
+            reflexive: value.reflexive,
+        }
+    }
+}
+
+impl From<PronominalDeterminerPhrase> for Phrase {
+    fn from(value: PronominalDeterminerPhrase) -> Self {
+        Phrase::from(DeterminerPhrase::from(value))
     }
 }
 
 impl From<Pronoun> for DeterminerPhrase {
     fn from(value: Pronoun) -> Self {
-        DeterminerPhrase::pronoun(value)
+        PronominalDeterminerPhrase::new(value).into()
     }
 }
 
@@ -619,11 +659,64 @@ impl From<AdverbPhrase> for Phrase {
 }
 
 impl private::Sealed for DeterminerPhrase {}
+impl private::Sealed for NominalDeterminerPhrase {}
+impl private::Sealed for PronominalDeterminerPhrase {}
 impl private::Sealed for NounPhrase {}
 impl private::Sealed for VerbPhrase {}
+impl private::Sealed for TensePhrase {}
 impl private::Sealed for PrepositionalPhrase {}
 impl private::Sealed for AdjectivePhrase {}
 impl private::Sealed for AdverbPhrase {}
+impl private::Sealed for Name {}
+impl private::Sealed for Pronoun {}
+
+impl DpHead for DeterminerPhrase {
+    type Output = Self;
+
+    fn into_dp(self) -> Self::Output {
+        self
+    }
+}
+
+impl DpHead for NominalDeterminerPhrase {
+    type Output = Self;
+
+    fn into_dp(self) -> Self::Output {
+        self
+    }
+}
+
+impl DpHead for NounPhrase {
+    type Output = NominalDeterminerPhrase;
+
+    fn into_dp(self) -> Self::Output {
+        NominalDeterminerPhrase::new(self)
+    }
+}
+
+impl DpHead for PronominalDeterminerPhrase {
+    type Output = Self;
+
+    fn into_dp(self) -> Self::Output {
+        self
+    }
+}
+
+impl DpHead for Pronoun {
+    type Output = PronominalDeterminerPhrase;
+
+    fn into_dp(self) -> Self::Output {
+        PronominalDeterminerPhrase::new(self)
+    }
+}
+
+impl DpHead for Name {
+    type Output = DeterminerPhrase;
+
+    fn into_dp(self) -> Self::Output {
+        self.into()
+    }
+}
 
 impl NpModifier for AdjectivePhrase {
     fn into_phrase(self) -> Phrase {
@@ -637,7 +730,7 @@ impl NpComplement for PrepositionalPhrase {
     }
 }
 
-impl NpComplement for VerbPhrase {
+impl NpComplement for TensePhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
@@ -655,7 +748,7 @@ impl ApComplement for PrepositionalPhrase {
     }
 }
 
-impl ApComplement for VerbPhrase {
+impl ApComplement for TensePhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
@@ -679,19 +772,43 @@ impl PpComplement for DeterminerPhrase {
     }
 }
 
+impl PpComplement for NominalDeterminerPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl PpComplement for PronominalDeterminerPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
 impl PpComplement for PrepositionalPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl PpComplement for VerbPhrase {
+impl PpComplement for TensePhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
 impl VpComplement for DeterminerPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl VpComplement for NominalDeterminerPhrase {
+    fn into_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl VpComplement for PronominalDeterminerPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
@@ -709,7 +826,7 @@ impl VpComplement for AdjectivePhrase {
     }
 }
 
-impl VpComplement for VerbPhrase {
+impl VpComplement for TensePhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }

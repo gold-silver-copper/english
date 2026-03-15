@@ -1,16 +1,16 @@
 use crate::desugar::{
     lower_advp, lower_ap, lower_dp, lower_np, lower_phrase, lower_pp, lower_tense_phrase,
-    lower_verb_projection,
+    lower_verb_phrase,
 };
 use crate::error::RealizationResult;
 use crate::internal::{
-    ABar, AP, AdvBar, CBar, CP, DBar, DComplement, DHead, DP, NBar, NHead, NP, NegHead, NegVBar,
-    PBar, PP, SilentDeterminer, TBar, THead, TP, VBar, VP, VPBar, XP,
+    ABar, AP, AdvBar, DBar, DComplement, DHead, DP, NBar, NHead, NP, NegHead, NegVBar, PBar, PP,
+    SilentDeterminer, TBar, THead, TP, VBar, VP, VPBar, XP,
 };
 use crate::lexical::Determiner;
 use crate::syntax::{
-    AdjectivePhrase, AdverbPhrase, DeterminerPhrase, NounPhrase, Phrase, PrepositionalPhrase,
-    Sentence, Tense, TensePhrase, Terminal, VerbPhrase,
+    AdjectivePhrase, AdverbPhrase, DeterminerPhrase, NominalDeterminerPhrase, NounPhrase, Phrase,
+    PrepositionalPhrase, PronominalDeterminerPhrase, Tense, TensePhrase, VerbPhrase,
 };
 use english::{English, Form as MorphForm, Number, Person, Tense as MorphTense};
 
@@ -19,7 +19,73 @@ mod private {
 }
 
 pub trait Realizable: private::Sealed {
-    fn realize(&self) -> RealizationResult<String>;
+    fn realize(&self) -> RealizationResult<String> {
+        self.realize_with(RealizationOptions::default())
+    }
+
+    fn realize_with(&self, options: RealizationOptions) -> RealizationResult<String>;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Terminal {
+    Period,
+    QuestionMark,
+    ExclamationMark,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct RealizationOptions {
+    capitalize: bool,
+    terminal: Option<Terminal>,
+}
+
+impl RealizationOptions {
+    pub fn sentence() -> Self {
+        Self {
+            capitalize: true,
+            terminal: Some(Terminal::Period),
+        }
+    }
+
+    pub fn capitalize(mut self) -> Self {
+        self.capitalize = true;
+        self
+    }
+
+    pub fn lowercase(mut self) -> Self {
+        self.capitalize = false;
+        self
+    }
+
+    pub fn terminal(mut self, terminal: Terminal) -> Self {
+        self.terminal = Some(terminal);
+        self
+    }
+
+    pub fn without_terminal(mut self) -> Self {
+        self.terminal = None;
+        self
+    }
+
+    pub fn period(self) -> Self {
+        self.terminal(Terminal::Period)
+    }
+
+    pub fn question_mark(self) -> Self {
+        self.terminal(Terminal::QuestionMark)
+    }
+
+    pub fn exclamation_mark(self) -> Self {
+        self.terminal(Terminal::ExclamationMark)
+    }
+
+    pub fn capitalize_flag(&self) -> bool {
+        self.capitalize
+    }
+
+    pub fn terminal_opt(&self) -> Option<Terminal> {
+        self.terminal
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,6 +101,22 @@ fn join_nonempty(parts: impl IntoIterator<Item = String>) -> String {
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+fn apply_realization_options(mut text: String, options: RealizationOptions) -> String {
+    if options.capitalize_flag() {
+        text = English::capitalize_first(&text);
+    }
+
+    if let Some(terminal) = options.terminal_opt() {
+        text.push(match terminal {
+            Terminal::Period => '.',
+            Terminal::QuestionMark => '?',
+            Terminal::ExclamationMark => '!',
+        });
+    }
+
+    text
 }
 
 fn indefinite_article(next: &str) -> &'static str {
@@ -127,15 +209,6 @@ fn render_xp_in_context(xp: &XP, dp_role: DpRenderRole) -> RealizationResult<Str
         XP::AdvP(advp) => render_advp(advp),
         XP::PP(pp) => render_pp(pp),
     }
-}
-
-fn render_cp(cp: &CP) -> RealizationResult<String> {
-    render_cbar(&cp.bar)
-}
-
-fn render_cbar(cbar: &CBar) -> RealizationResult<String> {
-    let _ = cbar.head;
-    render_tp(&cbar.complement)
 }
 
 fn render_tp(tp: &TP) -> RealizationResult<String> {
@@ -395,79 +468,103 @@ fn render_pp(pp: &PP) -> RealizationResult<String> {
 fn render_pbar(pbar: &PBar) -> RealizationResult<String> {
     Ok(join_nonempty(vec![
         pbar.head.entry.as_str().to_string(),
-        render_xp(pbar.complement.as_ref())?,
+        render_xp_in_context(pbar.complement.as_ref(), DpRenderRole::Object)?,
     ]))
 }
 
 impl private::Sealed for Phrase {}
 impl private::Sealed for DeterminerPhrase {}
+impl private::Sealed for NominalDeterminerPhrase {}
+impl private::Sealed for PronominalDeterminerPhrase {}
 impl private::Sealed for NounPhrase {}
 impl private::Sealed for AdjectivePhrase {}
 impl private::Sealed for AdverbPhrase {}
 impl private::Sealed for PrepositionalPhrase {}
 impl private::Sealed for VerbPhrase {}
 impl private::Sealed for TensePhrase {}
-impl private::Sealed for Sentence {}
 
 impl Realizable for Phrase {
-    fn realize(&self) -> RealizationResult<String> {
-        render_xp(&lower_phrase(self)?)
+    fn realize_with(&self, options: RealizationOptions) -> RealizationResult<String> {
+        Ok(apply_realization_options(
+            render_xp(&lower_phrase(self)?)?,
+            options,
+        ))
     }
 }
 
 impl Realizable for DeterminerPhrase {
-    fn realize(&self) -> RealizationResult<String> {
-        render_dp(&lower_dp(self)?, DpRenderRole::Subject)
+    fn realize_with(&self, options: RealizationOptions) -> RealizationResult<String> {
+        Ok(apply_realization_options(
+            render_dp(&lower_dp(self)?, DpRenderRole::Subject)?,
+            options,
+        ))
+    }
+}
+
+impl Realizable for NominalDeterminerPhrase {
+    fn realize_with(&self, options: RealizationOptions) -> RealizationResult<String> {
+        let dp = DeterminerPhrase::from(self.clone());
+        dp.realize_with(options)
+    }
+}
+
+impl Realizable for PronominalDeterminerPhrase {
+    fn realize_with(&self, options: RealizationOptions) -> RealizationResult<String> {
+        let dp = DeterminerPhrase::from(*self);
+        dp.realize_with(options)
     }
 }
 
 impl Realizable for NounPhrase {
-    fn realize(&self) -> RealizationResult<String> {
-        render_np(&lower_np(self)?, DpRenderRole::Subject)
+    fn realize_with(&self, options: RealizationOptions) -> RealizationResult<String> {
+        Ok(apply_realization_options(
+            render_np(&lower_np(self)?, DpRenderRole::Subject)?,
+            options,
+        ))
     }
 }
 
 impl Realizable for AdjectivePhrase {
-    fn realize(&self) -> RealizationResult<String> {
-        render_ap(&lower_ap(self)?)
+    fn realize_with(&self, options: RealizationOptions) -> RealizationResult<String> {
+        Ok(apply_realization_options(
+            render_ap(&lower_ap(self)?)?,
+            options,
+        ))
     }
 }
 
 impl Realizable for AdverbPhrase {
-    fn realize(&self) -> RealizationResult<String> {
-        render_advp(&lower_advp(self)?)
+    fn realize_with(&self, options: RealizationOptions) -> RealizationResult<String> {
+        Ok(apply_realization_options(
+            render_advp(&lower_advp(self)?)?,
+            options,
+        ))
     }
 }
 
 impl Realizable for PrepositionalPhrase {
-    fn realize(&self) -> RealizationResult<String> {
-        render_pp(&lower_pp(self)?)
+    fn realize_with(&self, options: RealizationOptions) -> RealizationResult<String> {
+        Ok(apply_realization_options(
+            render_pp(&lower_pp(self)?)?,
+            options,
+        ))
     }
 }
 
 impl Realizable for VerbPhrase {
-    fn realize(&self) -> RealizationResult<String> {
-        render_tp(&lower_verb_projection(self, None)?)
+    fn realize_with(&self, options: RealizationOptions) -> RealizationResult<String> {
+        Ok(apply_realization_options(
+            render_vp(&lower_verb_phrase(self, false)?)?,
+            options,
+        ))
     }
 }
 
 impl Realizable for TensePhrase {
-    fn realize(&self) -> RealizationResult<String> {
-        render_cp(&lower_tense_phrase(self)?)
-    }
-}
-
-impl Realizable for Sentence {
-    fn realize(&self) -> RealizationResult<String> {
-        let mut text = self.tense_phrase().realize()?;
-        if self.capitalize_flag() {
-            text = English::capitalize_first(&text);
-        }
-        text.push(match self.terminal() {
-            Terminal::Period => '.',
-            Terminal::QuestionMark => '?',
-            Terminal::ExclamationMark => '!',
-        });
-        Ok(text)
+    fn realize_with(&self, options: RealizationOptions) -> RealizationResult<String> {
+        Ok(apply_realization_options(
+            render_tp(&lower_tense_phrase(self)?)?,
+            options,
+        ))
     }
 }

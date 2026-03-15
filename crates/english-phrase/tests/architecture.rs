@@ -47,7 +47,8 @@ fn proper_names_and_pronouns_are_just_dp_heads() {
 #[test]
 fn pronoun_forms_are_inferred_from_position_with_reflexive_override() {
     assert_eq!(
-        tp(vp("see").present().complement(dp(Pronoun::She)))
+        tp(vp("see").complement(dp(Pronoun::She)))
+            .present()
             .subject(dp(Pronoun::He))
             .realize()
             .unwrap(),
@@ -61,41 +62,39 @@ fn pronoun_forms_are_inferred_from_position_with_reflexive_override() {
         "her book"
     );
     assert_eq!(
-        tp(vp("admire")
+        tp(vp("admire").complement(dp(Pronoun::She).reflexive()))
             .present()
-            .complement(dp(Pronoun::She).reflexive()))
-        .subject(dp(Pronoun::She))
-        .realize()
-        .unwrap(),
+            .subject(dp(Pronoun::She))
+            .realize()
+            .unwrap(),
         "she admires herself"
     );
 }
 
 #[test]
-fn verb_phrases_handle_finite_and_non_finite_forms_without_extra_spine_nodes() {
-    let infinitive = vp("eat")
-        .to_infinitive()
-        .negative()
-        .complement(dp(np("apple")).the());
+fn verb_phrases_stay_lexical_and_tense_phrases_carry_inflection() {
+    let lexical = vp("eat").complement(dp(np("apple")).the());
+    let infinitive = tp(lexical.clone()).to_infinitive().negative();
+    let finite = tp(lexical.clone()).past();
 
-    let finite = vp("eat").past().complement(dp(np("apple")).the());
-
+    assert_eq!(lexical.realize().unwrap(), "eat the apple");
     assert_eq!(infinitive.realize().unwrap(), "not to eat the apple");
     assert_eq!(
-        tp(finite.clone())
-            .subject(dp(Pronoun::We))
-            .realize()
-            .unwrap(),
+        finite.clone().subject(dp(Pronoun::We)).realize().unwrap(),
         "we ate the apple"
     );
     assert_eq!(
-        tp(finite)
+        finite
             .subject(dp(Pronoun::We))
-            .sentence()
-            .realize()
+            .realize_with(RealizationOptions::sentence())
             .unwrap(),
         "We ate the apple."
     );
+}
+
+#[test]
+fn pp_complements_render_pronouns_in_object_case() {
+    assert_eq!(pp("with", dp(Pronoun::She)).realize().unwrap(), "with her");
 }
 
 #[test]
