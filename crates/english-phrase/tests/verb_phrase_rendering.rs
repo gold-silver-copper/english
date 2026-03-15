@@ -23,6 +23,48 @@ fn verb_phrase_example_from_api_design() {
 }
 
 #[test]
+fn verb_phrase_renders_typed_complements_and_adjuncts() {
+    let vp = VerbPhrase::new("give")
+        .past()
+        .simple()
+        .affirmative()
+        .subject(Person::Third, Number::Singular)
+        .direct_object(DeterminerPhrase::new("apple").the())
+        .prepositional_adjunct(PrepositionalPhrase::new(
+            "to",
+            DeterminerPhrase::new("child").the(),
+        ));
+
+    assert_eq!(vp.render(), "gave the apple to the child");
+}
+
+#[test]
+fn verb_phrase_supports_adjective_and_clausal_complements() {
+    let copular = VerbPhrase::new("be")
+        .present()
+        .simple()
+        .affirmative()
+        .subject(Person::Third, Number::Singular)
+        .predicative_complement(AdjPhrase::new("ready"))
+        .non_finite_complement(NonFiniteClause::to_infinitive(
+            VerbPhrase::new("leave").simple().affirmative(),
+        ));
+
+    let clausal = VerbPhrase::new("say")
+        .past()
+        .simple()
+        .affirmative()
+        .subject(Person::Third, Number::Singular)
+        .clausal_complement(ComplementizerPhrase::that(TensePhrase::new(
+            DeterminerPhrase::new("child").the().plural(),
+            VerbPhrase::new("arrive").past().simple().affirmative(),
+        )));
+
+    assert_eq!(copular.render(), "is ready to leave");
+    assert_eq!(clausal.render(), "said that the children arrived");
+}
+
+#[test]
 fn clause_and_sentence_example_from_api_design() {
     let clause = Clause::new(
         DeterminerPhrase::new("child").the().plural(),
@@ -35,6 +77,47 @@ fn clause_and_sentence_example_from_api_design() {
         clause.clone().sentence().capitalize().period().render(),
         "The children stole 7 potatoes."
     );
+}
+
+#[test]
+fn tense_phrase_is_a_first_class_public_projection() {
+    let tp = TensePhrase::new(
+        DeterminerPhrase::new("child").the().plural(),
+        VerbPhrase::new("steal").past().simple().affirmative(),
+    )
+    .object(DeterminerPhrase::new("potato").count(7))
+    .prepositional("from", DeterminerPhrase::new("market").the());
+
+    assert_eq!(tp.render(), "the children stole 7 potatoes from the market");
+    assert_eq!(
+        tp.clone().sentence().capitalize().period().render(),
+        "The children stole 7 potatoes from the market."
+    );
+    assert_eq!(
+        Clause::from_tense_phrase(tp).render(),
+        "the children stole 7 potatoes from the market"
+    );
+}
+
+#[test]
+fn complementizer_phrase_is_a_first_class_public_projection() {
+    let cp = ComplementizerPhrase::that(TensePhrase::new(
+        DeterminerPhrase::new("child").the().plural(),
+        VerbPhrase::new("arrive").past().simple().affirmative(),
+    ));
+
+    assert_eq!(cp.render(), "that the children arrived");
+}
+
+#[test]
+fn non_finite_clause_is_a_first_class_public_projection() {
+    let clause = NonFiniteClause::to_infinitive(
+        VerbPhrase::new("eat").perfect().negative(),
+    )
+    .object(DeterminerPhrase::new("apple").the())
+    .prepositional("in", DeterminerPhrase::new("garden").the());
+
+    assert_eq!(clause.render(), "not to have eaten the apple in the garden");
 }
 
 #[test]
@@ -165,6 +248,65 @@ fn modal_perfect_and_modal_progressive_render_cleanly() {
             .negative()
             .render(),
         "would not be eating"
+    );
+}
+
+#[test]
+fn passive_voice_renders_cleanly_across_aspects() {
+    assert_eq!(
+        VerbPhrase::new("praise")
+            .past()
+            .simple()
+            .passive()
+            .subject(Person::Third, Number::Singular)
+            .render(),
+        "was praised"
+    );
+    assert_eq!(
+        VerbPhrase::new("praise")
+            .present()
+            .perfect()
+            .passive()
+            .subject(Person::Third, Number::Singular)
+            .render(),
+        "has been praised"
+    );
+    assert_eq!(
+        VerbPhrase::new("praise")
+            .modal(Modal::Would)
+            .progressive()
+            .negative()
+            .passive()
+            .render(),
+        "would not be being praised"
+    );
+}
+
+#[test]
+fn tense_phrase_passive_promotes_object_and_demotes_subject() {
+    let tp = TensePhrase::new(
+        DeterminerPhrase::new("teacher").the(),
+        VerbPhrase::new("praise").past().simple().affirmative(),
+    )
+    .object(DeterminerPhrase::new("child").the())
+    .passive();
+
+    assert_eq!(tp.render(), "the child was praised by the teacher");
+}
+
+#[test]
+fn tense_phrase_causative_restructures_around_make() {
+    let tp = TensePhrase::new(
+        DeterminerPhrase::new("child").the(),
+        VerbPhrase::new("eat").past().simple().affirmative(),
+    )
+    .object(DeterminerPhrase::new("apple").the())
+    .prepositional("in", DeterminerPhrase::new("garden").the())
+    .causative(DeterminerPhrase::new("teacher").the());
+
+    assert_eq!(
+        tp.render(),
+        "the teacher made the child eat the apple in the garden"
     );
 }
 

@@ -48,14 +48,24 @@ Current implementation status in [lib.rs](/Users/kisaczka/Desktop/programming/en
   - real `Pronoun` support for DP rendering and agreement
   - proper-name DPs
   - possessor rendering in `Spec,DP`
+  - explicit DP semantics for person, number, gender, and animacy
+  - gap DPs that carry full semantic features
   - typed nominal postmodifiers via `NominalPostmodifier`
-  - explicit `RelativeClause` support for future CP-based nominal postmodification
+  - public `ComplementizerPhrase` as the explicit CP projection
+  - typed `RelativeClause` wrapping a `ComplementizerPhrase`
+  - public `TensePhrase` as the explicit finite clause projection
+  - public `NonFiniteClause` as the explicit non-finite clausal projection
+  - `Clause` refactored into a convenience wrapper over `TensePhrase`
+  - explicit `VerbComplement` and `VerbAdjunct` categories inside `VerbPhrase`
+  - internal `LightVerbPhrase` as the `vP` layer beneath `TensePhrase`
+  - passive voice on `VerbPhrase`
+  - clause-level passivization via `TensePhrase::passive()`
+  - clause-level causative restructuring via `TensePhrase::causative(...)`
+  - `BareInfinitive` support for non-finite clausal complements
 - still missing:
-  - explicit CP
-  - explicit TP
-  - explicit vP
-  - explicit complement vs adjunct split inside VP
-  - fully typed CP integration beyond relative-clause scaffolding
+  - reflexive alternations on top of the new DP semantic layer
+  - fuller VP complement/adjunct coverage across all clause types
+  - broader CP/non-finite integration across VP and PP complement positions
 
 ## Current status in `lib.rs`
 
@@ -67,17 +77,18 @@ As of now, [lib.rs](/Users/kisaczka/Desktop/programming/english/crates/english-p
 - a public `NominalPhrase`
 - a public `DeterminerPhrase`
 - a public `VerbPhrase`
+- a public `TensePhrase`
+- a public `ComplementizerPhrase`
+- a public `NonFiniteClause`
 - a public `Clause`
 - a public `Sentence`
 
 What is still missing for genuine X-bar support:
 
-- no explicit `CP`
-- no explicit `TP`
-- no explicit `vP`
-- no explicit head/specifier/complement/adjunct structure in the types
-- `Clause` is still a convenience sentence-level shell, not a real clausal projection stack
-- AP, AdvP, NP, and VP still mix complements and adjunct-like material more loosely than the theory wants
+- `vP` now exists internally, but there is still no public-facing `vP` surface
+- not every projection has a fully explicit head/specifier/complement/adjunct split yet
+- `Clause` is now a convenience shell over `TensePhrase`, and `ComplementizerPhrase` now provides the first typed CP layer above it
+- AP, AdvP, NP, and VP still need broader coverage of framework-relevant variants
 
 So the next work should not be “add more phrase helpers.” It should be “make the existing phrase objects line up with the rewrite rules.”
 
@@ -135,19 +146,11 @@ If we want real support for:
 
 then finite clauses and non-finite clauses should not be one undifferentiated `Clause`.
 
-### 5. Escape hatches should exist, but stay visibly unstructured
+### 5. Keep the core projections typed
 
-Keep raw-string escape hatches explicit:
+Core phrase structure should prefer typed phrase objects over raw-string escape hatches.
 
-```rust
-pub enum NominalPostmodifier {
-    PrepositionalPhrase(PrepositionalPhrase),
-    RelativeClause(RelativeClause),
-    Raw(String),
-}
-```
-
-That makes it obvious what is genuine syntax and what is fallback text.
+Where fallback text still exists, it should stay at the edge of the API rather than inside the main X-bar projections.
 
 ## Phase 1: make PP and AdvP genuinely X-bar-like
 
@@ -426,6 +429,30 @@ pub enum VerbAdjunct {
 - move adverbials and VP-attached PPs into adjuncts
 - preserve the existing auxiliary-chain realization pipeline, but make it operate over this richer VP
 
+### Progress
+
+- `VerbComplement` implemented with typed support for:
+  - `DeterminerPhrase`
+  - `PrepositionalPhrase`
+  - `AdjPhrase`
+  - `ComplementizerPhrase`
+  - `NonFiniteClause`
+- `VerbAdjunct` implemented with typed support for:
+  - `PrepositionalPhrase`
+  - `AdverbPhrase`
+- `VerbPhrase` now owns complements and adjuncts directly
+- finite and non-finite verb rendering now append VP-owned dependents
+- `TensePhrase` and `NonFiniteClause` now delegate object and PP attachment into `VerbPhrase`
+- tests now cover:
+  - direct-object plus PP adjunct VP rendering
+  - AP complements on copular verbs
+  - CP complements in VP
+  - non-finite complements in VP
+- still pending:
+  - richer lexical control over which complement types a given verb licenses
+  - more explicit subject-complement vs object-complement distinctions
+  - deeper VP integration into `Clause`/`Sentence` so those wrappers stop feeling primary
+
 ## Phase 5: introduce TP as the main finite clause projection
 
 ### Rules targeted
@@ -476,6 +503,16 @@ pub struct TensePhrase {
 - move finite agreement and auxiliary choice to TP-driven rendering
 - refactor current `Clause` to sit above or beside TP
 
+### Progress
+
+- `TensePhrase` implemented as the public finite clause projection
+- current finite rendering path extracted into `TensePhrase`
+- `Clause` now wraps `TensePhrase` instead of owning the finite clause fields directly
+- `Sentence` accepts either `Clause` or `TensePhrase` via `Into<Clause>`
+- still pending:
+  - moving more finite-clause decisions out of `VerbPhrase` and into TP where appropriate
+  - deciding whether `Clause` remains a permanent convenience wrapper once `CP` is added
+
 ## Phase 6: add internal vP support
 
 ### Rules targeted
@@ -509,8 +546,33 @@ pub struct LightVerbPhrase {
 ### Checklist
 
 - add internal `LightVerbPhrase`
-- make `TensePhrase` optionally target `vP` internally
-- use `vP` where it helps with causatives, transitives, and later passive support
+- make `TensePhrase` target `vP` internally
+- use `vP` where it helps with causatives, transitives, and passive support
+
+### Progress
+
+- internal `LightVerb` and `LightVerbPhrase` implemented
+- `TensePhrase` no longer stores the external argument directly beside lexical VP material
+- `TensePhrase` now sits over an internal `LightVerbPhrase { specifier, head, complement }`
+- `LightVerb` classification is inferred from the current VP shape:
+  - intransitive
+  - transitive
+  - copular
+  - clausal
+- public API remains ergonomic:
+  - `TensePhrase::new(subject, predicate)`
+  - `Clause::new(subject, predicate)`
+- passive alternation now uses internal `vP` structure:
+  - promote the first DP complement into the surface subject
+  - demote the old subject into a `by`-PP adjunct
+  - set the lexical VP to passive voice
+- causative alternation now uses internal `vP` structure:
+  - replace the lexical predicate with finite `make`
+  - move the old subject into the causee position
+  - embed the old predicate as a bare infinitival non-finite clause
+- still pending:
+  - reflexive alternations
+  - deciding whether any vP-aware debugging/introspection surface should exist publicly
 
 ## Phase 7: add CP and complementizer structure
 
@@ -550,6 +612,19 @@ pub struct ComplementizerPhrase {
 - let NP postmodifiers include relative `CP`
 - let VP/AP take typed clausal complements where appropriate
 
+### Progress
+
+- `Complementizer` implemented
+- `ComplementizerPhrase` implemented
+- `RelativeClause` now wraps a typed `ComplementizerPhrase` instead of raw text
+- `DeterminerPhrase::gap()` added so relative-clause clausal bodies can be typed without surfacing placeholder text
+- `NominalPostmodifier` can now hold typed `ComplementizerPhrase` values directly
+- `AdjComplement` can now hold typed `ComplementizerPhrase` values directly
+- still pending:
+  - CP specifier support beyond the current complementizer-head model
+  - richer CP integration in VP/AP complements
+  - replacing remaining relative-clause convenience APIs with broader CP builders where appropriate
+
 ## Phase 8: add non-finite clauses
 
 ### Rules targeted
@@ -585,6 +660,26 @@ pub struct NonFiniteClause {
 - add `NonFiniteClause`
 - add infinitival and participial constructors
 - integrate into AP, PP, NP, and VP complement inventories
+
+### Progress
+
+- `NonFiniteForm` implemented with typed infinitival and gerund-participial variants
+- `NonFiniteClause` implemented with:
+  - predicate
+  - optional subject
+  - optional object
+  - clause-level PP attachment
+- `VerbPhrase` now has a dedicated non-finite rendering path instead of relying on finite agreement
+- `AdjComplement` can now hold typed `NonFiniteClause` values directly
+- `NominalPostmodifier` can now hold typed `NonFiniteClause` values directly
+- tests now cover:
+  - `ready to leave`
+  - `the decision to leave`
+  - direct non-finite clause rendering
+- still pending:
+  - PP complements that take non-finite clauses directly
+  - VP complements that distinguish finite from non-finite clauses
+  - richer non-finite inventories beyond the current two forms
 
 ## Phase 9: refactor `Clause` and `Sentence` around projections
 
@@ -702,8 +797,11 @@ let vp = VerbPhrase::new("steal")
         ),
     );
 
-let tp = TensePhrase::new(dp, vp).past();
-let sentence = Sentence::new(Clause::TensePhrase(tp)).capitalize().period();
+let tp = TensePhrase::new(dp, vp)
+    .object(DeterminerPhrase::new("potato").count(7))
+    .prepositional("from", DeterminerPhrase::new("market").the());
+
+let sentence = Sentence::new(tp).capitalize().period();
 ```
 
 That is the target:

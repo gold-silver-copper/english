@@ -12,6 +12,10 @@ fn vp(verb: &str) -> VerbPhrase {
     VerbPhrase::new(verb)
 }
 
+fn pp(preposition: &str, complement: DeterminerPhrase) -> PrepositionalPhrase {
+    PrepositionalPhrase::new(preposition, complement)
+}
+
 #[test]
 fn determiners_render_all_built_in_variants() {
     assert_eq!(dp("child").determiner(Determiner::the()).render(), "the child");
@@ -53,11 +57,11 @@ fn custom_determiners_modifiers_and_particles_render_cleanly() {
 #[test]
 fn public_prepositional_phrases_render_with_noun_phrase_complements() {
     assert_eq!(
-        PrepositionalPhrase::new("on", dp("wall").the()).render(),
+        pp("on", dp("wall").the()).render(),
         "on the wall"
     );
     assert_eq!(
-        PrepositionalPhrase::new("near", dp("station").the()).render(),
+        pp("near", dp("station").the()).render(),
         "near the station"
     );
 }
@@ -78,7 +82,7 @@ fn adverb_phrases_support_specifiers_and_prepositional_complements() {
     );
     assert_eq!(
         AdverbPhrase::new("independently")
-            .complement(PrepositionalPhrase::new("of", dp("help")))
+            .complement(pp("of", dp("help")))
             .render(),
         "independently of help"
     );
@@ -124,14 +128,14 @@ fn adjective_phrase_supports_prepositional_complements() {
     assert_eq!(
         AdjPhrase::new("full")
             .positive()
-            .complement(PrepositionalPhrase::new("of", dp("bean").plural()))
+            .complement(pp("of", dp("bean").plural()))
             .render(),
         "full of beans"
     );
     assert_eq!(
         AdjPhrase::new("close")
             .positive()
-            .complement(PrepositionalPhrase::new("to", dp("station").the()))
+            .complement(pp("to", dp("station").the()))
             .render(),
         "close to the station"
     );
@@ -203,14 +207,14 @@ fn noun_phrase_supports_structured_prepositional_complements() {
     assert_eq!(
         dp("pair")
             .count(3)
-            .complement(PrepositionalPhrase::new("of", dp("jean").plural()))
+            .complement(pp("of", dp("jean").plural()))
             .render(),
         "3 pairs of jeans"
     );
     assert_eq!(
         dp("door")
             .the()
-            .complement(PrepositionalPhrase::new("of", dp("house").the()))
+            .complement(pp("of", dp("house").the()))
             .render(),
         "the door of the house"
     );
@@ -220,15 +224,15 @@ fn noun_phrase_supports_structured_prepositional_complements() {
 fn noun_phrase_supports_deep_recursive_boxed_complements() {
     let phrase = dp("photo")
         .the()
-        .complement(PrepositionalPhrase::new(
+        .complement(pp(
             "of",
             dp("child")
                 .the()
-                .postmodifier(PrepositionalPhrase::new(
+                .postmodifier(pp(
                     "with",
                     dp("toy")
                         .the()
-                        .postmodifier(PrepositionalPhrase::new("in", dp("box").the())),
+                        .postmodifier(pp("in", dp("box").the())),
                 )),
         ));
 
@@ -239,15 +243,15 @@ fn noun_phrase_supports_deep_recursive_boxed_complements() {
 fn noun_phrase_recursion_can_branch_through_multiple_boxed_levels() {
     let phrase = dp("map")
         .the()
-        .complement(PrepositionalPhrase::new(
+        .complement(pp(
             "of",
             dp("room")
                 .the()
-                .postmodifier(PrepositionalPhrase::new(
+                .postmodifier(pp(
                     "inside",
                     dp("house")
                         .the()
-                        .postmodifier(PrepositionalPhrase::new("near", dp("river").the())),
+                        .postmodifier(pp("near", dp("river").the())),
                 )),
         ));
 
@@ -261,6 +265,19 @@ fn agreement_tracks_default_singular_plural_and_counts() {
     assert_eq!(dp("child").count(1).agreement(), (Person::Third, Number::Singular));
     assert_eq!(dp("child").count(2).agreement(), (Person::Third, Number::Plural));
     assert_eq!(dp("sheep").plural().agreement(), (Person::Third, Number::Plural));
+}
+
+#[test]
+fn gap_dps_can_carry_full_semantics() {
+    let gap = DeterminerPhrase::gap_with_semantics(
+        DpSemantics::new(Person::Third, Number::Singular)
+            .with_gender(Gender::Feminine)
+            .with_animacy(Animacy::Animate),
+    );
+
+    assert_eq!(gap.render(), "");
+    assert_eq!(gap.agreement(), (Person::Third, Number::Singular));
+    assert_eq!(gap.reflexive_form(), "herself");
 }
 
 #[test]
@@ -799,7 +816,7 @@ fn clause_works_with_modified_subjects_and_objects() {
         dp("potato")
             .count(7)
             .modifier(ap("red"))
-            .postmodifier(PrepositionalPhrase::new("from", dp("cart").the())),
+            .postmodifier(pp("from", dp("cart").the())),
     );
 
     assert_eq!(clause.render(), "the smaller children stole 7 red potatoes from the cart");
@@ -833,11 +850,11 @@ fn sentence_adds_capitalization_and_terminal_marks() {
 fn clause_and_sentence_handle_recursive_phrase_material() {
     let subject = dp("photo")
         .the()
-        .complement(PrepositionalPhrase::new(
+        .complement(pp(
             "of",
             dp("child")
                 .the()
-                .postmodifier(PrepositionalPhrase::new("with", dp("toy").the())),
+                .postmodifier(pp("with", dp("toy").the())),
         ));
 
     let clause = Clause::new(
@@ -848,7 +865,7 @@ fn clause_and_sentence_handle_recursive_phrase_material() {
         "on",
         dp("wall")
             .the()
-            .postmodifier(PrepositionalPhrase::new("inside", dp("hall").the())),
+            .postmodifier(pp("inside", dp("hall").the())),
     );
 
     assert_eq!(
@@ -871,7 +888,7 @@ fn clause_supports_structured_prepositional_phrases() {
         "near",
         dp("station")
             .the()
-            .postmodifier(PrepositionalPhrase::new("by", dp("river").the())),
+            .postmodifier(pp("by", dp("river").the())),
     );
 
     assert_eq!(clause.render(), "the children waited near the station by the river");
