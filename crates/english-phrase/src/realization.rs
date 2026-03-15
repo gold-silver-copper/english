@@ -1,34 +1,16 @@
+use crate::desugar::{
+    lower_advp, lower_ap, lower_clause, lower_dp, lower_phrase, lower_pp, lower_verb_projection,
+};
+use crate::error::RealizationResult;
+use crate::internal::{
+    ABar, AP, AdvBar, CBar, CHead, CP, DBar, DComplement, DHead, DP, NBar, NHead, NP, NegHead,
+    NegVBar, PBar, PP, SilentDeterminer, TBar, THead, TP, VBar, VP, VPBar, XP,
+};
 use crate::syntax::{
-    AdjectivePhrase, AdverbPhrase, DeterminerHead, DeterminerPhrase, Phrase, PrepositionalPhrase,
-    Tense, VerbForm, VerbPhrase,
+    AdjectivePhrase, AdverbPhrase, DeterminerPhrase, Phrase, PrepositionalPhrase, Tense, VerbPhrase,
 };
 use english::{English, Form as MorphForm, Number, Person, Tense as MorphTense};
 use std::borrow::Borrow;
-use std::error::Error;
-use std::fmt;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RealizationError {
-    message: String,
-}
-
-impl RealizationError {
-    pub fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-        }
-    }
-}
-
-impl fmt::Display for RealizationError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.message)
-    }
-}
-
-impl Error for RealizationError {}
-
-pub type RealizationResult<T> = Result<T, RealizationError>;
 
 fn join_nonempty(parts: impl IntoIterator<Item = String>) -> String {
     parts
@@ -42,16 +24,6 @@ fn morph_tense(tense: Tense) -> MorphTense {
     match tense {
         Tense::Present => MorphTense::Present,
         Tense::Past => MorphTense::Past,
-    }
-}
-
-fn agreement(subject: Option<&DeterminerPhrase>) -> (Person, Number) {
-    match subject {
-        Some(phrase) => match phrase.head() {
-            DeterminerHead::Pronoun(pronoun) => (pronoun.person(), pronoun.number()),
-            _ => (Person::Third, phrase.number().clone()),
-        },
-        None => (Person::Third, Number::Singular),
     }
 }
 
@@ -95,211 +67,325 @@ fn past_participle(lemma: &str) -> String {
     )
 }
 
-fn realize_modifier(phrase: &Phrase) -> RealizationResult<String> {
-    realize_phrase(phrase)
-}
-
-fn realize_suffixes(phrases: &[Box<Phrase>]) -> RealizationResult<Vec<String>> {
-    phrases
+fn render_xp_list(values: &[Box<XP>]) -> RealizationResult<Vec<String>> {
+    values
         .iter()
-        .map(|phrase| realize_phrase(phrase.as_ref()))
+        .map(|value| render_xp(value.as_ref()))
         .collect()
 }
 
-fn realize_verb_words(
-    phrase: &VerbPhrase,
-    subject: Option<&DeterminerPhrase>,
-) -> RealizationResult<Vec<String>> {
-    let lemma = phrase.head().as_str();
-    let (person, number) = agreement(subject);
+fn agreement_from_dp(dp: &DP) -> (Person, Number) {
+    match &dp.bar.complement {
+        DComplement::NP(np) => match &np.bar.head {
+            NHead::CommonNoun { number, .. } => (Person::Third, number.clone()),
+            NHead::ProperName(_) => (Person::Third, Number::Singular),
+            NHead::Pronoun(pronoun) => (pronoun.person(), pronoun.number()),
+        },
+        DComplement::VP(_) | DComplement::Trace => (Person::Third, Number::Singular),
+    }
+}
 
-    Ok(match phrase.form() {
-        VerbForm::Finite(tense) => {
-            if phrase.is_negative() && lemma != "be" {
-                vec![
-                    finite_form("do", &person, &number, tense),
-                    "not".to_string(),
-                    base_form(lemma),
-                ]
+fn render_xp(xp: &XP) -> RealizationResult<String> {
+    match xp {
+        XP::CP(cp) => render_cp(cp),
+        XP::TP(tp) => render_tp(tp),
+        XP::VP(vp) => render_vp(vp),
+        XP::DP(dp) => render_dp(dp),
+        XP::NP(np) => render_np(np),
+        XP::AP(ap) => render_ap(ap),
+        XP::AdvP(advp) => render_advp(advp),
+        XP::PP(pp) => render_pp(pp),
+    }
+}
+
+fn render_cp(cp: &CP) -> RealizationResult<String> {
+    let mut parts = Vec::new();
+    if let Some(specifier) = &cp.specifier {
+        parts.push(render_xp(specifier.as_ref())?);
+    }
+    parts.push(render_cbar(&cp.bar)?);
+    Ok(join_nonempty(parts))
+}
+
+fn render_cbar(cbar: &CBar) -> RealizationResult<String> {
+    let head = match &cbar.head {
+        CHead::Null => String::new(),
+        CHead::Overt(text) => text.clone(),
+    };
+    Ok(join_nonempty(vec![head, render_tp(&cbar.complement)?]))
+}
+
+fn render_tp(tp: &TP) -> RealizationResult<String> {
+    let subject = tp
+        .specifier
+        .as_ref()
+        .map(|subject| render_dp(subject))
+        .transpose()?;
+
+    let predicate = render_tbar(&tp.bar, tp.specifier.as_deref())?;
+
+    Ok(join_nonempty(
+        subject.into_iter().chain(std::iter::once(predicate)),
+    ))
+}
+
+fn render_tbar(tbar: &TBar, subject: Option<&DP>) -> RealizationResult<String> {
+    let (neg_count, vp) = peel_negation(&tbar.complement);
+    let vbar = headed_vbar(vp);
+    let lemma = vbar.head.entry.as_str();
+    let mut parts = match tbar.head {
+        THead::Finite(tense) => {
+            let agreement = subject
+                .map(agreement_from_dp)
+                .unwrap_or((Person::Third, Number::Singular));
+            if neg_count > 0 && lemma != "be" {
+                let mut words = vec![finite_form("do", &agreement.0, &agreement.1, tense)];
+                words.extend(std::iter::repeat_n("not".to_string(), neg_count));
+                words.push(base_form(lemma));
+                words
             } else {
-                let mut words = vec![finite_form(lemma, &person, &number, tense)];
-                if phrase.is_negative() {
-                    words.push("not".to_string());
-                }
+                let mut words = vec![finite_form(lemma, &agreement.0, &agreement.1, tense)];
+                words.extend(std::iter::repeat_n("not".to_string(), neg_count));
                 words
             }
         }
-        VerbForm::BareInfinitive => {
+        THead::BareInfinitive => {
             let mut words = Vec::new();
-            if phrase.is_negative() {
-                words.push("not".to_string());
-            }
+            words.extend(std::iter::repeat_n("not".to_string(), neg_count));
             words.push(base_form(lemma));
             words
         }
-        VerbForm::ToInfinitive => {
+        THead::ToInfinitive => {
             let mut words = Vec::new();
-            if phrase.is_negative() {
-                words.push("not".to_string());
-            }
+            words.extend(std::iter::repeat_n("not".to_string(), neg_count));
             words.push("to".to_string());
             words.push(base_form(lemma));
             words
         }
-        VerbForm::GerundParticiple => {
+        THead::GerundParticiple => {
             let mut words = Vec::new();
-            if phrase.is_negative() {
-                words.push("not".to_string());
-            }
+            words.extend(std::iter::repeat_n("not".to_string(), neg_count));
             words.push(gerund_form(lemma));
             words
         }
-        VerbForm::PastParticiple => {
+        THead::PastParticiple => {
             let mut words = Vec::new();
-            if phrase.is_negative() {
-                words.push("not".to_string());
-            }
+            words.extend(std::iter::repeat_n("not".to_string(), neg_count));
             words.push(past_participle(lemma));
             words
         }
-    })
+    };
+
+    parts.extend(render_vp_tail(vp)?);
+    Ok(join_nonempty(parts))
+}
+
+fn peel_negation(mut vp: &VP) -> (usize, &VP) {
+    let mut neg_count = 0;
+    loop {
+        match &vp.bar {
+            VPBar::Negated(neg) => {
+                neg_count += matches!(neg.head, NegHead::Not) as usize;
+                vp = neg.complement.as_ref();
+            }
+            VPBar::Headed(_) => return (neg_count, vp),
+        }
+    }
+}
+
+fn headed_vbar(vp: &VP) -> &VBar {
+    match &vp.bar {
+        VPBar::Headed(vbar) => vbar,
+        VPBar::Negated(_) => unreachable!("negation should be peeled before accessing V head"),
+    }
+}
+
+fn render_vp(vp: &VP) -> RealizationResult<String> {
+    match &vp.bar {
+        VPBar::Headed(vbar) => render_vbar(vbar, vp.specifier.as_deref()),
+        VPBar::Negated(negbar) => render_negated_vp(negbar, vp.specifier.as_deref()),
+    }
+}
+
+fn render_negated_vp(negbar: &NegVBar, specifier: Option<&DP>) -> RealizationResult<String> {
+    let mut parts = Vec::new();
+
+    if let Some(specifier) = specifier {
+        parts.push(render_dp(specifier)?);
+    }
+
+    parts.push(match negbar.head {
+        NegHead::Not => "not".to_string(),
+    });
+    parts.push(render_vp(&negbar.complement)?);
+    Ok(join_nonempty(parts))
+}
+
+fn render_vbar(vbar: &VBar, specifier: Option<&DP>) -> RealizationResult<String> {
+    let head = base_form(vbar.head.entry.as_str());
+    let mut parts = Vec::new();
+
+    if let Some(specifier) = specifier {
+        parts.push(render_dp(specifier)?);
+    }
+
+    parts.push(head);
+    parts.extend(render_xp_list(&vbar.complements)?);
+    parts.extend(render_xp_list(&vbar.adjuncts)?);
+    Ok(join_nonempty(parts))
+}
+
+fn render_vp_tail(vp: &VP) -> RealizationResult<Vec<String>> {
+    let vbar = headed_vbar(vp);
+    let mut parts = Vec::new();
+
+    if let Some(specifier) = &vp.specifier {
+        let rendered = render_dp(specifier)?;
+        if !rendered.is_empty() {
+            parts.push(rendered);
+        }
+    }
+
+    parts.extend(render_xp_list(&vbar.complements)?);
+    parts.extend(render_xp_list(&vbar.adjuncts)?);
+    Ok(parts)
+}
+
+fn render_dp(dp: &DP) -> RealizationResult<String> {
+    let mut parts = Vec::new();
+
+    if let Some(specifier) = &dp.specifier {
+        let possessor = render_dp(specifier)?;
+        if !possessor.is_empty() {
+            parts.push(English::add_possessive(&possessor));
+        }
+    }
+
+    parts.push(render_dbar(&dp.bar)?);
+    Ok(join_nonempty(parts))
+}
+
+fn render_dbar(dbar: &DBar) -> RealizationResult<String> {
+    match (&dbar.head, &dbar.complement) {
+        (DHead::Overt(head), DComplement::NP(np)) => Ok(join_nonempty(vec![
+            head.as_str().to_string(),
+            render_np(np)?,
+        ])),
+        (DHead::Silent(SilentDeterminer::Trace), DComplement::Trace) => Ok(String::new()),
+        (DHead::Silent(_), DComplement::NP(np)) => render_np(np),
+        (DHead::Overt(head), DComplement::VP(vp)) => Ok(join_nonempty(vec![
+            head.as_str().to_string(),
+            render_vp(vp)?,
+        ])),
+        (DHead::Silent(_), DComplement::VP(vp)) => render_vp(vp),
+        (_, DComplement::Trace) => Ok(String::new()),
+    }
+}
+
+fn render_np(np: &NP) -> RealizationResult<String> {
+    let mut parts = render_xp_list(&np.left_adjuncts)?;
+    parts.push(render_nbar(&np.bar)?);
+    parts.extend(render_xp_list(&np.right_adjuncts)?);
+    Ok(join_nonempty(parts))
+}
+
+fn render_nbar(nbar: &NBar) -> RealizationResult<String> {
+    let head = match &nbar.head {
+        NHead::CommonNoun { entry, number } => English::noun(entry.as_str(), number),
+        NHead::ProperName(name) => name.clone(),
+        NHead::Pronoun(pronoun) => pronoun.as_str().to_string(),
+    };
+
+    Ok(join_nonempty(
+        std::iter::once(head).chain(render_xp_list(&nbar.complements)?),
+    ))
+}
+
+fn render_ap(ap: &AP) -> RealizationResult<String> {
+    let mut parts = Vec::new();
+    if let Some(specifier) = &ap.specifier {
+        parts.push(render_advp(specifier)?);
+    }
+    parts.push(render_abar(&ap.bar)?);
+    Ok(join_nonempty(parts))
+}
+
+fn render_abar(abar: &ABar) -> RealizationResult<String> {
+    Ok(join_nonempty(
+        std::iter::once(English::adj(
+            abar.head.entry.as_str(),
+            &english::Degree::Positive,
+        ))
+        .chain(render_xp_list(&abar.complements)?),
+    ))
+}
+
+fn render_advp(advp: &crate::internal::AdvP) -> RealizationResult<String> {
+    let mut parts = Vec::new();
+    if let Some(specifier) = &advp.specifier {
+        parts.push(render_advp(specifier)?);
+    }
+    parts.push(render_advbar(&advp.bar)?);
+    Ok(join_nonempty(parts))
+}
+
+fn render_advbar(advbar: &AdvBar) -> RealizationResult<String> {
+    Ok(join_nonempty(
+        std::iter::once(advbar.head.entry.as_str().to_string())
+            .chain(render_xp_list(&advbar.complements)?),
+    ))
+}
+
+fn render_pp(pp: &PP) -> RealizationResult<String> {
+    let mut parts = Vec::new();
+    if let Some(specifier) = &pp.specifier {
+        parts.push(render_xp(specifier.as_ref())?);
+    }
+    parts.push(render_pbar(&pp.bar)?);
+    Ok(join_nonempty(parts))
+}
+
+fn render_pbar(pbar: &PBar) -> RealizationResult<String> {
+    let mut parts = vec![pbar.head.entry.as_str().to_string()];
+    if let Some(complement) = &pbar.complement {
+        parts.push(render_xp(complement.as_ref())?);
+    }
+    Ok(join_nonempty(parts))
 }
 
 pub fn realize_phrase(phrase: impl Borrow<Phrase>) -> RealizationResult<String> {
-    match phrase.borrow() {
-        Phrase::DP(dp) => realize_determiner_phrase(dp.as_ref()),
-        Phrase::VP(vp) => realize_verb_phrase(vp.as_ref()),
-        Phrase::PP(pp) => realize_prepositional_phrase(pp.as_ref()),
-        Phrase::AdjP(adjp) => realize_adjective_phrase(adjp.as_ref()),
-        Phrase::AdvP(advp) => realize_adverb_phrase(advp.as_ref()),
-    }
+    render_xp(&lower_phrase(phrase.borrow())?)
 }
 
 pub fn realize_determiner_phrase(
     phrase: impl Borrow<DeterminerPhrase>,
 ) -> RealizationResult<String> {
-    let phrase = phrase.borrow();
-    let mut parts = Vec::new();
-
-    let modifiers = phrase
-        .modifiers()
-        .iter()
-        .map(|modifier| realize_modifier(modifier.as_ref()))
-        .collect::<Result<Vec<_>, _>>()?;
-
-    let head = match phrase.head() {
-        DeterminerHead::CommonNoun(noun) => {
-            if let Some(determiner) = phrase.determiner_opt() {
-                parts.push(determiner.as_str().to_string());
-            }
-            parts.extend(modifiers);
-            English::noun(noun.as_str(), phrase.number())
-        }
-        DeterminerHead::ProperName(name) => {
-            if phrase.determiner_opt().is_some() {
-                return Err(RealizationError::new(
-                    "proper names do not take determiners in the simplified DP model",
-                ));
-            }
-            parts.extend(modifiers);
-            name.clone()
-        }
-        DeterminerHead::Pronoun(pronoun) => {
-            if phrase.determiner_opt().is_some() {
-                return Err(RealizationError::new(
-                    "pronouns do not take determiners in the simplified DP model",
-                ));
-            }
-            parts.extend(modifiers);
-            pronoun.as_str().to_string()
-        }
-    };
-
-    parts.push(head);
-    parts.extend(realize_suffixes(phrase.complements())?);
-    Ok(join_nonempty(parts))
+    render_dp(&lower_dp(phrase.borrow())?)
 }
 
 pub fn realize_adjective_phrase(phrase: impl Borrow<AdjectivePhrase>) -> RealizationResult<String> {
-    let phrase = phrase.borrow();
-    let mut parts = Vec::new();
-
-    if let Some(modifier) = phrase.modifier_opt() {
-        match modifier {
-            Phrase::AdvP(_) => parts.push(realize_phrase(modifier)?),
-            _ => {
-                return Err(RealizationError::new(
-                    "adjective phrase modifiers must be adverb phrases",
-                ));
-            }
-        }
-    }
-
-    parts.push(English::adj(
-        phrase.head().as_str(),
-        &english::Degree::Positive,
-    ));
-    parts.extend(realize_suffixes(phrase.complements())?);
-    Ok(join_nonempty(parts))
+    render_ap(&lower_ap(phrase.borrow())?)
 }
 
 pub fn realize_adverb_phrase(phrase: impl Borrow<AdverbPhrase>) -> RealizationResult<String> {
-    let phrase = phrase.borrow();
-    let mut parts = Vec::new();
-
-    if let Some(modifier) = phrase.modifier_opt() {
-        match modifier {
-            Phrase::AdvP(_) => parts.push(realize_phrase(modifier)?),
-            _ => {
-                return Err(RealizationError::new(
-                    "adverb phrase modifiers must be adverb phrases",
-                ));
-            }
-        }
-    }
-
-    parts.push(phrase.head().as_str().to_string());
-    parts.extend(realize_suffixes(phrase.complements())?);
-    Ok(join_nonempty(parts))
+    render_advp(&lower_advp(phrase.borrow())?)
 }
 
 pub fn realize_prepositional_phrase(
     phrase: impl Borrow<PrepositionalPhrase>,
 ) -> RealizationResult<String> {
-    let phrase = phrase.borrow();
-    Ok(join_nonempty(vec![
-        phrase.head().as_str().to_string(),
-        realize_phrase(phrase.complement())?,
-    ]))
+    render_pp(&lower_pp(phrase.borrow())?)
 }
 
 pub fn realize_verb_phrase(phrase: impl Borrow<VerbPhrase>) -> RealizationResult<String> {
-    let phrase = phrase.borrow();
-    let mut parts = realize_verb_words(phrase, None)?;
-    parts.extend(realize_suffixes(phrase.complements())?);
-    parts.extend(realize_suffixes(phrase.adjuncts())?);
-    Ok(join_nonempty(parts))
+    render_tp(&lower_verb_projection(phrase.borrow(), None)?)
 }
 
 pub fn realize_clause(
     subject: impl Borrow<DeterminerPhrase>,
     predicate: impl Borrow<VerbPhrase>,
 ) -> RealizationResult<String> {
-    let subject = subject.borrow();
-    let predicate = predicate.borrow();
-
-    if !matches!(predicate.form(), VerbForm::Finite(_)) {
-        return Err(RealizationError::new(
-            "finite clauses require a finite verb phrase",
-        ));
-    }
-
-    let mut parts = Vec::new();
-    parts.push(realize_determiner_phrase(subject)?);
-    parts.extend(realize_verb_words(predicate, Some(subject))?);
-    parts.extend(realize_suffixes(predicate.complements())?);
-    parts.extend(realize_suffixes(predicate.adjuncts())?);
-    Ok(join_nonempty(parts))
+    render_cp(&lower_clause(subject.borrow(), predicate.borrow())?)
 }
 
 pub fn realize_sentence(
