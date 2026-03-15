@@ -42,15 +42,15 @@ fn verb_phrases_handle_finite_and_non_finite_forms_without_extra_spine_nodes() {
 
     assert_eq!(infinitive.realize().unwrap(), "not to eat the apple");
     assert_eq!(
-        pronoun_dp(Pronoun::We)
-            .predicate(finite.clone())
+        tp(finite.clone())
+            .subject(pronoun_dp(Pronoun::We))
             .realize()
             .unwrap(),
         "we ate the apple"
     );
     assert_eq!(
-        pronoun_dp(Pronoun::We)
-            .predicate(finite)
+        tp(finite)
+            .subject(pronoun_dp(Pronoun::We))
             .sentence()
             .realize()
             .unwrap(),

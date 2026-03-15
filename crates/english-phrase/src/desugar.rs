@@ -5,8 +5,8 @@ use crate::internal::{
     VPBar, XP,
 };
 use crate::syntax::{
-    AdjectivePhrase, AdverbPhrase, Clause, DeterminerHead, DeterminerPhrase, NounPhrase, Phrase,
-    PrepositionalPhrase, VerbForm, VerbPhrase,
+    AdjectivePhrase, AdverbPhrase, DeterminerHead, DeterminerPhrase, NounPhrase, Phrase,
+    PrepositionalPhrase, TensePhrase, VerbForm, VerbPhrase,
 };
 
 fn t_head_from(form: VerbForm) -> THead {
@@ -238,13 +238,13 @@ pub(crate) fn lower_verb_projection(
     })
 }
 
-pub(crate) fn lower_clause(clause: &Clause) -> RealizationResult<CP> {
+pub(crate) fn lower_tense_phrase(phrase: &TensePhrase) -> RealizationResult<CP> {
     Ok(CP {
         bar: CBar {
             head: CHead,
             complement: Box::new(lower_verb_projection(
-                clause.predicate(),
-                Some(clause.subject()),
+                phrase.predicate(),
+                phrase.subject_opt(),
             )?),
         },
     })
@@ -254,17 +254,16 @@ pub(crate) fn lower_clause(clause: &Clause) -> RealizationResult<CP> {
 mod tests {
     use super::*;
     use crate::lexical::{Determiner, Pronoun};
-    use crate::syntax::{adjp, advp, dp, np, pp, vp};
+    use crate::syntax::{adjp, advp, dp, np, pp, tp, vp};
 
     #[test]
     fn finite_clause_lowers_to_cp_tp_and_negated_vp() {
-        let clause = lower_clause(
-            &dp(np("child")).the().predicate(
-                vp("eat")
-                    .past()
-                    .negative()
-                    .complement(dp(np("apple")).the()),
-            ),
+        let clause = lower_tense_phrase(
+            &tp(vp("eat")
+                .past()
+                .negative()
+                .complement(dp(np("apple")).the()))
+            .subject(dp(np("child")).the()),
         )
         .unwrap();
 

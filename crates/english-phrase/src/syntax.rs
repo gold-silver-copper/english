@@ -202,13 +202,6 @@ impl DeterminerPhrase {
         self.determiner(Determiner::Those)
     }
 
-    pub fn predicate(self, predicate: VerbPhrase) -> Clause {
-        Clause {
-            subject: self,
-            predicate,
-        }
-    }
-
     pub fn determiner_opt(&self) -> Option<Determiner> {
         self.determiner
     }
@@ -406,14 +399,26 @@ impl VerbPhrase {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Clause {
-    subject: DeterminerPhrase,
+pub struct TensePhrase {
+    subject: Option<DeterminerPhrase>,
     predicate: VerbPhrase,
 }
 
-impl Clause {
-    pub fn subject(&self) -> &DeterminerPhrase {
-        &self.subject
+impl TensePhrase {
+    pub fn new(predicate: VerbPhrase) -> Self {
+        Self {
+            subject: None,
+            predicate,
+        }
+    }
+
+    pub fn subject(mut self, subject: DeterminerPhrase) -> Self {
+        self.subject = Some(subject);
+        self
+    }
+
+    pub fn subject_opt(&self) -> Option<&DeterminerPhrase> {
+        self.subject.as_ref()
     }
 
     pub fn predicate(&self) -> &VerbPhrase {
@@ -422,7 +427,7 @@ impl Clause {
 
     pub fn sentence(self) -> Sentence {
         Sentence {
-            clause: self,
+            tense_phrase: self,
             capitalize: true,
             terminal: Terminal::Period,
         }
@@ -438,14 +443,14 @@ pub enum Terminal {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Sentence {
-    clause: Clause,
+    tense_phrase: TensePhrase,
     capitalize: bool,
     terminal: Terminal,
 }
 
 impl Sentence {
-    pub fn clause(&self) -> &Clause {
-        &self.clause
+    pub fn tense_phrase(&self) -> &TensePhrase {
+        &self.tense_phrase
     }
 
     pub fn capitalize(mut self) -> Self {
@@ -515,6 +520,10 @@ pub fn pp<C: PpComplement>(
 
 pub fn vp(head: impl Into<VerbEntry>) -> VerbPhrase {
     VerbPhrase::new(head)
+}
+
+pub fn tp(predicate: VerbPhrase) -> TensePhrase {
+    TensePhrase::new(predicate)
 }
 
 impl From<DeterminerPhrase> for Phrase {

@@ -1,5 +1,5 @@
 use crate::desugar::{
-    lower_advp, lower_ap, lower_clause, lower_dp, lower_np, lower_phrase, lower_pp,
+    lower_advp, lower_ap, lower_dp, lower_np, lower_phrase, lower_pp, lower_tense_phrase,
     lower_verb_projection,
 };
 use crate::error::RealizationResult;
@@ -8,8 +8,8 @@ use crate::internal::{
     PBar, PP, SilentDeterminer, TBar, THead, TP, VBar, VP, VPBar, XP,
 };
 use crate::syntax::{
-    AdjectivePhrase, AdverbPhrase, Clause, DeterminerPhrase, NounPhrase, Phrase,
-    PrepositionalPhrase, Sentence, Tense, Terminal, VerbPhrase,
+    AdjectivePhrase, AdverbPhrase, DeterminerPhrase, NounPhrase, Phrase, PrepositionalPhrase,
+    Sentence, Tense, TensePhrase, Terminal, VerbPhrase,
 };
 use english::{English, Form as MorphForm, Number, Person, Tense as MorphTense};
 use std::borrow::Borrow;
@@ -364,8 +364,8 @@ pub fn realize_verb_phrase(phrase: impl Borrow<VerbPhrase>) -> RealizationResult
     phrase.borrow().realize()
 }
 
-pub fn realize_clause(clause: impl Borrow<Clause>) -> RealizationResult<String> {
-    clause.borrow().realize()
+pub fn realize_tense_phrase(phrase: impl Borrow<TensePhrase>) -> RealizationResult<String> {
+    phrase.borrow().realize()
 }
 
 pub fn realize_sentence(sentence: impl Borrow<Sentence>) -> RealizationResult<String> {
@@ -379,7 +379,7 @@ impl private::Sealed for AdjectivePhrase {}
 impl private::Sealed for AdverbPhrase {}
 impl private::Sealed for PrepositionalPhrase {}
 impl private::Sealed for VerbPhrase {}
-impl private::Sealed for Clause {}
+impl private::Sealed for TensePhrase {}
 impl private::Sealed for Sentence {}
 
 impl Realizable for Phrase {
@@ -424,15 +424,15 @@ impl Realizable for VerbPhrase {
     }
 }
 
-impl Realizable for Clause {
+impl Realizable for TensePhrase {
     fn realize(&self) -> RealizationResult<String> {
-        render_cp(&lower_clause(self)?)
+        render_cp(&lower_tense_phrase(self)?)
     }
 }
 
 impl Realizable for Sentence {
     fn realize(&self) -> RealizationResult<String> {
-        let mut text = self.clause().realize()?;
+        let mut text = self.tense_phrase().realize()?;
         if self.capitalize_flag() {
             text = English::capitalize_first(&text);
         }
