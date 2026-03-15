@@ -1,264 +1,97 @@
 use english_phrase::*;
 
 #[test]
-fn builders_derive_into_pure_syntax_without_render_methods() {
-    let subject = DeterminerPhraseBuilder::common_noun(NounEntry::animate("child"))
-        .determiner(Determiner::The)
-        .plural()
-        .build()
-        .unwrap();
+fn small_phrase_inventory_is_recursive_through_boxed_phrase_nodes() {
+    let mut river = dp("river");
+    river.determiner = Some(Determiner::The);
 
-    let predicate = VerbPhraseBuilder::new(VerbEntry::transitive("eat"))
-        .direct_object(
-            DeterminerPhraseBuilder::common_noun("apple")
-                .determiner(Determiner::The)
-                .build()
-                .unwrap(),
-        )
-        .build();
+    let inner = pp("near", river);
+    let outer = pp("from", inner);
 
-    let clause = TensePhraseBuilder::new(subject, predicate)
-        .past()
-        .build()
-        .unwrap();
-
-    assert!(matches!(clause.predicate, VerbalProjection::Voice(_)));
+    assert!(matches!(outer.complement.as_ref(), Phrase::PP(_)));
     assert_eq!(
-        realize_tense_phrase(&clause).unwrap(),
-        "the children ate the apple"
+        realize_prepositional_phrase(&outer).unwrap(),
+        "from near the river"
     );
 }
 
 #[test]
-fn canonical_dp_variants_cover_projection_pronoun_proper_name_reflexive_and_gap() {
-    let projected = DeterminerPhraseBuilder::common_noun("teacher")
-        .determiner(Determiner::The)
-        .build()
-        .unwrap();
-    let pronoun = DeterminerPhraseBuilder::pronoun(Pronoun::They)
-        .build()
-        .unwrap();
-    let proper_name = DeterminerPhraseBuilder::proper_name("Alice")
-        .build()
-        .unwrap();
-    let reflexive = DeterminerPhraseBuilder::reflexive_from(&proper_name)
-        .build()
-        .unwrap();
-    let gap = DeterminerPhraseBuilder::gap(
-        GapDependency::new(DependencyRole::DirectObject),
-        DpSemantics::new(Person::Third, Number::Singular).with_binding_key(BindingKey(7)),
-    )
-    .build()
-    .unwrap();
+fn determiner_phrases_are_direct_structs_without_builders() {
+    let mut friend = dp("friend");
+    friend.determiner = Some(Determiner::A);
 
-    assert!(matches!(
-        projected.kind,
-        DeterminerPhraseKind::Projection(_)
-    ));
-    assert!(matches!(
-        pronoun.kind,
-        DeterminerPhraseKind::BarePronoun { .. }
-    ));
-    assert!(matches!(
-        proper_name.kind,
-        DeterminerPhraseKind::Projection(_)
-    ));
-    assert!(matches!(
-        reflexive.kind,
-        DeterminerPhraseKind::ReflexivePronoun { .. }
-    ));
-    assert!(matches!(gap.kind, DeterminerPhraseKind::Gap { .. }));
-}
+    let mut modifier = adjp("happy");
+    modifier.modifier = Some(Box::new(advp("very").into()));
 
-#[test]
-fn lexical_selection_is_checked_during_derivation() {
-    let subject = DeterminerPhraseBuilder::pronoun(Pronoun::They)
-        .build()
-        .unwrap();
-    let predicate = VerbPhraseBuilder::new(VerbEntry::intransitive("sleep"))
-        .direct_object(
-            DeterminerPhraseBuilder::common_noun("bed")
-                .determiner(Determiner::The)
-                .build()
-                .unwrap(),
-        )
-        .build();
-
-    let error = TensePhraseBuilder::new(subject, predicate)
-        .build()
-        .unwrap_err();
-    assert!(
-        error
-            .iter()
-            .any(|diagnostic| diagnostic.code == "forbidden-direct-object")
-    );
-}
-
-#[test]
-fn passive_and_reflexive_are_derivation_operations_not_ast_methods() {
-    let subject = DeterminerPhraseBuilder::proper_name("Alice")
-        .feminine()
-        .binding_key(BindingKey(3))
-        .build()
-        .unwrap();
-    let object = DeterminerPhraseBuilder::proper_name("Alice")
-        .feminine()
-        .binding_key(BindingKey(3))
-        .build()
-        .unwrap();
-
-    let passive = TensePhraseBuilder::new(
-        subject.clone(),
-        VerbPhraseBuilder::new(VerbEntry::transitive("praise"))
-            .direct_object(
-                DeterminerPhraseBuilder::common_noun("child")
-                    .determiner(Determiner::The)
-                    .build()
-                    .unwrap(),
-            )
-            .build(),
-    )
-    .past()
-    .passive()
-    .build()
-    .unwrap();
-
-    let reflexive = TensePhraseBuilder::new(
-        subject,
-        VerbPhraseBuilder::new(VerbEntry::transitive("admire"))
-            .direct_object(object)
-            .build(),
-    )
-    .past()
-    .reflexive()
-    .build()
-    .unwrap();
+    let mut child = dp("child");
+    child.determiner = Some(Determiner::The);
+    child.modifiers.push(Box::new(modifier.into()));
+    child.complements.push(Box::new(pp("with", friend).into()));
 
     assert_eq!(
-        realize_tense_phrase(&passive).unwrap(),
-        "the child was praised by Alice"
-    );
-    assert_eq!(
-        realize_tense_phrase(&reflexive).unwrap(),
-        "Alice admired herself"
+        realize_determiner_phrase(&child).unwrap(),
+        "the very happy child with a friend"
     );
 }
 
 #[test]
-fn explicit_verbal_spine_realizes_modal_negative_perfect_progressive_and_voice() {
-    let subject = DeterminerPhraseBuilder::common_noun("child")
-        .determiner(Determiner::The)
-        .plural()
-        .build()
-        .unwrap();
-    let predicate = VerbPhraseBuilder::new(VerbEntry::transitive("praise"))
-        .direct_object(
-            DeterminerPhraseBuilder::common_noun("teacher")
-                .determiner(Determiner::The)
-                .build()
-                .unwrap(),
-        )
-        .build();
+fn proper_names_and_pronouns_are_just_dp_heads() {
+    let alice = proper_name("Alice");
+    let they = pronoun_dp(Pronoun::They);
 
-    let clause = TensePhraseBuilder::new(subject, predicate)
-        .modal(Modal::Would)
-        .negative()
-        .perfect()
-        .progressive()
-        .passive()
-        .build()
-        .unwrap();
+    assert_eq!(realize_determiner_phrase(&alice).unwrap(), "Alice");
+    assert_eq!(realize_determiner_phrase(&they).unwrap(), "they");
+}
 
-    assert!(matches!(clause.predicate, VerbalProjection::Modal(_)));
+#[test]
+fn verb_phrases_handle_finite_and_non_finite_forms_without_extra_spine_nodes() {
+    let mut object = dp("apple");
+    object.determiner = Some(Determiner::The);
+
+    let mut infinitive = vp("eat");
+    infinitive.form = VerbForm::ToInfinitive;
+    infinitive.negative = true;
+    infinitive.complements.push(Box::new(object.clone().into()));
+
+    let mut finite = VerbPhrase::finite("eat", Tense::Past);
+    finite.complements.push(Box::new(object.into()));
+
+    let subject = pronoun_dp(Pronoun::We);
+
     assert_eq!(
-        realize_tense_phrase(&clause).unwrap(),
-        "the teacher would not have been being praised by the children"
+        realize_verb_phrase(&infinitive).unwrap(),
+        "not to eat the apple"
+    );
+    assert_eq!(
+        realize_clause(&subject, &finite).unwrap(),
+        "we ate the apple"
+    );
+    assert_eq!(
+        realize_sentence(&subject, &finite).unwrap(),
+        "We ate the apple."
     );
 }
 
 #[test]
-fn nonfinite_clauses_are_realized_through_the_same_pipeline() {
-    let clause = NonFiniteClauseBuilder::new(
-        VerbPhraseBuilder::new(VerbEntry::transitive("eat"))
-            .direct_object(
-                DeterminerPhraseBuilder::common_noun("apple")
-                    .determiner(Determiner::The)
-                    .build()
-                    .unwrap(),
-            )
-            .build(),
-    )
-    .to_infinitive()
-    .negative()
-    .perfect()
-    .build()
-    .unwrap();
+fn adjective_and_adverb_phrases_reuse_the_same_recursive_phrase_enum() {
+    let mut road = dp("road");
+    road.determiner = Some(Determiner::The);
+
+    let mut slowly = advp("slowly");
+    slowly.complements.push(Box::new(pp("along", road).into()));
+
+    let mut careful = adjp("careful");
+    careful.modifier = Some(Box::new(slowly.clone().into()));
+    careful
+        .complements
+        .push(Box::new(pp("with", proper_name("Alice")).into()));
 
     assert_eq!(
-        realize_non_finite_clause(&clause).unwrap(),
-        "not to have eaten the apple"
+        realize_adverb_phrase(&slowly).unwrap(),
+        "slowly along the road"
     );
-}
-
-#[test]
-fn builders_and_realizer_support_structured_cp_and_relative_material() {
-    let gap = DeterminerPhraseBuilder::gap(
-        GapDependency::new(DependencyRole::Subject).with_binder(BindingKey(11)),
-        DpSemantics::new(Person::Third, Number::Singular)
-            .with_binding_key(BindingKey(11))
-            .with_animacy(Animacy::Animate),
-    )
-    .build()
-    .unwrap();
-
-    let relative_tp = TensePhraseBuilder::new(
-        gap,
-        VerbPhraseBuilder::new(VerbEntry::intransitive("arrive")).build(),
-    )
-    .past()
-    .build()
-    .unwrap();
-
-    let relative = RelativeClause {
-        marker: RelativeMarker::Who,
-        clause: Box::new(relative_tp),
-    };
-
-    let dp = DeterminerPhraseBuilder::common_noun("child")
-        .determiner(Determiner::The)
-        .postmodifier(relative)
-        .build()
-        .unwrap();
-
-    let matrix = TensePhraseBuilder::new(
-        dp,
-        VerbPhraseBuilder::new(VerbEntry::intransitive("wait")).build(),
-    )
-    .past()
-    .build()
-    .unwrap();
-
     assert_eq!(
-        realize_tense_phrase(&matrix).unwrap(),
-        "the child who arrived waited"
+        realize_adjective_phrase(&careful).unwrap(),
+        "slowly along the road careful with Alice"
     );
-}
-
-#[test]
-fn sentence_realization_is_fallible_but_convenient() {
-    let clause = Clause {
-        tense_phrase: TensePhraseBuilder::new(
-            DeterminerPhraseBuilder::pronoun(Pronoun::We)
-                .build()
-                .unwrap(),
-            VerbPhraseBuilder::new(VerbEntry::intransitive("arrive")).build(),
-        )
-        .past()
-        .build()
-        .unwrap(),
-    };
-
-    let sentence = SentenceBuilder::new(clause).capitalize().period().build();
-
-    assert_eq!(realize_sentence(&sentence).unwrap(), "We arrived.");
 }
