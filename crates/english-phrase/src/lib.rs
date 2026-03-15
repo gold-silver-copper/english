@@ -1,6 +1,4 @@
-mod desugar;
 mod error;
-mod internal;
 
 pub mod lexical;
 pub mod realization;
