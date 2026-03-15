@@ -694,6 +694,7 @@ impl NominalPhrase {
 enum DeterminerPhraseCore {
     Nominal(NominalPhrase),
     Pronoun(Pronoun),
+    ReflexivePronoun(&'static str),
     ProperName(String),
     Gap,
 }
@@ -742,6 +743,15 @@ impl DeterminerPhrase {
             core: DeterminerPhraseCore::ProperName(name.into()),
             semantics: DpSemantics::new(Person::Third, Number::Singular)
                 .with_animacy(Animacy::Animate),
+        }
+    }
+
+    pub fn reflexive_pronoun(antecedent: &DeterminerPhrase) -> Self {
+        Self {
+            specifier: None,
+            determiner: None,
+            core: DeterminerPhraseCore::ReflexivePronoun(antecedent.reflexive_form()),
+            semantics: antecedent.semantics.clone(),
         }
     }
 
@@ -891,6 +901,7 @@ impl DeterminerPhrase {
         match &self.core {
             DeterminerPhraseCore::Nominal(nominal) => nominal.render(),
             DeterminerPhraseCore::Pronoun(pronoun) => pronoun.render().to_string(),
+            DeterminerPhraseCore::ReflexivePronoun(text) => text.to_string(),
             DeterminerPhraseCore::ProperName(name) => name.clone(),
             DeterminerPhraseCore::Gap => String::new(),
         }
@@ -1019,7 +1030,6 @@ struct VerbPlan {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum VerbComplement {
-    DeterminerPhrase(Box<DeterminerPhrase>),
     PrepositionalPhrase(Box<PrepositionalPhrase>),
     AdjectivePhrase(Box<AdjPhrase>),
     ComplementizerPhrase(Box<ComplementizerPhrase>),
@@ -1029,18 +1039,11 @@ pub enum VerbComplement {
 impl VerbComplement {
     fn render(&self) -> String {
         match self {
-            VerbComplement::DeterminerPhrase(phrase) => phrase.render(),
             VerbComplement::PrepositionalPhrase(phrase) => phrase.render(),
             VerbComplement::AdjectivePhrase(phrase) => phrase.render(),
             VerbComplement::ComplementizerPhrase(phrase) => phrase.render(),
             VerbComplement::NonFiniteClause(clause) => clause.render(),
         }
-    }
-}
-
-impl From<DeterminerPhrase> for VerbComplement {
-    fn from(phrase: DeterminerPhrase) -> Self {
-        Self::DeterminerPhrase(Box::new(phrase))
     }
 }
 
@@ -1117,9 +1120,14 @@ impl LightVerb {
                 complement,
                 VerbComplement::ComplementizerPhrase(_) | VerbComplement::NonFiniteClause(_)
             )
-        }) {
+        }) && predicate.direct_object.is_none()
+            && predicate.indirect_object.is_none()
+        {
             Self::Clausal
-        } else if predicate.complements.is_empty() {
+        } else if predicate.direct_object.is_none()
+            && predicate.indirect_object.is_none()
+            && predicate.complements.is_empty()
+        {
             Self::Intransitive
         } else {
             Self::Transitive
@@ -1169,6 +1177,8 @@ pub struct VerbPhrase {
     modal: Option<Modal>,
     particle: Option<String>,
     agreement: Option<(Person, Number)>,
+    direct_object: Option<DeterminerPhrase>,
+    indirect_object: Option<DeterminerPhrase>,
     complements: Vec<VerbComplement>,
     adjuncts: Vec<VerbAdjunct>,
 }
@@ -1184,6 +1194,8 @@ impl VerbPhrase {
             modal: None,
             particle: None,
             agreement: None,
+            direct_object: None,
+            indirect_object: None,
             complements: Vec::new(),
             adjuncts: Vec::new(),
         }
@@ -1269,8 +1281,14 @@ impl VerbPhrase {
         self
     }
 
-    pub fn direct_object(self, object: DeterminerPhrase) -> Self {
-        self.complement(object)
+    pub fn direct_object(mut self, object: DeterminerPhrase) -> Self {
+        self.direct_object = Some(object);
+        self
+    }
+
+    pub fn indirect_object(mut self, object: DeterminerPhrase) -> Self {
+        self.indirect_object = Some(object);
+        self
     }
 
     pub fn pp_complement(self, phrase: PrepositionalPhrase) -> Self {
@@ -1312,19 +1330,26 @@ impl VerbPhrase {
         self
     }
 
-    fn promote_first_determiner_complement(&mut self) -> Option<DeterminerPhrase> {
-        let index = self
-            .complements
-            .iter()
-            .position(|complement| matches!(complement, VerbComplement::DeterminerPhrase(_)))?;
+    fn promote_direct_object(&mut self) -> Option<DeterminerPhrase> {
+        self.direct_object.take()
+    }
 
-        match self.complements.remove(index) {
-            VerbComplement::DeterminerPhrase(phrase) => Some(*phrase),
-            _ => unreachable!("checked complement kind before removal"),
+    fn reflexivize_direct_object(&mut self, antecedent: &DeterminerPhrase) -> bool {
+        if self.direct_object.is_none() {
+            return false;
         }
+
+        self.direct_object = Some(DeterminerPhrase::reflexive_pronoun(antecedent));
+        true
     }
 
     fn render_dependents(&self, parts: &mut Vec<String>) {
+        if let Some(indirect_object) = &self.indirect_object {
+            parts.push(indirect_object.render());
+        }
+        if let Some(direct_object) = &self.direct_object {
+            parts.push(direct_object.render());
+        }
         parts.extend(self.complements.iter().map(VerbComplement::render));
         parts.extend(self.adjuncts.iter().map(VerbAdjunct::render));
     }
@@ -1774,8 +1799,22 @@ impl TensePhrase {
         }
     }
 
-    pub fn object(mut self, object: DeterminerPhrase) -> Self {
+    pub fn object(self, object: DeterminerPhrase) -> Self {
+        self.direct_object(object)
+    }
+
+    pub fn direct_object(mut self, object: DeterminerPhrase) -> Self {
         let predicate = self.light_verb_phrase.predicate().clone().direct_object(object);
+        self.light_verb_phrase = self.light_verb_phrase.with_complement(predicate);
+        self
+    }
+
+    pub fn indirect_object(mut self, object: DeterminerPhrase) -> Self {
+        let predicate = self
+            .light_verb_phrase
+            .predicate()
+            .clone()
+            .indirect_object(object);
         self.light_verb_phrase = self.light_verb_phrase.with_complement(predicate);
         self
     }
@@ -1808,7 +1847,7 @@ impl TensePhrase {
         let demoted_subject = self.light_verb_phrase.subject().clone();
         let mut predicate = self.light_verb_phrase.predicate().clone();
 
-        if let Some(promoted_subject) = predicate.promote_first_determiner_complement() {
+        if let Some(promoted_subject) = predicate.promote_direct_object() {
             predicate = predicate.passive().agree_with(&promoted_subject);
             if !demoted_subject.render().is_empty() {
                 predicate =
@@ -1838,6 +1877,14 @@ impl TensePhrase {
         Self {
             light_verb_phrase: LightVerbPhrase::new(causer, matrix),
         }
+    }
+
+    pub fn reflexive(mut self) -> Self {
+        let subject = self.light_verb_phrase.subject().clone();
+        let mut predicate = self.light_verb_phrase.predicate().clone();
+        let _ = predicate.reflexivize_direct_object(&subject);
+        self.light_verb_phrase = self.light_verb_phrase.with_complement(predicate);
+        self
     }
 
     pub fn render(&self) -> String {
@@ -1895,8 +1942,17 @@ impl NonFiniteClause {
         self
     }
 
-    pub fn object(mut self, object: DeterminerPhrase) -> Self {
+    pub fn object(self, object: DeterminerPhrase) -> Self {
+        self.direct_object(object)
+    }
+
+    pub fn direct_object(mut self, object: DeterminerPhrase) -> Self {
         self.predicate = self.predicate.direct_object(object);
+        self
+    }
+
+    pub fn indirect_object(mut self, object: DeterminerPhrase) -> Self {
+        self.predicate = self.predicate.indirect_object(object);
         self
     }
 
@@ -2004,8 +2060,17 @@ impl Clause {
         Self { tense_phrase }
     }
 
-    pub fn object(mut self, object: DeterminerPhrase) -> Self {
+    pub fn object(self, object: DeterminerPhrase) -> Self {
+        self.direct_object(object)
+    }
+
+    pub fn direct_object(mut self, object: DeterminerPhrase) -> Self {
         self.tense_phrase = self.tense_phrase.object(object);
+        self
+    }
+
+    pub fn indirect_object(mut self, object: DeterminerPhrase) -> Self {
+        self.tense_phrase = self.tense_phrase.indirect_object(object);
         self
     }
 
@@ -2025,6 +2090,11 @@ impl Clause {
 
     pub fn causative(mut self, causer: DeterminerPhrase) -> Self {
         self.tense_phrase = self.tense_phrase.causative(causer);
+        self
+    }
+
+    pub fn reflexive(mut self) -> Self {
+        self.tense_phrase = self.tense_phrase.reflexive();
         self
     }
 

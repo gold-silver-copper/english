@@ -29,13 +29,14 @@ fn verb_phrase_renders_typed_complements_and_adjuncts() {
         .simple()
         .affirmative()
         .subject(Person::Third, Number::Singular)
+        .indirect_object(DeterminerPhrase::new("child").the())
         .direct_object(DeterminerPhrase::new("apple").the())
         .prepositional_adjunct(PrepositionalPhrase::new(
             "to",
-            DeterminerPhrase::new("child").the(),
+            DeterminerPhrase::new("table").the(),
         ));
 
-    assert_eq!(vp.render(), "gave the apple to the child");
+    assert_eq!(vp.render(), "gave the child the apple to the table");
 }
 
 #[test]
@@ -295,6 +296,19 @@ fn tense_phrase_passive_promotes_object_and_demotes_subject() {
 }
 
 #[test]
+fn tense_phrase_passive_targets_the_direct_object_not_the_indirect_object() {
+    let tp = TensePhrase::new(
+        DeterminerPhrase::new("teacher").the(),
+        VerbPhrase::new("give").past().simple().affirmative(),
+    )
+    .indirect_object(DeterminerPhrase::new("child").the())
+    .direct_object(DeterminerPhrase::new("apple").the())
+    .passive();
+
+    assert_eq!(tp.render(), "the apple was given the child by the teacher");
+}
+
+#[test]
 fn tense_phrase_causative_restructures_around_make() {
     let tp = TensePhrase::new(
         DeterminerPhrase::new("child").the(),
@@ -308,6 +322,43 @@ fn tense_phrase_causative_restructures_around_make() {
         tp.render(),
         "the teacher made the child eat the apple in the garden"
     );
+}
+
+#[test]
+fn tense_phrase_reflexive_rewrites_the_first_dp_complement() {
+    let tp = TensePhrase::new(
+        DeterminerPhrase::proper_name("Alice").feminine(),
+        VerbPhrase::new("admire").past().simple().affirmative(),
+    )
+    .object(DeterminerPhrase::proper_name("Alice").feminine())
+    .reflexive();
+
+    assert_eq!(tp.render(), "Alice admired herself");
+}
+
+#[test]
+fn tense_phrase_reflexive_targets_the_direct_object_not_the_indirect_object() {
+    let tp = TensePhrase::new(
+        DeterminerPhrase::proper_name("Alice").feminine(),
+        VerbPhrase::new("show").past().simple().affirmative(),
+    )
+    .indirect_object(DeterminerPhrase::new("child").the())
+    .direct_object(DeterminerPhrase::proper_name("Alice").feminine())
+    .reflexive();
+
+    assert_eq!(tp.render(), "Alice showed the child herself");
+}
+
+#[test]
+fn clause_reflexive_uses_subject_semantics_for_plural_pronouns() {
+    let clause = Clause::new(
+        DeterminerPhrase::pronoun(Pronoun::they()),
+        VerbPhrase::new("blame").past().simple().affirmative(),
+    )
+    .object(DeterminerPhrase::new("child").the())
+    .reflexive();
+
+    assert_eq!(clause.render(), "they blamed themselves");
 }
 
 #[test]

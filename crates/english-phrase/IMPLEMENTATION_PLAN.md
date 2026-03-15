@@ -57,13 +57,14 @@ Current implementation status in [lib.rs](/Users/kisaczka/Desktop/programming/en
   - public `NonFiniteClause` as the explicit non-finite clausal projection
   - `Clause` refactored into a convenience wrapper over `TensePhrase`
   - explicit `VerbComplement` and `VerbAdjunct` categories inside `VerbPhrase`
+  - explicit `direct_object` and `indirect_object` slots inside `VerbPhrase`
   - internal `LightVerbPhrase` as the `vP` layer beneath `TensePhrase`
   - passive voice on `VerbPhrase`
   - clause-level passivization via `TensePhrase::passive()`
   - clause-level causative restructuring via `TensePhrase::causative(...)`
+  - clause-level reflexive alternation via `TensePhrase::reflexive()`
   - `BareInfinitive` support for non-finite clausal complements
 - still missing:
-  - reflexive alternations on top of the new DP semantic layer
   - fuller VP complement/adjunct coverage across all clause types
   - broader CP/non-finite integration across VP and PP complement positions
 
@@ -563,15 +564,17 @@ pub struct LightVerbPhrase {
   - `TensePhrase::new(subject, predicate)`
   - `Clause::new(subject, predicate)`
 - passive alternation now uses internal `vP` structure:
-  - promote the first DP complement into the surface subject
+  - promote the direct object into the surface subject
   - demote the old subject into a `by`-PP adjunct
   - set the lexical VP to passive voice
 - causative alternation now uses internal `vP` structure:
   - replace the lexical predicate with finite `make`
   - move the old subject into the causee position
   - embed the old predicate as a bare infinitival non-finite clause
+- reflexive alternation now uses DP semantics directly:
+  - derive the reflexive pronoun from the subject DP
+  - replace the direct object with that reflexive DP
 - still pending:
-  - reflexive alternations
   - deciding whether any vP-aware debugging/introspection surface should exist publicly
 
 ## Phase 7: add CP and complementizer structure

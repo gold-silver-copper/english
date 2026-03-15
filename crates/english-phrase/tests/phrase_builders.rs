@@ -223,6 +223,15 @@ fn dp_semantics_drive_reflexive_forms() {
 }
 
 #[test]
+fn dp_layer_can_build_reflexive_pronouns_from_antecedents() {
+    let antecedent = DeterminerPhrase::proper_name("Alice").feminine();
+    let reflexive = DeterminerPhrase::reflexive_pronoun(&antecedent);
+
+    assert_eq!(reflexive.render(), "herself");
+    assert_eq!(reflexive.semantics(), antecedent.semantics());
+}
+
+#[test]
 fn possessors_render_in_spec_dp_position() {
     let johns_book = DeterminerPhrase::new("book")
         .possessor(DeterminerPhrase::proper_name("John"))
