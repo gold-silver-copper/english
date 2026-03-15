@@ -38,11 +38,11 @@ pub enum DeterminerHead {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DeterminerPhrase {
-    pub determiner: Option<Determiner>,
-    pub head: DeterminerHead,
-    pub number: Number,
-    pub modifiers: Vec<Box<Phrase>>,
-    pub complements: Vec<Box<Phrase>>,
+    determiner: Option<Determiner>,
+    head: DeterminerHead,
+    number: Number,
+    modifiers: Vec<Box<Phrase>>,
+    complements: Vec<Box<Phrase>>,
 }
 
 impl DeterminerPhrase {
@@ -75,13 +75,58 @@ impl DeterminerPhrase {
             complements: Vec::new(),
         }
     }
+
+    pub fn determiner(mut self, determiner: Determiner) -> Self {
+        self.determiner = Some(determiner);
+        self
+    }
+
+    pub fn singular(mut self) -> Self {
+        self.number = Number::Singular;
+        self
+    }
+
+    pub fn plural(mut self) -> Self {
+        self.number = Number::Plural;
+        self
+    }
+
+    pub fn modifier(mut self, modifier: impl Into<Phrase>) -> Self {
+        self.modifiers.push(Box::new(modifier.into()));
+        self
+    }
+
+    pub fn complement(mut self, complement: impl Into<Phrase>) -> Self {
+        self.complements.push(Box::new(complement.into()));
+        self
+    }
+
+    pub fn determiner_opt(&self) -> Option<Determiner> {
+        self.determiner
+    }
+
+    pub fn head(&self) -> &DeterminerHead {
+        &self.head
+    }
+
+    pub fn number(&self) -> &Number {
+        &self.number
+    }
+
+    pub fn modifiers(&self) -> &[Box<Phrase>] {
+        &self.modifiers
+    }
+
+    pub fn complements(&self) -> &[Box<Phrase>] {
+        &self.complements
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AdjectivePhrase {
-    pub modifier: Option<Box<Phrase>>,
-    pub head: AdjectiveEntry,
-    pub complements: Vec<Box<Phrase>>,
+    modifier: Option<Box<Phrase>>,
+    head: AdjectiveEntry,
+    complements: Vec<Box<Phrase>>,
 }
 
 impl AdjectivePhrase {
@@ -92,13 +137,35 @@ impl AdjectivePhrase {
             complements: Vec::new(),
         }
     }
+
+    pub fn modifier(mut self, modifier: AdverbPhrase) -> Self {
+        self.modifier = Some(Box::new(modifier.into()));
+        self
+    }
+
+    pub fn complement(mut self, complement: impl Into<Phrase>) -> Self {
+        self.complements.push(Box::new(complement.into()));
+        self
+    }
+
+    pub fn modifier_opt(&self) -> Option<&Phrase> {
+        self.modifier.as_deref()
+    }
+
+    pub fn head(&self) -> &AdjectiveEntry {
+        &self.head
+    }
+
+    pub fn complements(&self) -> &[Box<Phrase>] {
+        &self.complements
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AdverbPhrase {
-    pub modifier: Option<Box<Phrase>>,
-    pub head: AdverbEntry,
-    pub complements: Vec<Box<Phrase>>,
+    modifier: Option<Box<Phrase>>,
+    head: AdverbEntry,
+    complements: Vec<Box<Phrase>>,
 }
 
 impl AdverbPhrase {
@@ -109,12 +176,34 @@ impl AdverbPhrase {
             complements: Vec::new(),
         }
     }
+
+    pub fn modifier(mut self, modifier: AdverbPhrase) -> Self {
+        self.modifier = Some(Box::new(modifier.into()));
+        self
+    }
+
+    pub fn complement(mut self, complement: impl Into<Phrase>) -> Self {
+        self.complements.push(Box::new(complement.into()));
+        self
+    }
+
+    pub fn modifier_opt(&self) -> Option<&Phrase> {
+        self.modifier.as_deref()
+    }
+
+    pub fn head(&self) -> &AdverbEntry {
+        &self.head
+    }
+
+    pub fn complements(&self) -> &[Box<Phrase>] {
+        &self.complements
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PrepositionalPhrase {
-    pub head: PrepositionEntry,
-    pub complement: Box<Phrase>,
+    head: PrepositionEntry,
+    complement: Box<Phrase>,
 }
 
 impl PrepositionalPhrase {
@@ -124,15 +213,23 @@ impl PrepositionalPhrase {
             complement: Box::new(complement.into()),
         }
     }
+
+    pub fn head(&self) -> &PrepositionEntry {
+        &self.head
+    }
+
+    pub fn complement(&self) -> &Phrase {
+        self.complement.as_ref()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VerbPhrase {
-    pub head: VerbEntry,
-    pub form: VerbForm,
-    pub negative: bool,
-    pub complements: Vec<Box<Phrase>>,
-    pub adjuncts: Vec<Box<Phrase>>,
+    head: VerbEntry,
+    form: VerbForm,
+    negative: bool,
+    complements: Vec<Box<Phrase>>,
+    adjuncts: Vec<Box<Phrase>>,
 }
 
 impl VerbPhrase {
@@ -151,6 +248,71 @@ impl VerbPhrase {
             form: VerbForm::Finite(tense),
             ..Self::new(head)
         }
+    }
+
+    pub fn present(mut self) -> Self {
+        self.form = VerbForm::Finite(Tense::Present);
+        self
+    }
+
+    pub fn past(mut self) -> Self {
+        self.form = VerbForm::Finite(Tense::Past);
+        self
+    }
+
+    pub fn bare_infinitive(mut self) -> Self {
+        self.form = VerbForm::BareInfinitive;
+        self
+    }
+
+    pub fn to_infinitive(mut self) -> Self {
+        self.form = VerbForm::ToInfinitive;
+        self
+    }
+
+    pub fn gerund_participle(mut self) -> Self {
+        self.form = VerbForm::GerundParticiple;
+        self
+    }
+
+    pub fn past_participle(mut self) -> Self {
+        self.form = VerbForm::PastParticiple;
+        self
+    }
+
+    pub fn negative(mut self) -> Self {
+        self.negative = true;
+        self
+    }
+
+    pub fn complement(mut self, complement: impl Into<Phrase>) -> Self {
+        self.complements.push(Box::new(complement.into()));
+        self
+    }
+
+    pub fn adjunct(mut self, adjunct: impl Into<Phrase>) -> Self {
+        self.adjuncts.push(Box::new(adjunct.into()));
+        self
+    }
+
+    pub fn head(&self) -> &VerbEntry {
+        &self.head
+    }
+
+    pub fn form(&self) -> VerbForm {
+        self.form
+    }
+
+    pub fn is_negative(&self) -> bool {
+        self.negative
+    }
+
+    pub fn complements(&self) -> &[Box<Phrase>] {
+        &self.complements
+    }
+
+    pub fn adjuncts(&self) -> &[Box<Phrase>] {
+        &self.adjuncts
     }
 }
 

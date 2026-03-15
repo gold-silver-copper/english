@@ -3,6 +3,7 @@ use crate::syntax::{
     Tense, VerbForm, VerbPhrase,
 };
 use english::{English, Form as MorphForm, Number, Person, Tense as MorphTense};
+use std::borrow::Borrow;
 use std::error::Error;
 use std::fmt;
 
@@ -46,9 +47,9 @@ fn morph_tense(tense: Tense) -> MorphTense {
 
 fn agreement(subject: Option<&DeterminerPhrase>) -> (Person, Number) {
     match subject {
-        Some(phrase) => match phrase.head {
+        Some(phrase) => match phrase.head() {
             DeterminerHead::Pronoun(pronoun) => (pronoun.person(), pronoun.number()),
-            _ => (Person::Third, phrase.number.clone()),
+            _ => (Person::Third, phrase.number().clone()),
         },
         None => (Person::Third, Number::Singular),
     }
@@ -109,12 +110,12 @@ fn realize_verb_words(
     phrase: &VerbPhrase,
     subject: Option<&DeterminerPhrase>,
 ) -> RealizationResult<Vec<String>> {
-    let lemma = phrase.head.as_str();
+    let lemma = phrase.head().as_str();
     let (person, number) = agreement(subject);
 
-    Ok(match phrase.form {
+    Ok(match phrase.form() {
         VerbForm::Finite(tense) => {
-            if phrase.negative && lemma != "be" {
+            if phrase.is_negative() && lemma != "be" {
                 vec![
                     finite_form("do", &person, &number, tense),
                     "not".to_string(),
@@ -122,7 +123,7 @@ fn realize_verb_words(
                 ]
             } else {
                 let mut words = vec![finite_form(lemma, &person, &number, tense)];
-                if phrase.negative {
+                if phrase.is_negative() {
                     words.push("not".to_string());
                 }
                 words
@@ -130,7 +131,7 @@ fn realize_verb_words(
         }
         VerbForm::BareInfinitive => {
             let mut words = Vec::new();
-            if phrase.negative {
+            if phrase.is_negative() {
                 words.push("not".to_string());
             }
             words.push(base_form(lemma));
@@ -138,7 +139,7 @@ fn realize_verb_words(
         }
         VerbForm::ToInfinitive => {
             let mut words = Vec::new();
-            if phrase.negative {
+            if phrase.is_negative() {
                 words.push("not".to_string());
             }
             words.push("to".to_string());
@@ -147,7 +148,7 @@ fn realize_verb_words(
         }
         VerbForm::GerundParticiple => {
             let mut words = Vec::new();
-            if phrase.negative {
+            if phrase.is_negative() {
                 words.push("not".to_string());
             }
             words.push(gerund_form(lemma));
@@ -155,7 +156,7 @@ fn realize_verb_words(
         }
         VerbForm::PastParticiple => {
             let mut words = Vec::new();
-            if phrase.negative {
+            if phrase.is_negative() {
                 words.push("not".to_string());
             }
             words.push(past_participle(lemma));
@@ -164,35 +165,38 @@ fn realize_verb_words(
     })
 }
 
-pub fn realize_phrase(phrase: &Phrase) -> RealizationResult<String> {
-    match phrase {
-        Phrase::DP(dp) => realize_determiner_phrase(dp),
-        Phrase::VP(vp) => realize_verb_phrase(vp),
-        Phrase::PP(pp) => realize_prepositional_phrase(pp),
-        Phrase::AdjP(adjp) => realize_adjective_phrase(adjp),
-        Phrase::AdvP(advp) => realize_adverb_phrase(advp),
+pub fn realize_phrase(phrase: impl Borrow<Phrase>) -> RealizationResult<String> {
+    match phrase.borrow() {
+        Phrase::DP(dp) => realize_determiner_phrase(dp.as_ref()),
+        Phrase::VP(vp) => realize_verb_phrase(vp.as_ref()),
+        Phrase::PP(pp) => realize_prepositional_phrase(pp.as_ref()),
+        Phrase::AdjP(adjp) => realize_adjective_phrase(adjp.as_ref()),
+        Phrase::AdvP(advp) => realize_adverb_phrase(advp.as_ref()),
     }
 }
 
-pub fn realize_determiner_phrase(phrase: &DeterminerPhrase) -> RealizationResult<String> {
+pub fn realize_determiner_phrase(
+    phrase: impl Borrow<DeterminerPhrase>,
+) -> RealizationResult<String> {
+    let phrase = phrase.borrow();
     let mut parts = Vec::new();
 
     let modifiers = phrase
-        .modifiers
+        .modifiers()
         .iter()
         .map(|modifier| realize_modifier(modifier.as_ref()))
         .collect::<Result<Vec<_>, _>>()?;
 
-    let head = match &phrase.head {
+    let head = match phrase.head() {
         DeterminerHead::CommonNoun(noun) => {
-            if let Some(determiner) = phrase.determiner {
+            if let Some(determiner) = phrase.determiner_opt() {
                 parts.push(determiner.as_str().to_string());
             }
             parts.extend(modifiers);
-            English::noun(noun.as_str(), &phrase.number)
+            English::noun(noun.as_str(), phrase.number())
         }
         DeterminerHead::ProperName(name) => {
-            if phrase.determiner.is_some() {
+            if phrase.determiner_opt().is_some() {
                 return Err(RealizationError::new(
                     "proper names do not take determiners in the simplified DP model",
                 ));
@@ -201,7 +205,7 @@ pub fn realize_determiner_phrase(phrase: &DeterminerPhrase) -> RealizationResult
             name.clone()
         }
         DeterminerHead::Pronoun(pronoun) => {
-            if phrase.determiner.is_some() {
+            if phrase.determiner_opt().is_some() {
                 return Err(RealizationError::new(
                     "pronouns do not take determiners in the simplified DP model",
                 ));
@@ -212,15 +216,16 @@ pub fn realize_determiner_phrase(phrase: &DeterminerPhrase) -> RealizationResult
     };
 
     parts.push(head);
-    parts.extend(realize_suffixes(&phrase.complements)?);
+    parts.extend(realize_suffixes(phrase.complements())?);
     Ok(join_nonempty(parts))
 }
 
-pub fn realize_adjective_phrase(phrase: &AdjectivePhrase) -> RealizationResult<String> {
+pub fn realize_adjective_phrase(phrase: impl Borrow<AdjectivePhrase>) -> RealizationResult<String> {
+    let phrase = phrase.borrow();
     let mut parts = Vec::new();
 
-    if let Some(modifier) = &phrase.modifier {
-        match modifier.as_ref() {
+    if let Some(modifier) = phrase.modifier_opt() {
+        match modifier {
             Phrase::AdvP(_) => parts.push(realize_phrase(modifier)?),
             _ => {
                 return Err(RealizationError::new(
@@ -231,18 +236,19 @@ pub fn realize_adjective_phrase(phrase: &AdjectivePhrase) -> RealizationResult<S
     }
 
     parts.push(English::adj(
-        phrase.head.as_str(),
+        phrase.head().as_str(),
         &english::Degree::Positive,
     ));
-    parts.extend(realize_suffixes(&phrase.complements)?);
+    parts.extend(realize_suffixes(phrase.complements())?);
     Ok(join_nonempty(parts))
 }
 
-pub fn realize_adverb_phrase(phrase: &AdverbPhrase) -> RealizationResult<String> {
+pub fn realize_adverb_phrase(phrase: impl Borrow<AdverbPhrase>) -> RealizationResult<String> {
+    let phrase = phrase.borrow();
     let mut parts = Vec::new();
 
-    if let Some(modifier) = &phrase.modifier {
-        match modifier.as_ref() {
+    if let Some(modifier) = phrase.modifier_opt() {
+        match modifier {
             Phrase::AdvP(_) => parts.push(realize_phrase(modifier)?),
             _ => {
                 return Err(RealizationError::new(
@@ -252,30 +258,37 @@ pub fn realize_adverb_phrase(phrase: &AdverbPhrase) -> RealizationResult<String>
         }
     }
 
-    parts.push(phrase.head.as_str().to_string());
-    parts.extend(realize_suffixes(&phrase.complements)?);
+    parts.push(phrase.head().as_str().to_string());
+    parts.extend(realize_suffixes(phrase.complements())?);
     Ok(join_nonempty(parts))
 }
 
-pub fn realize_prepositional_phrase(phrase: &PrepositionalPhrase) -> RealizationResult<String> {
+pub fn realize_prepositional_phrase(
+    phrase: impl Borrow<PrepositionalPhrase>,
+) -> RealizationResult<String> {
+    let phrase = phrase.borrow();
     Ok(join_nonempty(vec![
-        phrase.head.as_str().to_string(),
-        realize_phrase(phrase.complement.as_ref())?,
+        phrase.head().as_str().to_string(),
+        realize_phrase(phrase.complement())?,
     ]))
 }
 
-pub fn realize_verb_phrase(phrase: &VerbPhrase) -> RealizationResult<String> {
+pub fn realize_verb_phrase(phrase: impl Borrow<VerbPhrase>) -> RealizationResult<String> {
+    let phrase = phrase.borrow();
     let mut parts = realize_verb_words(phrase, None)?;
-    parts.extend(realize_suffixes(&phrase.complements)?);
-    parts.extend(realize_suffixes(&phrase.adjuncts)?);
+    parts.extend(realize_suffixes(phrase.complements())?);
+    parts.extend(realize_suffixes(phrase.adjuncts())?);
     Ok(join_nonempty(parts))
 }
 
 pub fn realize_clause(
-    subject: &DeterminerPhrase,
-    predicate: &VerbPhrase,
+    subject: impl Borrow<DeterminerPhrase>,
+    predicate: impl Borrow<VerbPhrase>,
 ) -> RealizationResult<String> {
-    if !matches!(predicate.form, VerbForm::Finite(_)) {
+    let subject = subject.borrow();
+    let predicate = predicate.borrow();
+
+    if !matches!(predicate.form(), VerbForm::Finite(_)) {
         return Err(RealizationError::new(
             "finite clauses require a finite verb phrase",
         ));
@@ -284,14 +297,14 @@ pub fn realize_clause(
     let mut parts = Vec::new();
     parts.push(realize_determiner_phrase(subject)?);
     parts.extend(realize_verb_words(predicate, Some(subject))?);
-    parts.extend(realize_suffixes(&predicate.complements)?);
-    parts.extend(realize_suffixes(&predicate.adjuncts)?);
+    parts.extend(realize_suffixes(predicate.complements())?);
+    parts.extend(realize_suffixes(predicate.adjuncts())?);
     Ok(join_nonempty(parts))
 }
 
 pub fn realize_sentence(
-    subject: &DeterminerPhrase,
-    predicate: &VerbPhrase,
+    subject: impl Borrow<DeterminerPhrase>,
+    predicate: impl Borrow<VerbPhrase>,
 ) -> RealizationResult<String> {
     let mut text = realize_clause(subject, predicate)?;
     text = English::capitalize_first(&text);
