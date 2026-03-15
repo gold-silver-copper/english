@@ -3,166 +3,108 @@ use english_core::EnglishCore;
 pub use english::{Adj, Noun, Number, Person, Verb};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum AdverbModifier {
-    Text(String),
-    AdverbPhrase(Box<AdverbPhrase>),
-}
+pub struct Adverb(String);
 
-impl AdverbModifier {
-    fn render(&self) -> String {
-        match self {
-            AdverbModifier::Text(text) => text.clone(),
-            AdverbModifier::AdverbPhrase(phrase) => phrase.render(),
-        }
+impl Adverb {
+    pub fn new(head: impl Into<String>) -> Self {
+        Self(head.into())
+    }
+
+    fn render(&self) -> &str {
+        &self.0
     }
 }
 
-impl From<&str> for AdverbModifier {
+impl From<&str> for Adverb {
     fn from(text: &str) -> Self {
-        Self::Text(text.to_string())
+        Self::new(text)
     }
 }
 
-impl From<String> for AdverbModifier {
+impl From<String> for Adverb {
     fn from(text: String) -> Self {
-        Self::Text(text)
+        Self(text)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum AdverbComplement {
-    Text(String),
-    PrepositionalPhrase(Box<PrepositionalPhrase>),
-}
+pub struct Preposition(String);
 
-impl AdverbComplement {
-    fn render(&self) -> String {
-        match self {
-            AdverbComplement::Text(text) => text.clone(),
-            AdverbComplement::PrepositionalPhrase(phrase) => phrase.render(),
-        }
+impl Preposition {
+    pub fn new(head: impl Into<String>) -> Self {
+        Self(head.into())
+    }
+
+    fn render(&self) -> &str {
+        &self.0
     }
 }
 
-impl From<&str> for AdverbComplement {
+impl From<&str> for Preposition {
     fn from(text: &str) -> Self {
-        Self::Text(text.to_string())
+        Self::new(text)
     }
 }
 
-impl From<String> for AdverbComplement {
+impl From<String> for Preposition {
     fn from(text: String) -> Self {
-        Self::Text(text)
-    }
-}
-
-impl From<PrepositionalPhrase> for AdverbComplement {
-    fn from(phrase: PrepositionalPhrase) -> Self {
-        Self::PrepositionalPhrase(Box::new(phrase))
+        Self(text)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AdverbPhrase {
-    head: String,
-    modifiers: Vec<AdverbModifier>,
-    complements: Vec<AdverbComplement>,
+    specifier: Option<Box<AdverbPhrase>>,
+    head: Adverb,
+    complements: Vec<PrepositionalPhrase>,
 }
 
 impl AdverbPhrase {
-    pub fn new(head: impl Into<String>) -> Self {
+    pub fn new(head: impl Into<Adverb>) -> Self {
         Self {
             head: head.into(),
-            modifiers: Vec::new(),
+            specifier: None,
             complements: Vec::new(),
         }
     }
 
-    pub fn modifier<M: Into<AdverbModifier>>(mut self, modifier: M) -> Self {
-        self.modifiers.push(modifier.into());
+    pub fn specifier(mut self, specifier: AdverbPhrase) -> Self {
+        self.specifier = Some(Box::new(specifier));
         self
     }
 
-    pub fn complement<C: Into<AdverbComplement>>(mut self, complement: C) -> Self {
-        self.complements.push(complement.into());
+    pub fn complement(mut self, complement: PrepositionalPhrase) -> Self {
+        self.complements.push(complement);
         self
     }
 
     pub fn render(&self) -> String {
         let mut parts = Vec::new();
-        parts.extend(self.modifiers.iter().map(AdverbModifier::render));
-        parts.push(self.head.clone());
-        parts.extend(self.complements.iter().map(AdverbComplement::render));
-        parts.join(" ")
-    }
-}
-
-impl From<AdverbPhrase> for AdverbModifier {
-    fn from(phrase: AdverbPhrase) -> Self {
-        Self::AdverbPhrase(Box::new(phrase))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PrepositionalComplement {
-    DeterminerPhrase(Box<DeterminerPhrase>),
-    AdverbPhrase(Box<AdverbPhrase>),
-    Text(String),
-}
-
-impl PrepositionalComplement {
-    fn render(&self) -> String {
-        match self {
-            PrepositionalComplement::DeterminerPhrase(phrase) => phrase.render(),
-            PrepositionalComplement::AdverbPhrase(phrase) => phrase.render(),
-            PrepositionalComplement::Text(text) => text.clone(),
+        if let Some(specifier) = &self.specifier {
+            parts.push(specifier.render());
         }
-    }
-}
-
-impl From<&str> for PrepositionalComplement {
-    fn from(text: &str) -> Self {
-        Self::Text(text.to_string())
-    }
-}
-
-impl From<String> for PrepositionalComplement {
-    fn from(text: String) -> Self {
-        Self::Text(text)
+        parts.push(self.head.render().to_string());
+        parts.extend(self.complements.iter().map(PrepositionalPhrase::render));
+        parts.join(" ")
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PrepositionalPhrase {
-    preposition: String,
-    complement: PrepositionalComplement,
+    head: Preposition,
+    complement: DeterminerPhrase,
 }
 
 impl PrepositionalPhrase {
-    pub fn new(
-        preposition: impl Into<String>,
-        complement: impl Into<PrepositionalComplement>,
-    ) -> Self {
+    pub fn new(preposition: impl Into<Preposition>, complement: DeterminerPhrase) -> Self {
         Self {
-            preposition: preposition.into(),
-            complement: complement.into(),
+            head: preposition.into(),
+            complement,
         }
     }
 
     pub fn render(&self) -> String {
-        format!("{} {}", self.preposition, self.complement.render())
-    }
-}
-
-impl From<DeterminerPhrase> for PrepositionalComplement {
-    fn from(phrase: DeterminerPhrase) -> Self {
-        Self::DeterminerPhrase(Box::new(phrase))
-    }
-}
-
-impl From<AdverbPhrase> for PrepositionalComplement {
-    fn from(phrase: AdverbPhrase) -> Self {
-        Self::AdverbPhrase(Box::new(phrase))
+        format!("{} {}", self.head.render(), self.complement.render())
     }
 }
 
@@ -175,7 +117,7 @@ pub enum Determiner {
     That,
     These,
     Those,
-    Text(String),
+    Custom(String),
 }
 
 impl Determiner {
@@ -207,8 +149,8 @@ impl Determiner {
         Self::Those
     }
 
-    pub fn text(text: impl Into<String>) -> Self {
-        Self::Text(text.into())
+    pub fn custom(text: impl Into<String>) -> Self {
+        Self::Custom(text.into())
     }
 
     fn render(&self) -> &str {
@@ -220,7 +162,7 @@ impl Determiner {
             Determiner::That => "that",
             Determiner::These => "these",
             Determiner::Those => "those",
-            Determiner::Text(text) => text.as_str(),
+            Determiner::Custom(text) => text.as_str(),
         }
     }
 }
@@ -306,39 +248,6 @@ impl Pronoun {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Intensifier {
-    Text(String),
-    AdverbPhrase(Box<AdverbPhrase>),
-}
-
-impl Intensifier {
-    fn render(&self) -> String {
-        match self {
-            Intensifier::Text(text) => text.clone(),
-            Intensifier::AdverbPhrase(phrase) => phrase.render(),
-        }
-    }
-}
-
-impl From<&str> for Intensifier {
-    fn from(text: &str) -> Self {
-        Self::Text(text.to_string())
-    }
-}
-
-impl From<String> for Intensifier {
-    fn from(text: String) -> Self {
-        Self::Text(text)
-    }
-}
-
-impl From<AdverbPhrase> for Intensifier {
-    fn from(phrase: AdverbPhrase) -> Self {
-        Self::AdverbPhrase(Box::new(phrase))
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Degree {
     #[default]
@@ -349,36 +258,14 @@ pub enum Degree {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AdjComplement {
-    Text(String),
-    DeterminerPhrase(Box<DeterminerPhrase>),
     PrepositionalPhrase(Box<PrepositionalPhrase>),
 }
 
 impl AdjComplement {
     fn render(&self) -> String {
         match self {
-            AdjComplement::Text(text) => text.clone(),
-            AdjComplement::DeterminerPhrase(phrase) => phrase.render(),
             AdjComplement::PrepositionalPhrase(phrase) => phrase.render(),
         }
-    }
-}
-
-impl From<&str> for AdjComplement {
-    fn from(text: &str) -> Self {
-        Self::Text(text.to_string())
-    }
-}
-
-impl From<String> for AdjComplement {
-    fn from(text: String) -> Self {
-        Self::Text(text)
-    }
-}
-
-impl From<DeterminerPhrase> for AdjComplement {
-    fn from(phrase: DeterminerPhrase) -> Self {
-        Self::DeterminerPhrase(Box::new(phrase))
     }
 }
 
@@ -392,7 +279,7 @@ impl From<PrepositionalPhrase> for AdjComplement {
 pub struct AdjPhrase {
     head: Adj,
     degree: Degree,
-    intensifier: Option<Intensifier>,
+    intensifier: Option<Box<AdverbPhrase>>,
     complements: Vec<AdjComplement>,
 }
 
@@ -421,8 +308,8 @@ impl AdjPhrase {
         self
     }
 
-    pub fn intensifier<I: Into<Intensifier>>(mut self, intensifier: I) -> Self {
-        self.intensifier = Some(intensifier.into());
+    pub fn intensifier(mut self, intensifier: AdverbPhrase) -> Self {
+        self.intensifier = Some(Box::new(intensifier));
         self
     }
 
@@ -450,70 +337,15 @@ impl AdjPhrase {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum NominalModifier {
-    Text(String),
-    Adjective(AdjPhrase),
-}
-
-impl NominalModifier {
-    fn render(&self) -> String {
-        match self {
-            NominalModifier::Text(text) => text.clone(),
-            NominalModifier::Adjective(phrase) => phrase.render(),
-        }
-    }
-}
-
-impl From<&str> for NominalModifier {
-    fn from(text: &str) -> Self {
-        Self::Text(text.to_string())
-    }
-}
-
-impl From<String> for NominalModifier {
-    fn from(text: String) -> Self {
-        Self::Text(text)
-    }
-}
-
-impl From<AdjPhrase> for NominalModifier {
-    fn from(phrase: AdjPhrase) -> Self {
-        Self::Adjective(phrase)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NominalComplement {
-    Text(String),
-    DeterminerPhrase(Box<DeterminerPhrase>),
     PrepositionalPhrase(Box<PrepositionalPhrase>),
 }
 
 impl NominalComplement {
     fn render(&self) -> String {
         match self {
-            NominalComplement::Text(text) => text.clone(),
-            NominalComplement::DeterminerPhrase(phrase) => phrase.render(),
             NominalComplement::PrepositionalPhrase(phrase) => phrase.render(),
         }
-    }
-}
-
-impl From<&str> for NominalComplement {
-    fn from(text: &str) -> Self {
-        Self::Text(text.to_string())
-    }
-}
-
-impl From<String> for NominalComplement {
-    fn from(text: String) -> Self {
-        Self::Text(text)
-    }
-}
-
-impl From<DeterminerPhrase> for NominalComplement {
-    fn from(phrase: DeterminerPhrase) -> Self {
-        Self::DeterminerPhrase(Box::new(phrase))
     }
 }
 
@@ -529,7 +361,7 @@ pub enum RelativeMarker {
     Which,
     That,
     Bare,
-    Raw(String),
+    Custom(String),
 }
 
 impl RelativeMarker {
@@ -539,7 +371,7 @@ impl RelativeMarker {
             RelativeMarker::Which => "which",
             RelativeMarker::That => "that",
             RelativeMarker::Bare => "",
-            RelativeMarker::Raw(text) => text.as_str(),
+            RelativeMarker::Custom(text) => text.as_str(),
         }
     }
 }
@@ -588,7 +420,6 @@ impl RelativeClause {
 pub enum NominalPostmodifier {
     PrepositionalPhrase(Box<PrepositionalPhrase>),
     RelativeClause(Box<RelativeClause>),
-    Raw(String),
 }
 
 impl NominalPostmodifier {
@@ -596,7 +427,6 @@ impl NominalPostmodifier {
         match self {
             NominalPostmodifier::PrepositionalPhrase(phrase) => phrase.render(),
             NominalPostmodifier::RelativeClause(clause) => clause.render(),
-            NominalPostmodifier::Raw(text) => text.clone(),
         }
     }
 }
@@ -612,19 +442,6 @@ impl From<RelativeClause> for NominalPostmodifier {
         Self::RelativeClause(Box::new(clause))
     }
 }
-
-impl From<&str> for NominalPostmodifier {
-    fn from(text: &str) -> Self {
-        Self::Raw(text.to_string())
-    }
-}
-
-impl From<String> for NominalPostmodifier {
-    fn from(text: String) -> Self {
-        Self::Raw(text)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum Quantity {
     #[default]
@@ -637,7 +454,7 @@ pub enum Quantity {
 pub struct NominalPhrase {
     head: Noun,
     quantity: Quantity,
-    modifiers: Vec<NominalModifier>,
+    modifiers: Vec<AdjPhrase>,
     complements: Vec<NominalComplement>,
     postmodifiers: Vec<NominalPostmodifier>,
 }
@@ -668,13 +485,13 @@ impl NominalPhrase {
         self
     }
 
-    pub fn modifier<M: Into<NominalModifier>>(mut self, modifier: M) -> Self {
-        self.modifiers.push(modifier.into());
+    pub fn modifier(mut self, modifier: AdjPhrase) -> Self {
+        self.modifiers.push(modifier);
         self
     }
 
-    pub fn complement<C: Into<NominalComplement>>(mut self, complement: C) -> Self {
-        self.complements.push(complement.into());
+    pub fn complement(mut self, complement: PrepositionalPhrase) -> Self {
+        self.complements.push(NominalComplement::from(complement));
         self
     }
 
@@ -701,7 +518,7 @@ impl NominalPhrase {
             parts.push(count.to_string());
         }
 
-        parts.extend(self.modifiers.iter().map(NominalModifier::render));
+        parts.extend(self.modifiers.iter().map(AdjPhrase::render));
 
         let head = match self.quantity {
             Quantity::Singular => self.head.singular(),
@@ -806,16 +623,16 @@ impl DeterminerPhrase {
         self
     }
 
-    pub fn modifier<M: Into<NominalModifier>>(mut self, modifier: M) -> Self {
+    pub fn modifier(mut self, modifier: AdjPhrase) -> Self {
         if let DeterminerPhraseCore::Nominal(nominal) = &mut self.core {
-            nominal.modifiers.push(modifier.into());
+            nominal.modifiers.push(modifier);
         }
         self
     }
 
-    pub fn complement<C: Into<NominalComplement>>(mut self, complement: C) -> Self {
+    pub fn complement(mut self, complement: PrepositionalPhrase) -> Self {
         if let DeterminerPhraseCore::Nominal(nominal) = &mut self.core {
-            nominal.complements.push(complement.into());
+            nominal.complements.push(NominalComplement::from(complement));
         }
         self
     }
@@ -1275,8 +1092,8 @@ impl Clause {
 
     pub fn prepositional(
         mut self,
-        preposition: impl Into<String>,
-        object: impl Into<PrepositionalComplement>,
+        preposition: impl Into<Preposition>,
+        object: DeterminerPhrase,
     ) -> Self {
         self.prepositionals
             .push(PrepositionalPhrase::new(preposition, object));
@@ -1389,8 +1206,11 @@ mod tests {
     fn adjective_phrase_example() {
         let adj = AdjPhrase::new("bad3")
             .comparative()
-            .intensifier("far")
-            .complement("than yesterday");
+            .intensifier(AdverbPhrase::new("far"))
+            .complement(PrepositionalPhrase::new(
+                "than",
+                DeterminerPhrase::proper_name("yesterday"),
+            ));
 
         assert_eq!(adj.render(), "far worse than yesterday");
     }
@@ -1400,7 +1220,12 @@ mod tests {
         let np = DeterminerPhrase::new("child")
             .determiner(Determiner::the())
             .modifier(AdjPhrase::new("small").comparative())
-            .complement("from the next building")
+            .postmodifier(PrepositionalPhrase::new(
+                "from",
+                DeterminerPhrase::new("building")
+                    .the()
+                    .modifier(AdjPhrase::new("next")),
+            ))
             .plural();
 
         assert_eq!(np.render(), "the smaller children from the next building");

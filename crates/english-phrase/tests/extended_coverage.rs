@@ -4,6 +4,10 @@ fn dp(noun: &str) -> DeterminerPhrase {
     DeterminerPhrase::new(noun)
 }
 
+fn ap(adjective: &str) -> AdjPhrase {
+    AdjPhrase::new(adjective)
+}
+
 fn vp(verb: &str) -> VerbPhrase {
     VerbPhrase::new(verb)
 }
@@ -19,18 +23,18 @@ fn determiners_render_all_built_in_variants() {
     assert_eq!(dp("child").plural().determiner(Determiner::those()).render(), "those children");
     assert_eq!(
         dp("child")
-            .determiner(Determiner::text("each"))
+            .determiner(Determiner::custom("each"))
             .render(),
         "each child"
     );
 }
 
 #[test]
-fn text_wrappers_feed_determiners_modifiers_and_particles() {
+fn custom_determiners_modifiers_and_particles_render_cleanly() {
     assert_eq!(
         dp("child")
-            .determiner(Determiner::text("every"))
-            .modifier("sleepy")
+            .determiner(Determiner::custom("every"))
+            .modifier(ap("sleepy"))
             .render(),
         "every sleepy child"
     );
@@ -59,20 +63,18 @@ fn public_prepositional_phrases_render_with_noun_phrase_complements() {
 }
 
 #[test]
-fn public_prepositional_phrases_can_take_adverb_phrase_complements() {
-    assert_eq!(
-        PrepositionalPhrase::new("until", AdverbPhrase::new("recently")).render(),
-        "until recently"
-    );
-}
-
-#[test]
-fn adverb_phrases_support_modifiers_and_prepositional_complements() {
+fn adverb_phrases_support_specifiers_and_prepositional_complements() {
     assert_eq!(
         AdverbPhrase::new("far")
-            .modifier("very")
+            .specifier(AdverbPhrase::new("very"))
             .render(),
         "very far"
+    );
+    assert_eq!(
+        AdverbPhrase::new("far")
+            .specifier(AdverbPhrase::new("quite").specifier(AdverbPhrase::new("very")))
+            .render(),
+        "very quite far"
     );
     assert_eq!(
         AdverbPhrase::new("independently")
@@ -97,41 +99,39 @@ fn adjective_intensifiers_stack_with_degrees() {
     assert_eq!(
         AdjPhrase::new("small")
             .comparative()
-            .intensifier("much")
+            .intensifier(AdverbPhrase::new("much"))
             .render(),
         "much smaller"
     );
     assert_eq!(
         AdjPhrase::new("bad3")
             .superlative()
-            .intensifier("by far")
+            .intensifier(AdverbPhrase::new("far").specifier(AdverbPhrase::new("by")))
             .render(),
         "by far worst"
     );
     assert_eq!(
         AdjPhrase::new("fun")
             .comparative()
-            .intensifier("much")
+            .intensifier(AdverbPhrase::new("much"))
             .render(),
         "much more fun"
     );
 }
 
 #[test]
-fn adjective_phrase_supports_text_and_noun_phrase_complements() {
+fn adjective_phrase_supports_prepositional_complements() {
     assert_eq!(
         AdjPhrase::new("full")
             .positive()
-            .complement("of")
-            .complement(dp("bean").plural())
+            .complement(PrepositionalPhrase::new("of", dp("bean").plural()))
             .render(),
         "full of beans"
     );
     assert_eq!(
         AdjPhrase::new("close")
             .positive()
-            .complement("to")
-            .complement(dp("station").the())
+            .complement(PrepositionalPhrase::new("to", dp("station").the()))
             .render(),
         "close to the station"
     );
@@ -148,26 +148,26 @@ fn noun_phrase_singular_plural_and_counts_render() {
 }
 
 #[test]
-fn noun_phrase_renders_text_modifiers_before_the_head() {
+fn noun_phrase_renders_adjective_modifiers_before_the_head() {
     assert_eq!(
         dp("child")
-            .modifier("running")
+            .modifier(ap("running"))
             .render(),
         "running child"
     );
     assert_eq!(
         dp("child")
             .plural()
-            .modifier("running")
-            .modifier("hungry")
+            .modifier(ap("running"))
+            .modifier(ap("hungry"))
             .render(),
         "running hungry children"
     );
     assert_eq!(
         dp("child")
             .count(3)
-            .modifier("running")
-            .modifier("hungry")
+            .modifier(ap("running"))
+            .modifier(ap("hungry"))
             .render(),
         "3 running hungry children"
     );
@@ -199,19 +199,18 @@ fn noun_phrase_renders_adjective_phrase_modifiers() {
 }
 
 #[test]
-fn noun_phrase_supports_text_and_phrase_complements() {
+fn noun_phrase_supports_structured_prepositional_complements() {
     assert_eq!(
         dp("pair")
             .count(3)
-            .complement("of jeans")
+            .complement(PrepositionalPhrase::new("of", dp("jean").plural()))
             .render(),
         "3 pairs of jeans"
     );
     assert_eq!(
         dp("door")
             .the()
-            .complement("of")
-            .complement(dp("house").the())
+            .complement(PrepositionalPhrase::new("of", dp("house").the()))
             .render(),
         "the door of the house"
     );
@@ -221,18 +220,17 @@ fn noun_phrase_supports_text_and_phrase_complements() {
 fn noun_phrase_supports_deep_recursive_boxed_complements() {
     let phrase = dp("photo")
         .the()
-        .complement("of")
-        .complement(
+        .complement(PrepositionalPhrase::new(
+            "of",
             dp("child")
                 .the()
-                .complement("with")
-                .complement(
+                .postmodifier(PrepositionalPhrase::new(
+                    "with",
                     dp("toy")
                         .the()
-                        .complement("in")
-                        .complement(dp("box").the()),
-                ),
-        );
+                        .postmodifier(PrepositionalPhrase::new("in", dp("box").the())),
+                )),
+        ));
 
     assert_eq!(phrase.render(), "the photo of the child with the toy in the box");
 }
@@ -241,18 +239,17 @@ fn noun_phrase_supports_deep_recursive_boxed_complements() {
 fn noun_phrase_recursion_can_branch_through_multiple_boxed_levels() {
     let phrase = dp("map")
         .the()
-        .complement("of")
-        .complement(
+        .complement(PrepositionalPhrase::new(
+            "of",
             dp("room")
                 .the()
-                .complement("inside")
-                .complement(
+                .postmodifier(PrepositionalPhrase::new(
+                    "inside",
                     dp("house")
                         .the()
-                        .complement("near")
-                        .complement(dp("river").the()),
-                ),
-        );
+                        .postmodifier(PrepositionalPhrase::new("near", dp("river").the())),
+                )),
+        ));
 
     assert_eq!(phrase.render(), "the map of the room inside the house near the river");
 }
@@ -801,8 +798,8 @@ fn clause_works_with_modified_subjects_and_objects() {
     .object(
         dp("potato")
             .count(7)
-            .modifier("red")
-            .complement("from the cart"),
+            .modifier(ap("red"))
+            .postmodifier(PrepositionalPhrase::new("from", dp("cart").the())),
     );
 
     assert_eq!(clause.render(), "the smaller children stole 7 red potatoes from the cart");
@@ -836,13 +833,12 @@ fn sentence_adds_capitalization_and_terminal_marks() {
 fn clause_and_sentence_handle_recursive_phrase_material() {
     let subject = dp("photo")
         .the()
-        .complement("of")
-        .complement(
+        .complement(PrepositionalPhrase::new(
+            "of",
             dp("child")
                 .the()
-                .complement("with")
-                .complement(dp("toy").the()),
-        );
+                .postmodifier(PrepositionalPhrase::new("with", dp("toy").the())),
+        ));
 
     let clause = Clause::new(
         subject,
@@ -852,8 +848,7 @@ fn clause_and_sentence_handle_recursive_phrase_material() {
         "on",
         dp("wall")
             .the()
-            .complement("inside")
-            .complement(dp("hall").the()),
+            .postmodifier(PrepositionalPhrase::new("inside", dp("hall").the())),
     );
 
     assert_eq!(
@@ -876,8 +871,7 @@ fn clause_supports_structured_prepositional_phrases() {
         "near",
         dp("station")
             .the()
-            .complement("by")
-            .complement(dp("river").the()),
+            .postmodifier(PrepositionalPhrase::new("by", dp("river").the())),
     );
 
     assert_eq!(clause.render(), "the children waited near the station by the river");

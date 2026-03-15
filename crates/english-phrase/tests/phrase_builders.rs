@@ -1,11 +1,20 @@
 use english_phrase::*;
 
+fn ap(adjective: &str) -> AdjPhrase {
+    AdjPhrase::new(adjective)
+}
+
 #[test]
 fn noun_phrase_example_from_api_design() {
     let np = DeterminerPhrase::new("child")
         .determiner(Determiner::the())
         .modifier(AdjPhrase::new("small").comparative())
-        .complement("from the next building")
+        .postmodifier(PrepositionalPhrase::new(
+            "from",
+            DeterminerPhrase::new("building")
+                .the()
+                .modifier(ap("next")),
+        ))
         .plural();
 
     assert_eq!(np.render(), "the smaller children from the next building");
@@ -15,8 +24,11 @@ fn noun_phrase_example_from_api_design() {
 fn adjective_phrase_example_from_api_design() {
     let adj = AdjPhrase::new("bad3")
         .comparative()
-        .intensifier("far")
-        .complement("than yesterday");
+        .intensifier(AdverbPhrase::new("far"))
+        .complement(PrepositionalPhrase::new(
+            "than",
+            DeterminerPhrase::proper_name("yesterday"),
+        ));
 
     assert_eq!(adj.render(), "far worse than yesterday");
 }
@@ -25,8 +37,11 @@ fn adjective_phrase_example_from_api_design() {
 fn counted_noun_phrases_place_the_number_before_modifiers() {
     let np = DeterminerPhrase::new("child")
         .count(3)
-        .modifier("running")
-        .complement("from the park");
+        .modifier(ap("running"))
+        .postmodifier(PrepositionalPhrase::new(
+            "from",
+            DeterminerPhrase::new("park").the(),
+        ));
 
     assert_eq!(np.render(), "3 running children from the park");
 }
@@ -50,13 +65,15 @@ fn noun_phrase_agreement_tracks_count() {
 fn noun_phrase_supports_recursive_boxed_complements() {
     let np = DeterminerPhrase::new("photo")
         .the()
-        .complement("of")
-        .complement(
+        .postmodifier(PrepositionalPhrase::new(
+            "of",
             DeterminerPhrase::new("child")
                 .the()
-                .complement("with")
-                .complement(DeterminerPhrase::new("toy").the()),
-        );
+                .postmodifier(PrepositionalPhrase::new(
+                    "with",
+                    DeterminerPhrase::new("toy").the(),
+                )),
+        ));
 
     assert_eq!(np.render(), "the photo of the child with the toy");
 }
@@ -65,8 +82,10 @@ fn noun_phrase_supports_recursive_boxed_complements() {
 fn adjective_phrase_supports_boxed_noun_phrase_complements() {
     let adj = AdjPhrase::new("full")
         .positive()
-        .complement("of")
-        .complement(DeterminerPhrase::new("bean").plural());
+        .complement(PrepositionalPhrase::new(
+            "of",
+            DeterminerPhrase::new("bean").plural(),
+        ));
 
     assert_eq!(adj.render(), "full of beans");
 }
@@ -84,7 +103,7 @@ fn prepositional_phrase_supports_recursive_phrase_structure() {
         "on",
         DeterminerPhrase::new("wall")
             .the()
-            .complement(
+            .postmodifier(
                 PrepositionalPhrase::new("inside", DeterminerPhrase::new("hall").the()),
             ),
     );
@@ -94,9 +113,11 @@ fn prepositional_phrase_supports_recursive_phrase_structure() {
 
 #[test]
 fn adverb_phrase_is_a_first_class_public_phrase() {
+    let degree = AdverbPhrase::new("far").specifier(AdverbPhrase::new("very"));
     let advp = AdverbPhrase::new("independently")
         .complement(PrepositionalPhrase::new("of", DeterminerPhrase::new("help")));
 
+    assert_eq!(degree.render(), "very far");
     assert_eq!(advp.render(), "independently of help");
 }
 
