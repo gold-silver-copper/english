@@ -9,6 +9,7 @@ pub(crate) enum XP {
     TP(Box<TP>),
     VP(Box<VP>),
     DP(Box<DP>),
+    NP(Box<NP>),
     AP(Box<AP>),
     AdvP(Box<AdvP>),
     PP(Box<PP>),
@@ -199,6 +200,12 @@ impl From<VP> for XP {
 impl From<DP> for XP {
     fn from(value: DP) -> Self {
         XP::DP(Box::new(value))
+    }
+}
+
+impl From<NP> for XP {
+    fn from(value: NP) -> Self {
+        XP::NP(Box::new(value))
     }
 }
 

@@ -5,7 +5,7 @@ use crate::internal::{
     VPBar, XP,
 };
 use crate::syntax::{
-    AdjectivePhrase, AdverbPhrase, Clause, DeterminerHead, DeterminerPhrase, Phrase,
+    AdjectivePhrase, AdverbPhrase, Clause, DeterminerHead, DeterminerPhrase, NounPhrase, Phrase,
     PrepositionalPhrase, VerbForm, VerbPhrase,
 };
 
@@ -31,6 +31,7 @@ fn trace_dp() -> DP {
 pub(crate) fn lower_phrase(phrase: &Phrase) -> RealizationResult<XP> {
     match phrase {
         Phrase::DP(dp) => Ok(lower_dp(dp)?.into()),
+        Phrase::NP(np) => Ok(lower_np(np)?.into()),
         Phrase::VP(vp) => Ok(lower_verb_projection(vp, None)?.into()),
         Phrase::PP(pp) => Ok(lower_pp(pp)?.into()),
         Phrase::AdjP(ap) => Ok(lower_ap(ap)?.into()),
@@ -38,44 +39,7 @@ pub(crate) fn lower_phrase(phrase: &Phrase) -> RealizationResult<XP> {
     }
 }
 
-pub(crate) fn lower_dp(phrase: &DeterminerPhrase) -> RealizationResult<DP> {
-    let (d_head, n_head) = match phrase.head() {
-        DeterminerHead::CommonNoun(noun) => (
-            phrase
-                .determiner_opt()
-                .map(DHead::Overt)
-                .unwrap_or(DHead::Silent(SilentDeterminer::Bare)),
-            NHead::CommonNoun {
-                entry: noun.clone(),
-                number: phrase.number().clone(),
-            },
-        ),
-        DeterminerHead::ProperName(name) => {
-            if phrase.determiner_opt().is_some() {
-                return Err(RealizationError::new(
-                    "proper names do not take determiners in the fluent surface grammar",
-                ));
-            }
-
-            (
-                DHead::Silent(SilentDeterminer::ProperName),
-                NHead::ProperName(name.clone()),
-            )
-        }
-        DeterminerHead::Pronoun(pronoun) => {
-            if phrase.determiner_opt().is_some() {
-                return Err(RealizationError::new(
-                    "pronouns do not take determiners in the fluent surface grammar",
-                ));
-            }
-
-            (
-                DHead::Silent(SilentDeterminer::Pronoun),
-                NHead::Pronoun(*pronoun),
-            )
-        }
-    };
-
+pub(crate) fn lower_np(phrase: &NounPhrase) -> RealizationResult<NP> {
     let left_adjuncts = phrase
         .modifiers()
         .iter()
@@ -88,16 +52,69 @@ pub(crate) fn lower_dp(phrase: &DeterminerPhrase) -> RealizationResult<DP> {
         .map(|complement| lower_phrase(complement.as_ref()).map(Box::new))
         .collect::<RealizationResult<Vec<_>>>()?;
 
+    Ok(NP {
+        left_adjuncts,
+        bar: NBar {
+            head: NHead::CommonNoun {
+                entry: phrase.head().clone(),
+                number: phrase.number().clone(),
+            },
+            complements,
+        },
+    })
+}
+
+pub(crate) fn lower_dp(phrase: &DeterminerPhrase) -> RealizationResult<DP> {
+    let (d_head, np) = match phrase.head() {
+        DeterminerHead::Nominal(nominal) => (
+            phrase
+                .determiner_opt()
+                .map(DHead::Overt)
+                .unwrap_or(DHead::Silent(SilentDeterminer::Bare)),
+            lower_np(nominal)?,
+        ),
+        DeterminerHead::ProperName(name) => {
+            if phrase.determiner_opt().is_some() {
+                return Err(RealizationError::new(
+                    "proper names do not take determiners in the fluent surface grammar",
+                ));
+            }
+
+            (
+                DHead::Silent(SilentDeterminer::ProperName),
+                NP {
+                    left_adjuncts: Vec::new(),
+                    bar: NBar {
+                        head: NHead::ProperName(name.clone()),
+                        complements: Vec::new(),
+                    },
+                },
+            )
+        }
+        DeterminerHead::Pronoun(pronoun) => {
+            if phrase.determiner_opt().is_some() {
+                return Err(RealizationError::new(
+                    "pronouns do not take determiners in the fluent surface grammar",
+                ));
+            }
+
+            (
+                DHead::Silent(SilentDeterminer::Pronoun),
+                NP {
+                    left_adjuncts: Vec::new(),
+                    bar: NBar {
+                        head: NHead::Pronoun(*pronoun),
+                        complements: Vec::new(),
+                    },
+                },
+            )
+        }
+    };
+
     Ok(DP {
         bar: DBar {
             head: d_head,
-            complement: DComplement::NP(Box::new(NP {
-                left_adjuncts,
-                bar: NBar {
-                    head: n_head,
-                    complements,
-                },
-            })),
+            complement: DComplement::NP(Box::new(np)),
         },
     })
 }
@@ -237,16 +254,16 @@ pub(crate) fn lower_clause(clause: &Clause) -> RealizationResult<CP> {
 mod tests {
     use super::*;
     use crate::lexical::{Determiner, Pronoun};
-    use crate::syntax::{adjp, advp, dp, pp, vp};
+    use crate::syntax::{adjp, advp, dp, np, pp, vp};
 
     #[test]
     fn finite_clause_lowers_to_cp_tp_and_negated_vp() {
         let clause = lower_clause(
-            &dp("child").determiner(Determiner::The).predicate(
+            &dp(np("child")).the().predicate(
                 vp("eat")
                     .past()
                     .negative()
-                    .complement(dp("apple").determiner(Determiner::The)),
+                    .complement(dp(np("apple")).the()),
             ),
         )
         .unwrap();
@@ -268,10 +285,10 @@ mod tests {
     #[test]
     fn dp_lowers_to_dp_dbar_np_with_adjuncts_and_complements() {
         let lowered = lower_dp(
-            &dp("child")
-                .determiner(Determiner::The)
+            &dp(np("child")
                 .modifier(adjp("happy").modifier(advp("very")))
-                .complement(pp("with", dp("friend").determiner(Determiner::A))),
+                .complement(pp("with", dp(np("friend")).a())))
+            .the(),
         )
         .unwrap();
 
@@ -292,5 +309,19 @@ mod tests {
             lowered.bar.head,
             DHead::Silent(SilentDeterminer::Pronoun)
         ));
+    }
+
+    #[test]
+    fn np_lowers_directly_to_np() {
+        let lowered = lower_np(
+            &np("child")
+                .modifier(adjp("happy").modifier(advp("very")))
+                .complement(pp("with", dp(np("friend")).a())),
+        )
+        .unwrap();
+
+        assert_eq!(lowered.left_adjuncts.len(), 1);
+        assert_eq!(lowered.bar.complements.len(), 1);
+        assert!(matches!(lowered.bar.head, NHead::CommonNoun { .. }));
     }
 }

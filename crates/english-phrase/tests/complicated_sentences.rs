@@ -1,30 +1,22 @@
 use english_phrase::*;
 
 fn assert_sentence(sentence: Sentence, expected: &str) {
-    assert_eq!(realize_sentence(sentence).unwrap(), expected);
+    assert_eq!(sentence.realize().unwrap(), expected);
 }
 
 #[test]
 fn careful_plan_to_repair_bridge_impressed_council() {
-    let subject = dp("plan")
-        .determiner(Determiner::The)
-        .modifier(adjp("careful"))
-        .complement(
-            vp("repair")
-                .to_infinitive()
-                .complement(
-                    dp("bridge")
-                        .determiner(Determiner::The)
-                        .modifier(adjp("old")),
-                )
-                .adjunct(pp("before", dp("storm").determiner(Determiner::The))),
-        );
+    let subject = dp(np("plan").modifier(adjp("careful")).complement(
+        vp("repair")
+            .to_infinitive()
+            .complement(dp(np("bridge").modifier(adjp("old"))).the())
+            .adjunct(pp("before", dp(np("storm")).the())),
+    ))
+    .the();
 
-    let predicate = vp("impress").past().complement(
-        dp("council")
-            .determiner(Determiner::The)
-            .modifier(adjp("local")),
-    );
+    let predicate = vp("impress")
+        .past()
+        .complement(dp(np("council").modifier(adjp("local"))).the());
 
     assert_sentence(
         subject.predicate(predicate).sentence(),
@@ -40,20 +32,18 @@ fn we_did_not_expect_editor_to_read_manuscript_on_train() {
         .past()
         .negative()
         .complement(
-            dp("editor")
-                .determiner(Determiner::The)
+            dp(np("editor")
                 .modifier(adjp("patient").modifier(advp("remarkably")))
-                .complement(pp("with", dp("lantern").determiner(Determiner::A))),
+                .complement(pp("with", dp(np("lantern")).a())))
+            .the(),
         )
         .complement(
             vp("read")
                 .to_infinitive()
                 .complement(
-                    dp("manuscript")
-                        .determiner(Determiner::The)
-                        .modifier(adjp("long").modifier(advp("very"))),
+                    dp(np("manuscript").modifier(adjp("long").modifier(advp("very")))).the(),
                 )
-                .adjunct(pp("on", dp("train").determiner(Determiner::The))),
+                .adjunct(pp("on", dp(np("train")).the())),
         );
 
     assert_sentence(
@@ -69,25 +59,22 @@ fn alice_mailed_report_about_storm_to_office_near_harbor() {
     let predicate = vp("mail")
         .past()
         .complement(
-            dp("report")
-                .determiner(Determiner::The)
+            dp(np("report")
                 .modifier(adjp("detailed").modifier(advp("unusually")))
                 .complement(pp(
                     "about",
-                    dp("storm").determiner(Determiner::The).complement(pp(
-                        "over",
-                        dp("coast")
-                            .determiner(Determiner::The)
-                            .modifier(adjp("northern")),
-                    )),
-                )),
+                    dp(np("storm")
+                        .complement(pp("over", dp(np("coast").modifier(adjp("northern"))).the())))
+                    .the(),
+                )))
+            .the(),
         )
         .adjunct(pp(
             "to",
-            dp("office")
-                .determiner(Determiner::The)
+            dp(np("office")
                 .modifier(adjp("quiet"))
-                .complement(pp("near", dp("harbor").determiner(Determiner::The))),
+                .complement(pp("near", dp(np("harbor")).the())))
+            .the(),
         ));
 
     assert_sentence(
@@ -98,16 +85,16 @@ fn alice_mailed_report_about_storm_to_office_near_harbor() {
 
 #[test]
 fn old_machine_under_stairs_was_not_ready_to_move() {
-    let subject = dp("machine")
-        .determiner(Determiner::The)
+    let subject = dp(np("machine")
         .modifier(adjp("old"))
-        .complement(pp("under", dp("stairs").determiner(Determiner::The)));
+        .complement(pp("under", dp(np("stairs")).the())))
+    .the();
 
     let predicate = vp("be").past().negative().complement(
         adjp("ready").complement(
             vp("move")
                 .to_infinitive()
-                .adjunct(pp("into", dp("workshop").determiner(Determiner::The))),
+                .adjunct(pp("into", dp(np("workshop")).the())),
         ),
     );
 
@@ -119,20 +106,20 @@ fn old_machine_under_stairs_was_not_ready_to_move() {
 
 #[test]
 fn very_nearly_impossible_puzzle_confused_children_in_library() {
-    let subject = dp("puzzle")
-        .determiner(Determiner::The)
+    let subject = dp(np("puzzle")
         .modifier(adjp("impossible").modifier(advp("nearly").modifier(advp("very"))))
-        .complement(pp("from", dp("museum").determiner(Determiner::The)));
+        .complement(pp("from", dp(np("museum")).the())))
+    .the();
 
     let predicate = vp("confuse")
         .past()
         .complement(
-            dp("child")
-                .determiner(Determiner::The)
+            dp(np("child")
                 .plural()
-                .modifier(adjp("patient").modifier(advp("extremely"))),
+                .modifier(adjp("patient").modifier(advp("extremely"))))
+            .the(),
         )
-        .adjunct(pp("in", dp("library").determiner(Determiner::The)));
+        .adjunct(pp("in", dp(np("library")).the()));
 
     assert_sentence(
         subject.predicate(predicate).sentence(),
@@ -150,19 +137,14 @@ fn they_discussed_mapping_cave_with_old_guide_after_meal() {
             vp("map")
                 .gerund_participle()
                 .complement(
-                    dp("cave")
-                        .determiner(Determiner::The)
+                    dp(np("cave")
                         .modifier(adjp("narrow"))
-                        .complement(pp("under", dp("hill").determiner(Determiner::The))),
+                        .complement(pp("under", dp(np("hill")).the())))
+                    .the(),
                 )
-                .adjunct(pp(
-                    "with",
-                    dp("guide")
-                        .determiner(Determiner::The)
-                        .modifier(adjp("old")),
-                )),
+                .adjunct(pp("with", dp(np("guide").modifier(adjp("old"))).the())),
         )
-        .adjunct(pp("after", dp("meal").determiner(Determiner::The)));
+        .adjunct(pp("after", dp(np("meal")).the()));
 
     assert_sentence(
         subject.predicate(predicate).sentence(),
@@ -172,34 +154,22 @@ fn they_discussed_mapping_cave_with_old_guide_after_meal() {
 
 #[test]
 fn ambitious_attempt_to_persuade_pilot_to_land_plane_alarmed_team() {
-    let subject = dp("attempt")
-        .determiner(Determiner::The)
-        .modifier(adjp("ambitious"))
-        .complement(
-            vp("persuade")
-                .to_infinitive()
-                .complement(
-                    dp("pilot")
-                        .determiner(Determiner::The)
-                        .modifier(adjp("cautious")),
-                )
-                .complement(
-                    vp("land")
-                        .to_infinitive()
-                        .complement(
-                            dp("plane")
-                                .determiner(Determiner::The)
-                                .modifier(adjp("damaged")),
-                        )
-                        .adjunct(pp("near", dp("village").determiner(Determiner::The))),
-                ),
-        );
+    let subject = dp(np("attempt").modifier(adjp("ambitious")).complement(
+        vp("persuade")
+            .to_infinitive()
+            .complement(dp(np("pilot").modifier(adjp("cautious"))).the())
+            .complement(
+                vp("land")
+                    .to_infinitive()
+                    .complement(dp(np("plane").modifier(adjp("damaged"))).the())
+                    .adjunct(pp("near", dp(np("village")).the())),
+            ),
+    ))
+    .the();
 
-    let predicate = vp("alarm").past().complement(
-        dp("team")
-            .determiner(Determiner::The)
-            .modifier(adjp("rescue")),
-    );
+    let predicate = vp("alarm")
+        .past()
+        .complement(dp(np("team").modifier(adjp("rescue"))).the());
 
     assert_sentence(
         subject.predicate(predicate).sentence(),

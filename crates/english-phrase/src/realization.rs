@@ -1,5 +1,6 @@
 use crate::desugar::{
-    lower_advp, lower_ap, lower_clause, lower_dp, lower_phrase, lower_pp, lower_verb_projection,
+    lower_advp, lower_ap, lower_clause, lower_dp, lower_np, lower_phrase, lower_pp,
+    lower_verb_projection,
 };
 use crate::error::RealizationResult;
 use crate::internal::{
@@ -7,11 +8,19 @@ use crate::internal::{
     PBar, PP, SilentDeterminer, TBar, THead, TP, VBar, VP, VPBar, XP,
 };
 use crate::syntax::{
-    AdjectivePhrase, AdverbPhrase, Clause, DeterminerPhrase, Phrase, PrepositionalPhrase, Sentence,
-    Tense, Terminal, VerbPhrase,
+    AdjectivePhrase, AdverbPhrase, Clause, DeterminerPhrase, NounPhrase, Phrase,
+    PrepositionalPhrase, Sentence, Tense, Terminal, VerbPhrase,
 };
 use english::{English, Form as MorphForm, Number, Person, Tense as MorphTense};
 use std::borrow::Borrow;
+
+mod private {
+    pub trait Sealed {}
+}
+
+pub trait Realizable: private::Sealed {
+    fn realize(&self) -> RealizationResult<String>;
+}
 
 fn join_nonempty(parts: impl IntoIterator<Item = String>) -> String {
     parts
@@ -91,6 +100,7 @@ fn render_xp(xp: &XP) -> RealizationResult<String> {
         XP::TP(tp) => render_tp(tp),
         XP::VP(vp) => render_vp(vp),
         XP::DP(dp) => render_dp(dp),
+        XP::NP(np) => render_np(np),
         XP::AP(ap) => render_ap(ap),
         XP::AdvP(advp) => render_advp(advp),
         XP::PP(pp) => render_pp(pp),
@@ -323,47 +333,114 @@ fn render_pbar(pbar: &PBar) -> RealizationResult<String> {
 }
 
 pub fn realize_phrase(phrase: impl Borrow<Phrase>) -> RealizationResult<String> {
-    render_xp(&lower_phrase(phrase.borrow())?)
+    phrase.borrow().realize()
 }
 
 pub fn realize_determiner_phrase(
     phrase: impl Borrow<DeterminerPhrase>,
 ) -> RealizationResult<String> {
-    render_dp(&lower_dp(phrase.borrow())?)
+    phrase.borrow().realize()
+}
+
+pub fn realize_noun_phrase(phrase: impl Borrow<NounPhrase>) -> RealizationResult<String> {
+    phrase.borrow().realize()
 }
 
 pub fn realize_adjective_phrase(phrase: impl Borrow<AdjectivePhrase>) -> RealizationResult<String> {
-    render_ap(&lower_ap(phrase.borrow())?)
+    phrase.borrow().realize()
 }
 
 pub fn realize_adverb_phrase(phrase: impl Borrow<AdverbPhrase>) -> RealizationResult<String> {
-    render_advp(&lower_advp(phrase.borrow())?)
+    phrase.borrow().realize()
 }
 
 pub fn realize_prepositional_phrase(
     phrase: impl Borrow<PrepositionalPhrase>,
 ) -> RealizationResult<String> {
-    render_pp(&lower_pp(phrase.borrow())?)
+    phrase.borrow().realize()
 }
 
 pub fn realize_verb_phrase(phrase: impl Borrow<VerbPhrase>) -> RealizationResult<String> {
-    render_tp(&lower_verb_projection(phrase.borrow(), None)?)
+    phrase.borrow().realize()
 }
 
 pub fn realize_clause(clause: impl Borrow<Clause>) -> RealizationResult<String> {
-    render_cp(&lower_clause(clause.borrow())?)
+    clause.borrow().realize()
 }
 
 pub fn realize_sentence(sentence: impl Borrow<Sentence>) -> RealizationResult<String> {
-    let sentence = sentence.borrow();
-    let mut text = realize_clause(sentence.clause())?;
-    if sentence.capitalize_flag() {
-        text = English::capitalize_first(&text);
+    sentence.borrow().realize()
+}
+
+impl private::Sealed for Phrase {}
+impl private::Sealed for DeterminerPhrase {}
+impl private::Sealed for NounPhrase {}
+impl private::Sealed for AdjectivePhrase {}
+impl private::Sealed for AdverbPhrase {}
+impl private::Sealed for PrepositionalPhrase {}
+impl private::Sealed for VerbPhrase {}
+impl private::Sealed for Clause {}
+impl private::Sealed for Sentence {}
+
+impl Realizable for Phrase {
+    fn realize(&self) -> RealizationResult<String> {
+        render_xp(&lower_phrase(self)?)
     }
-    text.push(match sentence.terminal() {
-        Terminal::Period => '.',
-        Terminal::QuestionMark => '?',
-        Terminal::ExclamationMark => '!',
-    });
-    Ok(text)
+}
+
+impl Realizable for DeterminerPhrase {
+    fn realize(&self) -> RealizationResult<String> {
+        render_dp(&lower_dp(self)?)
+    }
+}
+
+impl Realizable for NounPhrase {
+    fn realize(&self) -> RealizationResult<String> {
+        render_np(&lower_np(self)?)
+    }
+}
+
+impl Realizable for AdjectivePhrase {
+    fn realize(&self) -> RealizationResult<String> {
+        render_ap(&lower_ap(self)?)
+    }
+}
+
+impl Realizable for AdverbPhrase {
+    fn realize(&self) -> RealizationResult<String> {
+        render_advp(&lower_advp(self)?)
+    }
+}
+
+impl Realizable for PrepositionalPhrase {
+    fn realize(&self) -> RealizationResult<String> {
+        render_pp(&lower_pp(self)?)
+    }
+}
+
+impl Realizable for VerbPhrase {
+    fn realize(&self) -> RealizationResult<String> {
+        render_tp(&lower_verb_projection(self, None)?)
+    }
+}
+
+impl Realizable for Clause {
+    fn realize(&self) -> RealizationResult<String> {
+        render_cp(&lower_clause(self)?)
+    }
+}
+
+impl Realizable for Sentence {
+    fn realize(&self) -> RealizationResult<String> {
+        let mut text = self.clause().realize()?;
+        if self.capitalize_flag() {
+            text = English::capitalize_first(&text);
+        }
+        text.push(match self.terminal() {
+            Terminal::Period => '.',
+            Terminal::QuestionMark => '?',
+            Terminal::ExclamationMark => '!',
+        });
+        Ok(text)
+    }
 }
