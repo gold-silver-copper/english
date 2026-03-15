@@ -13,7 +13,6 @@ use crate::syntax::{
     Sentence, Tense, TensePhrase, Terminal, VerbPhrase,
 };
 use english::{English, Form as MorphForm, Number, Person, Tense as MorphTense};
-use std::borrow::Borrow;
 
 mod private {
     pub trait Sealed {}
@@ -398,46 +397,6 @@ fn render_pbar(pbar: &PBar) -> RealizationResult<String> {
         pbar.head.entry.as_str().to_string(),
         render_xp(pbar.complement.as_ref())?,
     ]))
-}
-
-pub fn realize_phrase(phrase: impl Borrow<Phrase>) -> RealizationResult<String> {
-    phrase.borrow().realize()
-}
-
-pub fn realize_determiner_phrase(
-    phrase: impl Borrow<DeterminerPhrase>,
-) -> RealizationResult<String> {
-    phrase.borrow().realize()
-}
-
-pub fn realize_noun_phrase(phrase: impl Borrow<NounPhrase>) -> RealizationResult<String> {
-    phrase.borrow().realize()
-}
-
-pub fn realize_adjective_phrase(phrase: impl Borrow<AdjectivePhrase>) -> RealizationResult<String> {
-    phrase.borrow().realize()
-}
-
-pub fn realize_adverb_phrase(phrase: impl Borrow<AdverbPhrase>) -> RealizationResult<String> {
-    phrase.borrow().realize()
-}
-
-pub fn realize_prepositional_phrase(
-    phrase: impl Borrow<PrepositionalPhrase>,
-) -> RealizationResult<String> {
-    phrase.borrow().realize()
-}
-
-pub fn realize_verb_phrase(phrase: impl Borrow<VerbPhrase>) -> RealizationResult<String> {
-    phrase.borrow().realize()
-}
-
-pub fn realize_tense_phrase(phrase: impl Borrow<TensePhrase>) -> RealizationResult<String> {
-    phrase.borrow().realize()
-}
-
-pub fn realize_sentence(sentence: impl Borrow<Sentence>) -> RealizationResult<String> {
-    sentence.borrow().realize()
 }
 
 impl private::Sealed for Phrase {}
