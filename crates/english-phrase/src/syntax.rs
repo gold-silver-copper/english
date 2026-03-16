@@ -43,49 +43,36 @@ pub trait DpHead: private::Sealed {
 }
 
 #[doc(hidden)]
-pub trait NpModifier: private::Sealed {
+pub trait IntoSlot<S>: private::Sealed {
     fn into_phrase(self) -> Phrase;
 }
 
 #[doc(hidden)]
-pub trait NpComplement: private::Sealed {
-    fn into_phrase(self) -> Phrase;
-}
+pub enum NpModifierSlot {}
 
 #[doc(hidden)]
-pub trait ApModifier: private::Sealed {
-    fn into_phrase(self) -> Phrase;
-}
+pub enum NpComplementSlot {}
 
 #[doc(hidden)]
-pub trait ApComplement: private::Sealed {
-    fn into_phrase(self) -> Phrase;
-}
+pub enum ApModifierSlot {}
 
 #[doc(hidden)]
-pub trait AdvpModifier: private::Sealed {
-    fn into_phrase(self) -> Phrase;
-}
+pub enum ApComplementSlot {}
 
 #[doc(hidden)]
-pub trait AdvpComplement: private::Sealed {
-    fn into_phrase(self) -> Phrase;
-}
+pub enum AdvpModifierSlot {}
 
 #[doc(hidden)]
-pub trait PpComplement: private::Sealed {
-    fn into_phrase(self) -> Phrase;
-}
+pub enum AdvpComplementSlot {}
 
 #[doc(hidden)]
-pub trait VpComplement: private::Sealed {
-    fn into_phrase(self) -> Phrase;
-}
+pub enum PpComplementSlot {}
 
 #[doc(hidden)]
-pub trait VpAdjunct: private::Sealed {
-    fn into_phrase(self) -> Phrase;
-}
+pub enum VpComplementSlot {}
+
+#[doc(hidden)]
+pub enum VpAdjunctSlot {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Name(String);
@@ -128,12 +115,12 @@ impl NounPhrase {
         self
     }
 
-    pub fn modifier<M: NpModifier>(mut self, modifier: M) -> Self {
+    pub fn modifier<M: IntoSlot<NpModifierSlot>>(mut self, modifier: M) -> Self {
         self.modifiers.push(Box::new(modifier.into_phrase()));
         self
     }
 
-    pub fn complement<C: NpComplement>(mut self, complement: C) -> Self {
+    pub fn complement<C: IntoSlot<NpComplementSlot>>(mut self, complement: C) -> Self {
         self.complements.push(Box::new(complement.into_phrase()));
         self
     }
@@ -337,12 +324,12 @@ impl AdjectivePhrase {
         }
     }
 
-    pub fn modifier<M: ApModifier>(mut self, modifier: M) -> Self {
+    pub fn modifier<M: IntoSlot<ApModifierSlot>>(mut self, modifier: M) -> Self {
         self.modifier = Some(Box::new(modifier.into_phrase()));
         self
     }
 
-    pub fn complement<C: ApComplement>(mut self, complement: C) -> Self {
+    pub fn complement<C: IntoSlot<ApComplementSlot>>(mut self, complement: C) -> Self {
         self.complements.push(Box::new(complement.into_phrase()));
         self
     }
@@ -376,12 +363,12 @@ impl AdverbPhrase {
         }
     }
 
-    pub fn modifier<M: AdvpModifier>(mut self, modifier: M) -> Self {
+    pub fn modifier<M: IntoSlot<AdvpModifierSlot>>(mut self, modifier: M) -> Self {
         self.modifier = Some(Box::new(modifier.into_phrase()));
         self
     }
 
-    pub fn complement<C: AdvpComplement>(mut self, complement: C) -> Self {
+    pub fn complement<C: IntoSlot<AdvpComplementSlot>>(mut self, complement: C) -> Self {
         self.complements.push(Box::new(complement.into_phrase()));
         self
     }
@@ -406,7 +393,10 @@ pub struct PrepositionalPhrase {
 }
 
 impl PrepositionalPhrase {
-    pub fn new<C: PpComplement>(head: impl Into<PrepositionEntry>, complement: C) -> Self {
+    pub fn new<C: IntoSlot<PpComplementSlot>>(
+        head: impl Into<PrepositionEntry>,
+        complement: C,
+    ) -> Self {
         Self {
             head: head.into(),
             complement: Box::new(complement.into_phrase()),
@@ -438,12 +428,12 @@ impl VerbPhrase {
         }
     }
 
-    pub fn complement<C: VpComplement>(mut self, complement: C) -> Self {
+    pub fn complement<C: IntoSlot<VpComplementSlot>>(mut self, complement: C) -> Self {
         self.complements.push(Box::new(complement.into_phrase()));
         self
     }
 
-    pub fn adjunct<A: VpAdjunct>(mut self, adjunct: A) -> Self {
+    pub fn adjunct<A: IntoSlot<VpAdjunctSlot>>(mut self, adjunct: A) -> Self {
         self.adjuncts.push(Box::new(adjunct.into_phrase()));
         self
     }
@@ -556,7 +546,7 @@ pub fn advp(head: impl Into<AdverbEntry>) -> AdverbPhrase {
     AdverbPhrase::new(head)
 }
 
-pub fn pp<C: PpComplement>(
+pub fn pp<C: IntoSlot<PpComplementSlot>>(
     head: impl Into<PrepositionEntry>,
     complement: C,
 ) -> PrepositionalPhrase {
@@ -718,127 +708,127 @@ impl DpHead for Name {
     }
 }
 
-impl NpModifier for AdjectivePhrase {
+impl IntoSlot<NpModifierSlot> for AdjectivePhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl NpComplement for PrepositionalPhrase {
+impl IntoSlot<NpComplementSlot> for PrepositionalPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl NpComplement for TensePhrase {
+impl IntoSlot<NpComplementSlot> for TensePhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl ApModifier for AdverbPhrase {
+impl IntoSlot<ApModifierSlot> for AdverbPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl ApComplement for PrepositionalPhrase {
+impl IntoSlot<ApComplementSlot> for PrepositionalPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl ApComplement for TensePhrase {
+impl IntoSlot<ApComplementSlot> for TensePhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl AdvpModifier for AdverbPhrase {
+impl IntoSlot<AdvpModifierSlot> for AdverbPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl AdvpComplement for PrepositionalPhrase {
+impl IntoSlot<AdvpComplementSlot> for PrepositionalPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl PpComplement for DeterminerPhrase {
+impl IntoSlot<PpComplementSlot> for DeterminerPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl PpComplement for NominalDeterminerPhrase {
+impl IntoSlot<PpComplementSlot> for NominalDeterminerPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl PpComplement for PronominalDeterminerPhrase {
+impl IntoSlot<PpComplementSlot> for PronominalDeterminerPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl PpComplement for PrepositionalPhrase {
+impl IntoSlot<PpComplementSlot> for PrepositionalPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl PpComplement for TensePhrase {
+impl IntoSlot<PpComplementSlot> for TensePhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl VpComplement for DeterminerPhrase {
+impl IntoSlot<VpComplementSlot> for DeterminerPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl VpComplement for NominalDeterminerPhrase {
+impl IntoSlot<VpComplementSlot> for NominalDeterminerPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl VpComplement for PronominalDeterminerPhrase {
+impl IntoSlot<VpComplementSlot> for PronominalDeterminerPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl VpComplement for PrepositionalPhrase {
+impl IntoSlot<VpComplementSlot> for PrepositionalPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl VpComplement for AdjectivePhrase {
+impl IntoSlot<VpComplementSlot> for AdjectivePhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl VpComplement for TensePhrase {
+impl IntoSlot<VpComplementSlot> for TensePhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl VpAdjunct for PrepositionalPhrase {
+impl IntoSlot<VpAdjunctSlot> for PrepositionalPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl VpAdjunct for AdverbPhrase {
+impl IntoSlot<VpAdjunctSlot> for AdverbPhrase {
     fn into_phrase(self) -> Phrase {
         self.into()
     }

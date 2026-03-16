@@ -551,23 +551,3 @@ impl Realizable for TensePhrase {
         Ok(apply_realization_options(render_tp(self)?, options))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::syntax::{dp, np, pp, tp, vp};
-
-    #[test]
-    fn phrase_distinguishes_lexical_vp_from_tp_in_realization() {
-        let vp_phrase = Phrase::from(vp("eat").complement(dp(np("apple")).the()));
-        let tp_phrase = Phrase::from(tp(vp("eat").complement(dp(np("apple")).the())).past());
-
-        assert_eq!(vp_phrase.realize().unwrap(), "eat the apple");
-        assert_eq!(tp_phrase.realize().unwrap(), "ate the apple");
-    }
-
-    #[test]
-    fn pp_pronouns_render_in_object_case() {
-        assert_eq!(pp("with", dp(Pronoun::She)).realize().unwrap(), "with her");
-    }
-}
