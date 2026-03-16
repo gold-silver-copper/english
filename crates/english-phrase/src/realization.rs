@@ -1,8 +1,9 @@
 use crate::error::{RealizationError, RealizationResult};
 use crate::lexical::{Determiner, Pronoun};
 use crate::syntax::{
-    AdjectivePhrase, AdverbPhrase, DeterminerPhrase, NominalDeterminerPhrase, NounPhrase, Phrase,
-    PrepositionalPhrase, PronominalDeterminerPhrase, Tense, TensePhrase, VerbForm, VerbPhrase,
+    AdjectivePhrase, AdverbPhrase, Complementizer, ComplementizerPhrase, DeterminerPhrase,
+    NominalDeterminerPhrase, NounPhrase, Phrase, PrepositionalPhrase, PronominalDeterminerPhrase,
+    Tense, TensePhrase, VerbForm, VerbPhrase,
 };
 use english::{English, Form as MorphForm, Number, Person, Tense as MorphTense};
 
@@ -91,6 +92,14 @@ enum DpRenderRole {
 enum SubjectPosition {
     None,
     Trace,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClauseComplementSite {
+    NP,
+    AP,
+    PP,
+    VP,
 }
 
 fn join_nonempty(parts: impl IntoIterator<Item = String>) -> String {
@@ -186,6 +195,73 @@ fn render_phrase_list(values: &[Box<Phrase>]) -> RealizationResult<Vec<String>> 
         .collect()
 }
 
+fn validate_clausal_complement(
+    clause: &TensePhrase,
+    site: ClauseComplementSite,
+) -> RealizationResult<()> {
+    let valid = match site {
+        ClauseComplementSite::NP | ClauseComplementSite::AP => {
+            matches!(clause.form(), VerbForm::ToInfinitive)
+        }
+        ClauseComplementSite::PP => matches!(clause.form(), VerbForm::GerundParticiple),
+        ClauseComplementSite::VP => !matches!(clause.form(), VerbForm::Finite(_)),
+    };
+
+    if valid {
+        Ok(())
+    } else {
+        let message = match site {
+            ClauseComplementSite::NP => {
+                "noun phrase TP complements must be to-infinitival clauses; finite clause complements must be CP"
+            }
+            ClauseComplementSite::AP => {
+                "adjective phrase TP complements must be to-infinitival clauses; finite clause complements must be CP"
+            }
+            ClauseComplementSite::PP => {
+                "prepositional TP complements must be gerund-participial clauses; finite clause complements must be CP"
+            }
+            ClauseComplementSite::VP => {
+                "verb phrase TP complements must be nonfinite clauses; finite clause complements must be CP"
+            }
+        };
+
+        Err(RealizationError::new(message))
+    }
+}
+
+fn validate_complementizer_phrase(
+    clause: &ComplementizerPhrase,
+    _site: ClauseComplementSite,
+) -> RealizationResult<()> {
+    if !matches!(clause.complement().form(), VerbForm::Finite(_)) {
+        return Err(RealizationError::new(
+            "complementizer phrases must dominate finite tense phrases",
+        ));
+    }
+
+    Ok(())
+}
+
+fn render_complement(phrase: &Phrase, site: ClauseComplementSite) -> RealizationResult<String> {
+    match phrase {
+        Phrase::TP(tp) => validate_clausal_complement(tp, site)?,
+        Phrase::CP(cp) => validate_complementizer_phrase(cp, site)?,
+        _ => {}
+    }
+
+    render_phrase_in_context(phrase, DpRenderRole::Object)
+}
+
+fn render_complement_list(
+    values: &[Box<Phrase>],
+    site: ClauseComplementSite,
+) -> RealizationResult<Vec<String>> {
+    values
+        .iter()
+        .map(|value| render_complement(value.as_ref(), site))
+        .collect()
+}
+
 fn agreement_from_dp(dp: &DeterminerPhrase) -> (Person, Number) {
     match dp {
         DeterminerPhrase::BareNominal(nominal)
@@ -204,6 +280,7 @@ fn render_phrase(phrase: &Phrase) -> RealizationResult<String> {
 
 fn render_phrase_in_context(phrase: &Phrase, dp_role: DpRenderRole) -> RealizationResult<String> {
     match phrase {
+        Phrase::CP(cp) => render_cp(cp),
         Phrase::TP(tp) => render_tp(tp),
         Phrase::DP(dp) => render_dp(dp, dp_role),
         Phrase::NP(np) => render_np(np, dp_role),
@@ -211,6 +288,30 @@ fn render_phrase_in_context(phrase: &Phrase, dp_role: DpRenderRole) -> Realizati
         Phrase::PP(pp) => render_pp(pp),
         Phrase::AdjP(ap) => render_ap(ap),
         Phrase::AdvP(advp) => render_advp(advp),
+    }
+}
+
+fn render_cp(cp: &ComplementizerPhrase) -> RealizationResult<String> {
+    let mut parts = Vec::new();
+
+    if let Some(specifier) = cp.specifier_opt() {
+        parts.push(render_phrase(specifier)?);
+    }
+
+    if let Some(head) = render_complementizer(cp.head()) {
+        parts.push(head.to_string());
+    }
+
+    parts.push(render_tp(cp.complement())?);
+    Ok(join_nonempty(parts))
+}
+
+fn render_complementizer(head: Complementizer) -> Option<&'static str> {
+    match head {
+        Complementizer::Null => None,
+        Complementizer::That => Some("that"),
+        Complementizer::Whether => Some("whether"),
+        Complementizer::If => Some("if"),
     }
 }
 
@@ -301,7 +402,10 @@ fn render_vp(vp: &VerbPhrase, subject_position: SubjectPosition) -> RealizationR
     }
 
     parts.push(base_form(vp.head().as_str()));
-    parts.extend(render_phrase_list(vp.complements())?);
+    parts.extend(render_complement_list(
+        vp.complements(),
+        ClauseComplementSite::VP,
+    )?);
     parts.extend(render_phrase_list(vp.adjuncts())?);
     Ok(join_nonempty(parts))
 }
@@ -316,7 +420,10 @@ fn render_vp_tail(
         parts.push(subject);
     }
 
-    parts.extend(render_phrase_list(vp.complements())?);
+    parts.extend(render_complement_list(
+        vp.complements(),
+        ClauseComplementSite::VP,
+    )?);
     parts.extend(render_phrase_list(vp.adjuncts())?);
     Ok(parts)
 }
@@ -401,7 +508,11 @@ fn render_np(np: &NounPhrase, role: DpRenderRole) -> RealizationResult<String> {
     parts.push(match np.head() {
         entry => English::noun(entry.as_str(), np.number()),
     });
-    parts.extend(render_phrase_list(np.complements())?);
+    parts.extend(render_complement_list(
+        np.complements(),
+        ClauseComplementSite::NP,
+    )?);
+    parts.extend(render_phrase_list(np.adjuncts())?);
     if parts.is_empty() {
         return Err(invariant_error(
             "noun phrase unexpectedly realized to nothing",
@@ -442,7 +553,10 @@ fn render_ap(ap: &AdjectivePhrase) -> RealizationResult<String> {
         }
     }
     parts.push(English::adj(ap.head().as_str(), &english::Degree::Positive));
-    parts.extend(render_phrase_list(ap.complements())?);
+    parts.extend(render_complement_list(
+        ap.complements(),
+        ClauseComplementSite::AP,
+    )?);
     Ok(join_nonempty(parts))
 }
 
@@ -466,7 +580,7 @@ fn render_advp(advp: &AdverbPhrase) -> RealizationResult<String> {
 fn render_pp(pp: &PrepositionalPhrase) -> RealizationResult<String> {
     Ok(join_nonempty(vec![
         pp.head().as_str().to_string(),
-        render_phrase_in_context(pp.complement(), DpRenderRole::Object)?,
+        render_complement(pp.complement(), ClauseComplementSite::PP)?,
     ]))
 }
 
@@ -480,6 +594,7 @@ impl private::Sealed for AdverbPhrase {}
 impl private::Sealed for PrepositionalPhrase {}
 impl private::Sealed for VerbPhrase {}
 impl private::Sealed for TensePhrase {}
+impl private::Sealed for ComplementizerPhrase {}
 
 impl Realizable for Phrase {
     fn realize_with(&self, options: RealizationOptions) -> RealizationResult<String> {
@@ -549,5 +664,11 @@ impl Realizable for VerbPhrase {
 impl Realizable for TensePhrase {
     fn realize_with(&self, options: RealizationOptions) -> RealizationResult<String> {
         Ok(apply_realization_options(render_tp(self)?, options))
+    }
+}
+
+impl Realizable for ComplementizerPhrase {
+    fn realize_with(&self, options: RealizationOptions) -> RealizationResult<String> {
+        Ok(apply_realization_options(render_cp(self)?, options))
     }
 }

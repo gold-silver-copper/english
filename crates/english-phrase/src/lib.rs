@@ -12,7 +12,7 @@ pub use crate::lexical::{
 };
 pub use crate::realization::{Realizable, RealizationOptions, Terminal};
 pub use crate::syntax::{
-    AdjectivePhrase, AdverbPhrase, DeterminerPhrase, IntoSlot, Name, NominalDeterminerPhrase,
-    NounPhrase, Phrase, PrepositionalPhrase, PronominalDeterminerPhrase, Tense, TensePhrase,
-    VerbForm, VerbPhrase, adjp, advp, dp, name, np, pp, tp, vp,
+    AdjectivePhrase, AdverbPhrase, Complementizer, ComplementizerPhrase, DeterminerPhrase, Name,
+    NominalDeterminerPhrase, NounPhrase, Phrase, PrepositionalPhrase, PronominalDeterminerPhrase,
+    Tense, TensePhrase, VerbForm, VerbPhrase, adjp, advp, cp, dp, name, np, pp, tp, vp,
 };

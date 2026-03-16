@@ -94,12 +94,12 @@ fn patient_editor_showed_them_our_map_after_the_guide_described_it_to_us() {
         )))
     .the();
 
-    let described_clause = tp(vp("describe")
+    let described_clause = cp(tp(vp("describe")
         .complement(dp(Pronoun::It))
         .adjunct(pp("to", dp(Pronoun::We)))
         .adjunct(pp("during", dp(np("meeting").modifier(adjp("long"))).the())))
     .past()
-    .subject(dp(np("guide").modifier(adjp("patient"))).the());
+    .subject(dp(np("guide").modifier(adjp("patient"))).the()));
 
     let clause = tp(vp("show")
         .complement(dp(Pronoun::They))
@@ -451,14 +451,14 @@ fn cautious_pilot_relaxed_after_the_rescue_team_arrived_with_the_old_guide() {
     )))
     .the();
 
-    let arrived_clause = tp(vp("arrive")
+    let arrived_clause = cp(tp(vp("arrive")
         .adjunct(pp("with", dp(np("guide").modifier(adjp("old"))).the()))
         .adjunct(pp(
             "before",
             dp(np("inspection").modifier(adjp("final"))).the(),
         )))
     .past()
-    .subject(dp(np("team").modifier(adjp("rescue"))).the());
+    .subject(dp(np("team").modifier(adjp("rescue"))).the()));
 
     let clause = tp(vp("relax").adjunct(pp("after", arrived_clause)))
         .past()
@@ -472,7 +472,7 @@ fn cautious_pilot_relaxed_after_the_rescue_team_arrived_with_the_old_guide() {
 
 #[test]
 fn i_told_you_he_admired_her_after_the_long_rehearsal_near_the_harbor() {
-    let embedded_clause = tp(vp("admire")
+    let embedded_clause = cp(tp(vp("admire")
         .complement(dp(Pronoun::She))
         .adjunct(pp(
             "after",
@@ -480,7 +480,7 @@ fn i_told_you_he_admired_her_after_the_long_rehearsal_near_the_harbor() {
         ))
         .adjunct(pp("near", dp(np("harbor")).the())))
     .past()
-    .subject(dp(Pronoun::He));
+    .subject(dp(Pronoun::He)));
 
     let clause = tp(vp("tell")
         .complement(dp(Pronoun::You))

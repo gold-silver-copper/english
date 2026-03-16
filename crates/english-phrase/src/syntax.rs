@@ -26,6 +26,7 @@ pub enum VerbForm {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Phrase {
+    CP(Box<ComplementizerPhrase>),
     TP(Box<TensePhrase>),
     DP(Box<DeterminerPhrase>),
     NP(Box<NounPhrase>),
@@ -54,6 +55,9 @@ pub enum NpModifierSlot {}
 pub enum NpComplementSlot {}
 
 #[doc(hidden)]
+pub enum NpAdjunctSlot {}
+
+#[doc(hidden)]
 pub enum ApModifierSlot {}
 
 #[doc(hidden)]
@@ -74,6 +78,50 @@ pub enum VpComplementSlot {}
 #[doc(hidden)]
 pub enum VpAdjunctSlot {}
 
+trait DpLike: private::Sealed {
+    fn into_determiner_phrase(self) -> DeterminerPhrase;
+}
+
+trait NpModifierLike: private::Sealed {
+    fn into_slot_phrase(self) -> Phrase;
+}
+
+trait NpComplementLike: private::Sealed {
+    fn into_slot_phrase(self) -> Phrase;
+}
+
+trait NpAdjunctLike: private::Sealed {
+    fn into_slot_phrase(self) -> Phrase;
+}
+
+trait ApModifierLike: private::Sealed {
+    fn into_slot_phrase(self) -> Phrase;
+}
+
+trait ApComplementLike: private::Sealed {
+    fn into_slot_phrase(self) -> Phrase;
+}
+
+trait AdvpModifierLike: private::Sealed {
+    fn into_slot_phrase(self) -> Phrase;
+}
+
+trait AdvpComplementLike: private::Sealed {
+    fn into_slot_phrase(self) -> Phrase;
+}
+
+trait PpComplementLike: private::Sealed {
+    fn into_slot_phrase(self) -> Phrase;
+}
+
+trait VpComplementLike: private::Sealed {
+    fn into_slot_phrase(self) -> Phrase;
+}
+
+trait VpAdjunctLike: private::Sealed {
+    fn into_slot_phrase(self) -> Phrase;
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Name(String);
 
@@ -87,12 +135,22 @@ impl Name {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Complementizer {
+    #[default]
+    Null,
+    That,
+    Whether,
+    If,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct NounPhrase {
     head: NounEntry,
     number: Number,
     modifiers: Vec<Box<Phrase>>,
     complements: Vec<Box<Phrase>>,
+    adjuncts: Vec<Box<Phrase>>,
 }
 
 impl NounPhrase {
@@ -102,6 +160,7 @@ impl NounPhrase {
             number: Number::Singular,
             modifiers: Vec::new(),
             complements: Vec::new(),
+            adjuncts: Vec::new(),
         }
     }
 
@@ -125,6 +184,11 @@ impl NounPhrase {
         self
     }
 
+    pub fn adjunct<A: IntoSlot<NpAdjunctSlot>>(mut self, adjunct: A) -> Self {
+        self.adjuncts.push(Box::new(adjunct.into_phrase()));
+        self
+    }
+
     pub fn head(&self) -> &NounEntry {
         &self.head
     }
@@ -139,6 +203,10 @@ impl NounPhrase {
 
     pub fn complements(&self) -> &[Box<Phrase>] {
         &self.complements
+    }
+
+    pub fn adjuncts(&self) -> &[Box<Phrase>] {
+        &self.adjuncts
     }
 }
 
@@ -526,6 +594,61 @@ impl TensePhrase {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct ComplementizerPhrase {
+    specifier: Option<Box<Phrase>>,
+    head: Complementizer,
+    complement: Box<TensePhrase>,
+}
+
+impl ComplementizerPhrase {
+    pub fn new(complement: TensePhrase) -> Self {
+        Self {
+            specifier: None,
+            head: Complementizer::Null,
+            complement: Box::new(complement),
+        }
+    }
+
+    pub fn specifier<S: Into<Phrase>>(mut self, specifier: S) -> Self {
+        self.specifier = Some(Box::new(specifier.into()));
+        self
+    }
+
+    pub fn complementizer(mut self, head: Complementizer) -> Self {
+        self.head = head;
+        self
+    }
+
+    pub fn null_c(self) -> Self {
+        self.complementizer(Complementizer::Null)
+    }
+
+    pub fn that(self) -> Self {
+        self.complementizer(Complementizer::That)
+    }
+
+    pub fn whether(self) -> Self {
+        self.complementizer(Complementizer::Whether)
+    }
+
+    pub fn if_(self) -> Self {
+        self.complementizer(Complementizer::If)
+    }
+
+    pub fn specifier_opt(&self) -> Option<&Phrase> {
+        self.specifier.as_deref()
+    }
+
+    pub fn head(&self) -> Complementizer {
+        self.head
+    }
+
+    pub fn complement(&self) -> &TensePhrase {
+        &self.complement
+    }
+}
+
 pub fn np(head: impl Into<NounEntry>) -> NounPhrase {
     NounPhrase::new(head)
 }
@@ -559,6 +682,16 @@ pub fn vp(head: impl Into<VerbEntry>) -> VerbPhrase {
 
 pub fn tp(predicate: VerbPhrase) -> TensePhrase {
     TensePhrase::new(predicate)
+}
+
+pub fn cp(complement: TensePhrase) -> ComplementizerPhrase {
+    ComplementizerPhrase::new(complement)
+}
+
+impl From<ComplementizerPhrase> for Phrase {
+    fn from(value: ComplementizerPhrase) -> Self {
+        Phrase::CP(Box::new(value))
+    }
 }
 
 impl From<TensePhrase> for Phrase {
@@ -654,6 +787,7 @@ impl private::Sealed for PronominalDeterminerPhrase {}
 impl private::Sealed for NounPhrase {}
 impl private::Sealed for VerbPhrase {}
 impl private::Sealed for TensePhrase {}
+impl private::Sealed for ComplementizerPhrase {}
 impl private::Sealed for PrepositionalPhrase {}
 impl private::Sealed for AdjectivePhrase {}
 impl private::Sealed for AdverbPhrase {}
@@ -708,128 +842,212 @@ impl DpHead for Name {
     }
 }
 
-impl IntoSlot<NpModifierSlot> for AdjectivePhrase {
-    fn into_phrase(self) -> Phrase {
+impl DpLike for DeterminerPhrase {
+    fn into_determiner_phrase(self) -> DeterminerPhrase {
+        self
+    }
+}
+
+impl DpLike for NominalDeterminerPhrase {
+    fn into_determiner_phrase(self) -> DeterminerPhrase {
         self.into()
     }
 }
 
-impl IntoSlot<NpComplementSlot> for PrepositionalPhrase {
-    fn into_phrase(self) -> Phrase {
+impl DpLike for PronominalDeterminerPhrase {
+    fn into_determiner_phrase(self) -> DeterminerPhrase {
         self.into()
     }
 }
 
-impl IntoSlot<NpComplementSlot> for TensePhrase {
-    fn into_phrase(self) -> Phrase {
+impl NpModifierLike for AdjectivePhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<ApModifierSlot> for AdverbPhrase {
-    fn into_phrase(self) -> Phrase {
+impl NpComplementLike for PrepositionalPhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<ApComplementSlot> for PrepositionalPhrase {
-    fn into_phrase(self) -> Phrase {
+impl NpComplementLike for TensePhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<ApComplementSlot> for TensePhrase {
-    fn into_phrase(self) -> Phrase {
+impl NpComplementLike for ComplementizerPhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<AdvpModifierSlot> for AdverbPhrase {
-    fn into_phrase(self) -> Phrase {
+impl NpAdjunctLike for PrepositionalPhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<AdvpComplementSlot> for PrepositionalPhrase {
-    fn into_phrase(self) -> Phrase {
+impl ApModifierLike for AdverbPhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<PpComplementSlot> for DeterminerPhrase {
-    fn into_phrase(self) -> Phrase {
+impl ApComplementLike for PrepositionalPhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<PpComplementSlot> for NominalDeterminerPhrase {
-    fn into_phrase(self) -> Phrase {
+impl ApComplementLike for TensePhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<PpComplementSlot> for PronominalDeterminerPhrase {
-    fn into_phrase(self) -> Phrase {
+impl ApComplementLike for ComplementizerPhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<PpComplementSlot> for PrepositionalPhrase {
-    fn into_phrase(self) -> Phrase {
+impl AdvpModifierLike for AdverbPhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<PpComplementSlot> for TensePhrase {
-    fn into_phrase(self) -> Phrase {
+impl AdvpComplementLike for PrepositionalPhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<VpComplementSlot> for DeterminerPhrase {
-    fn into_phrase(self) -> Phrase {
+impl<T: DpLike> PpComplementLike for T {
+    fn into_slot_phrase(self) -> Phrase {
+        self.into_determiner_phrase().into()
+    }
+}
+
+impl PpComplementLike for PrepositionalPhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<VpComplementSlot> for NominalDeterminerPhrase {
-    fn into_phrase(self) -> Phrase {
+impl PpComplementLike for TensePhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<VpComplementSlot> for PronominalDeterminerPhrase {
-    fn into_phrase(self) -> Phrase {
+impl PpComplementLike for ComplementizerPhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<VpComplementSlot> for PrepositionalPhrase {
-    fn into_phrase(self) -> Phrase {
+impl<T: DpLike> VpComplementLike for T {
+    fn into_slot_phrase(self) -> Phrase {
+        self.into_determiner_phrase().into()
+    }
+}
+
+impl VpComplementLike for PrepositionalPhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<VpComplementSlot> for AdjectivePhrase {
-    fn into_phrase(self) -> Phrase {
+impl VpComplementLike for AdjectivePhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<VpComplementSlot> for TensePhrase {
-    fn into_phrase(self) -> Phrase {
+impl VpComplementLike for TensePhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<VpAdjunctSlot> for PrepositionalPhrase {
-    fn into_phrase(self) -> Phrase {
+impl VpComplementLike for ComplementizerPhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
 }
 
-impl IntoSlot<VpAdjunctSlot> for AdverbPhrase {
-    fn into_phrase(self) -> Phrase {
+impl VpAdjunctLike for PrepositionalPhrase {
+    fn into_slot_phrase(self) -> Phrase {
         self.into()
+    }
+}
+
+impl VpAdjunctLike for AdverbPhrase {
+    fn into_slot_phrase(self) -> Phrase {
+        self.into()
+    }
+}
+
+impl<T: NpModifierLike> IntoSlot<NpModifierSlot> for T {
+    fn into_phrase(self) -> Phrase {
+        self.into_slot_phrase()
+    }
+}
+
+impl<T: NpComplementLike> IntoSlot<NpComplementSlot> for T {
+    fn into_phrase(self) -> Phrase {
+        self.into_slot_phrase()
+    }
+}
+
+impl<T: NpAdjunctLike> IntoSlot<NpAdjunctSlot> for T {
+    fn into_phrase(self) -> Phrase {
+        self.into_slot_phrase()
+    }
+}
+
+impl<T: ApModifierLike> IntoSlot<ApModifierSlot> for T {
+    fn into_phrase(self) -> Phrase {
+        self.into_slot_phrase()
+    }
+}
+
+impl<T: ApComplementLike> IntoSlot<ApComplementSlot> for T {
+    fn into_phrase(self) -> Phrase {
+        self.into_slot_phrase()
+    }
+}
+
+impl<T: AdvpModifierLike> IntoSlot<AdvpModifierSlot> for T {
+    fn into_phrase(self) -> Phrase {
+        self.into_slot_phrase()
+    }
+}
+
+impl<T: AdvpComplementLike> IntoSlot<AdvpComplementSlot> for T {
+    fn into_phrase(self) -> Phrase {
+        self.into_slot_phrase()
+    }
+}
+
+impl<T: PpComplementLike> IntoSlot<PpComplementSlot> for T {
+    fn into_phrase(self) -> Phrase {
+        self.into_slot_phrase()
+    }
+}
+
+impl<T: VpComplementLike> IntoSlot<VpComplementSlot> for T {
+    fn into_phrase(self) -> Phrase {
+        self.into_slot_phrase()
+    }
+}
+
+impl<T: VpAdjunctLike> IntoSlot<VpAdjunctSlot> for T {
+    fn into_phrase(self) -> Phrase {
+        self.into_slot_phrase()
     }
 }
