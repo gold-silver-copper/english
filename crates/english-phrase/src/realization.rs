@@ -1,9 +1,9 @@
 use crate::error::{RealizationError, RealizationResult};
 use crate::lexical::{Determiner, Pronoun};
 use crate::syntax::{
-    AdjectivePhrase, AdverbPhrase, Complementizer, ComplementizerPhrase, DeterminerPhrase,
-    NominalDeterminerPhrase, NounPhrase, Phrase, PrepositionalPhrase, PronominalDeterminerPhrase,
-    Tense, TensePhrase, VerbForm, VerbPhrase,
+    AdjectivePhrase, AdverbPhrase, ClauseForm, Complementizer, ComplementizerPhrase,
+    DeterminerPhrase, NominalDeterminerPhrase, NounPhrase, Phrase, PrepositionalPhrase,
+    PronominalDeterminerPhrase, Tense, TensePhrase, VerbForm, VerbPhrase,
 };
 use english::{English, Form as MorphForm, Number, Person, Tense as MorphTense};
 
@@ -195,60 +195,7 @@ fn render_phrase_list(values: &[Box<Phrase>]) -> RealizationResult<Vec<String>> 
         .collect()
 }
 
-fn validate_clausal_complement(
-    clause: &TensePhrase,
-    site: ClauseComplementSite,
-) -> RealizationResult<()> {
-    let valid = match site {
-        ClauseComplementSite::NP | ClauseComplementSite::AP => {
-            matches!(clause.form(), VerbForm::ToInfinitive)
-        }
-        ClauseComplementSite::PP => matches!(clause.form(), VerbForm::GerundParticiple),
-        ClauseComplementSite::VP => !matches!(clause.form(), VerbForm::Finite(_)),
-    };
-
-    if valid {
-        Ok(())
-    } else {
-        let message = match site {
-            ClauseComplementSite::NP => {
-                "noun phrase TP complements must be to-infinitival clauses; finite clause complements must be CP"
-            }
-            ClauseComplementSite::AP => {
-                "adjective phrase TP complements must be to-infinitival clauses; finite clause complements must be CP"
-            }
-            ClauseComplementSite::PP => {
-                "prepositional TP complements must be gerund-participial clauses; finite clause complements must be CP"
-            }
-            ClauseComplementSite::VP => {
-                "verb phrase TP complements must be nonfinite clauses; finite clause complements must be CP"
-            }
-        };
-
-        Err(RealizationError::new(message))
-    }
-}
-
-fn validate_complementizer_phrase(
-    clause: &ComplementizerPhrase,
-    _site: ClauseComplementSite,
-) -> RealizationResult<()> {
-    if !matches!(clause.complement().form(), VerbForm::Finite(_)) {
-        return Err(RealizationError::new(
-            "complementizer phrases must dominate finite tense phrases",
-        ));
-    }
-
-    Ok(())
-}
-
-fn render_complement(phrase: &Phrase, site: ClauseComplementSite) -> RealizationResult<String> {
-    match phrase {
-        Phrase::TP(tp) => validate_clausal_complement(tp, site)?,
-        Phrase::CP(cp) => validate_complementizer_phrase(cp, site)?,
-        _ => {}
-    }
-
+fn render_complement(phrase: &Phrase, _site: ClauseComplementSite) -> RealizationResult<String> {
     render_phrase_in_context(phrase, DpRenderRole::Object)
 }
 
@@ -315,7 +262,7 @@ fn render_complementizer(head: Complementizer) -> Option<&'static str> {
     }
 }
 
-fn render_tp(tp: &TensePhrase) -> RealizationResult<String> {
+fn render_tp<Form: ClauseForm>(tp: &TensePhrase<Form>) -> RealizationResult<String> {
     let subject = tp.subject_opt();
     let surfaced_subject = subject
         .map(|dp| render_dp(dp, DpRenderRole::Subject))
@@ -593,7 +540,7 @@ impl private::Sealed for AdjectivePhrase {}
 impl private::Sealed for AdverbPhrase {}
 impl private::Sealed for PrepositionalPhrase {}
 impl private::Sealed for VerbPhrase {}
-impl private::Sealed for TensePhrase {}
+impl<Form: ClauseForm> private::Sealed for TensePhrase<Form> {}
 impl private::Sealed for ComplementizerPhrase {}
 
 impl Realizable for Phrase {
@@ -661,7 +608,7 @@ impl Realizable for VerbPhrase {
     }
 }
 
-impl Realizable for TensePhrase {
+impl<Form: ClauseForm> Realizable for TensePhrase<Form> {
     fn realize_with(&self, options: RealizationOptions) -> RealizationResult<String> {
         Ok(apply_realization_options(render_tp(self)?, options))
     }

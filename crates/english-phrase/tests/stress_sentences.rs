@@ -1,6 +1,6 @@
 use english_phrase::*;
 
-fn assert_sentence(clause: TensePhrase, expected: &str) {
+fn assert_sentence<Form: ClauseForm>(clause: TensePhrase<Form>, expected: &str) {
     assert_eq!(
         clause.realize_with(RealizationOptions::sentence()).unwrap(),
         expected

@@ -62,17 +62,17 @@ fn overt_complementizers_realize_above_tp() {
 }
 
 #[test]
-fn noun_phrase_clause_complements_reject_bare_infinitives() {
-    let phrase = np("attempt").complement(tp(vp("leave")).bare_infinitive());
+fn noun_phrase_clause_complements_accept_to_infinitives() {
+    let phrase = np("attempt").complement(tp(vp("leave")).to_infinitive());
 
-    assert!(phrase.realize().is_err());
+    assert_eq!(phrase.realize().unwrap(), "attempt to leave");
 }
 
 #[test]
-fn prepositional_clause_complements_reject_to_infinitives() {
-    let phrase = pp("after", tp(vp("leave")).to_infinitive());
+fn prepositional_clause_complements_accept_gerunds() {
+    let phrase = pp("after", tp(vp("leave")).gerund_participle());
 
-    assert!(phrase.realize().is_err());
+    assert_eq!(phrase.realize().unwrap(), "after leaving");
 }
 
 #[test]

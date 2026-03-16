@@ -1,13 +1,17 @@
 use english_phrase::*;
 
-fn assert_sentence(clause: TensePhrase, expected: &str) {
+fn assert_sentence<Form: ClauseForm>(clause: TensePhrase<Form>, expected: &str) {
     assert_eq!(
         clause.realize_with(RealizationOptions::sentence()).unwrap(),
         expected
     );
 }
 
-fn assert_with_options(clause: TensePhrase, options: RealizationOptions, expected: &str) {
+fn assert_with_options<Form: ClauseForm>(
+    clause: TensePhrase<Form>,
+    options: RealizationOptions,
+    expected: &str,
+) {
     assert_eq!(clause.realize_with(options).unwrap(), expected);
 }
 

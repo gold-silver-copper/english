@@ -2,6 +2,7 @@ use crate::lexical::{
     AdjectiveEntry, AdverbEntry, Determiner, NounEntry, PrepositionEntry, Pronoun, VerbEntry,
 };
 use english::Number;
+use std::marker::PhantomData;
 
 mod private {
     pub trait Sealed {}
@@ -24,10 +25,33 @@ pub enum VerbForm {
     PastParticiple,
 }
 
+pub trait ClauseForm: private::Sealed {}
+
+pub trait NonfiniteClauseForm: ClauseForm {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[doc(hidden)]
+pub struct AnyForm;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Finite;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct BareInfinitive;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ToInfinitive;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Gerund;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct PastParticiple;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Phrase {
     CP(Box<ComplementizerPhrase>),
-    TP(Box<TensePhrase>),
+    TP(Box<TensePhrase<AnyForm>>),
     DP(Box<DeterminerPhrase>),
     NP(Box<NounPhrase>),
     VP(Box<VerbPhrase>),
@@ -179,6 +203,18 @@ impl NounPhrase {
         self
     }
 
+    /// ```
+    /// use english_phrase::*;
+    ///
+    /// let phrase = np("attempt").complement(tp(vp("leave")).to_infinitive());
+    /// assert_eq!(phrase.realize().unwrap(), "attempt to leave");
+    /// ```
+    ///
+    /// ```compile_fail
+    /// use english_phrase::*;
+    ///
+    /// let _ = np("attempt").complement(tp(vp("leave")).bare_infinitive());
+    /// ```
     pub fn complement<C: IntoSlot<NpComplementSlot>>(mut self, complement: C) -> Self {
         self.complements.push(Box::new(complement.into_phrase()));
         self
@@ -362,6 +398,18 @@ impl PronominalDeterminerPhrase {
         }
     }
 
+    /// ```
+    /// use english_phrase::*;
+    ///
+    /// let phrase = dp(Pronoun::She).reflexive();
+    /// assert_eq!(phrase.realize().unwrap(), "herself");
+    /// ```
+    ///
+    /// ```compile_fail
+    /// use english_phrase::*;
+    ///
+    /// let _ = dp(np("editor")).reflexive();
+    /// ```
     pub fn reflexive(mut self) -> Self {
         self.reflexive = true;
         self
@@ -397,6 +445,18 @@ impl AdjectivePhrase {
         self
     }
 
+    /// ```
+    /// use english_phrase::*;
+    ///
+    /// let phrase = adjp("ready").complement(tp(vp("leave")).to_infinitive());
+    /// assert_eq!(phrase.realize().unwrap(), "ready to leave");
+    /// ```
+    ///
+    /// ```compile_fail
+    /// use english_phrase::*;
+    ///
+    /// let _ = adjp("ready").complement(tp(vp("leave")).gerund_participle());
+    /// ```
     pub fn complement<C: IntoSlot<ApComplementSlot>>(mut self, complement: C) -> Self {
         self.complements.push(Box::new(complement.into_phrase()));
         self
@@ -496,6 +556,18 @@ impl VerbPhrase {
         }
     }
 
+    /// ```
+    /// use english_phrase::*;
+    ///
+    /// let phrase = vp("expect").complement(tp(vp("leave")).to_infinitive());
+    /// assert_eq!(phrase.realize().unwrap(), "expect to leave");
+    /// ```
+    ///
+    /// ```compile_fail
+    /// use english_phrase::*;
+    ///
+    /// let _ = vp("say").complement(tp(vp("leave")).past());
+    /// ```
     pub fn complement<C: IntoSlot<VpComplementSlot>>(mut self, complement: C) -> Self {
         self.complements.push(Box::new(complement.into_phrase()));
         self
@@ -520,21 +592,40 @@ impl VerbPhrase {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TensePhrase {
+pub struct TensePhrase<Form: ClauseForm> {
     subject: Option<DeterminerPhrase>,
     form: VerbForm,
     negative: bool,
     predicate: VerbPhrase,
+    form_marker: PhantomData<Form>,
 }
 
-impl TensePhrase {
+impl TensePhrase<BareInfinitive> {
     pub fn new(predicate: VerbPhrase) -> Self {
         Self {
             subject: None,
             form: VerbForm::BareInfinitive,
             negative: false,
             predicate,
+            form_marker: PhantomData,
         }
+    }
+}
+
+impl<Form: ClauseForm> TensePhrase<Form> {
+    fn map_form<Next: ClauseForm>(self, form: VerbForm) -> TensePhrase<Next> {
+        TensePhrase {
+            subject: self.subject,
+            form,
+            negative: self.negative,
+            predicate: self.predicate,
+            form_marker: PhantomData,
+        }
+    }
+
+    pub fn erase(self) -> TensePhrase<AnyForm> {
+        let form = self.form;
+        self.map_form(form)
     }
 
     pub fn subject<S: Into<DeterminerPhrase>>(mut self, subject: S) -> Self {
@@ -542,34 +633,28 @@ impl TensePhrase {
         self
     }
 
-    pub fn present(mut self) -> Self {
-        self.form = VerbForm::Finite(Tense::Present);
-        self
+    pub fn present(self) -> TensePhrase<Finite> {
+        self.map_form(VerbForm::Finite(Tense::Present))
     }
 
-    pub fn past(mut self) -> Self {
-        self.form = VerbForm::Finite(Tense::Past);
-        self
+    pub fn past(self) -> TensePhrase<Finite> {
+        self.map_form(VerbForm::Finite(Tense::Past))
     }
 
-    pub fn bare_infinitive(mut self) -> Self {
-        self.form = VerbForm::BareInfinitive;
-        self
+    pub fn bare_infinitive(self) -> TensePhrase<BareInfinitive> {
+        self.map_form(VerbForm::BareInfinitive)
     }
 
-    pub fn to_infinitive(mut self) -> Self {
-        self.form = VerbForm::ToInfinitive;
-        self
+    pub fn to_infinitive(self) -> TensePhrase<ToInfinitive> {
+        self.map_form(VerbForm::ToInfinitive)
     }
 
-    pub fn gerund_participle(mut self) -> Self {
-        self.form = VerbForm::GerundParticiple;
-        self
+    pub fn gerund_participle(self) -> TensePhrase<Gerund> {
+        self.map_form(VerbForm::GerundParticiple)
     }
 
-    pub fn past_participle(mut self) -> Self {
-        self.form = VerbForm::PastParticiple;
-        self
+    pub fn past_participle(self) -> TensePhrase<PastParticiple> {
+        self.map_form(VerbForm::PastParticiple)
     }
 
     pub fn negative(mut self) -> Self {
@@ -598,11 +683,11 @@ impl TensePhrase {
 pub struct ComplementizerPhrase {
     specifier: Option<Box<Phrase>>,
     head: Complementizer,
-    complement: Box<TensePhrase>,
+    complement: Box<TensePhrase<Finite>>,
 }
 
 impl ComplementizerPhrase {
-    pub fn new(complement: TensePhrase) -> Self {
+    pub fn new(complement: TensePhrase<Finite>) -> Self {
         Self {
             specifier: None,
             head: Complementizer::Null,
@@ -644,7 +729,7 @@ impl ComplementizerPhrase {
         self.head
     }
 
-    pub fn complement(&self) -> &TensePhrase {
+    pub fn complement(&self) -> &TensePhrase<Finite> {
         &self.complement
     }
 }
@@ -669,6 +754,18 @@ pub fn advp(head: impl Into<AdverbEntry>) -> AdverbPhrase {
     AdverbPhrase::new(head)
 }
 
+/// ```
+/// use english_phrase::*;
+///
+/// let phrase = pp("after", tp(vp("leave")).gerund_participle());
+/// assert_eq!(phrase.realize().unwrap(), "after leaving");
+/// ```
+///
+/// ```compile_fail
+/// use english_phrase::*;
+///
+/// let _ = pp("after", tp(vp("leave")).to_infinitive());
+/// ```
 pub fn pp<C: IntoSlot<PpComplementSlot>>(
     head: impl Into<PrepositionEntry>,
     complement: C,
@@ -680,11 +777,23 @@ pub fn vp(head: impl Into<VerbEntry>) -> VerbPhrase {
     VerbPhrase::new(head)
 }
 
-pub fn tp(predicate: VerbPhrase) -> TensePhrase {
+pub fn tp(predicate: VerbPhrase) -> TensePhrase<BareInfinitive> {
     TensePhrase::new(predicate)
 }
 
-pub fn cp(complement: TensePhrase) -> ComplementizerPhrase {
+/// ```
+/// use english_phrase::*;
+///
+/// let phrase = cp(tp(vp("arrive")).past().subject(dp(Pronoun::She)));
+/// assert_eq!(phrase.realize().unwrap(), "she arrived");
+/// ```
+///
+/// ```compile_fail
+/// use english_phrase::*;
+///
+/// let _ = cp(tp(vp("leave")).to_infinitive());
+/// ```
+pub fn cp(complement: TensePhrase<Finite>) -> ComplementizerPhrase {
     ComplementizerPhrase::new(complement)
 }
 
@@ -694,9 +803,9 @@ impl From<ComplementizerPhrase> for Phrase {
     }
 }
 
-impl From<TensePhrase> for Phrase {
-    fn from(value: TensePhrase) -> Self {
-        Phrase::TP(Box::new(value))
+impl<Form: ClauseForm> From<TensePhrase<Form>> for Phrase {
+    fn from(value: TensePhrase<Form>) -> Self {
+        Phrase::TP(Box::new(value.erase()))
     }
 }
 
@@ -781,18 +890,36 @@ impl From<AdverbPhrase> for Phrase {
     }
 }
 
+impl private::Sealed for AnyForm {}
+impl private::Sealed for Finite {}
+impl private::Sealed for BareInfinitive {}
+impl private::Sealed for ToInfinitive {}
+impl private::Sealed for Gerund {}
+impl private::Sealed for PastParticiple {}
 impl private::Sealed for DeterminerPhrase {}
 impl private::Sealed for NominalDeterminerPhrase {}
 impl private::Sealed for PronominalDeterminerPhrase {}
 impl private::Sealed for NounPhrase {}
 impl private::Sealed for VerbPhrase {}
-impl private::Sealed for TensePhrase {}
+impl<Form: ClauseForm> private::Sealed for TensePhrase<Form> {}
 impl private::Sealed for ComplementizerPhrase {}
 impl private::Sealed for PrepositionalPhrase {}
 impl private::Sealed for AdjectivePhrase {}
 impl private::Sealed for AdverbPhrase {}
 impl private::Sealed for Name {}
 impl private::Sealed for Pronoun {}
+
+impl ClauseForm for AnyForm {}
+impl ClauseForm for Finite {}
+impl ClauseForm for BareInfinitive {}
+impl ClauseForm for ToInfinitive {}
+impl ClauseForm for Gerund {}
+impl ClauseForm for PastParticiple {}
+
+impl NonfiniteClauseForm for BareInfinitive {}
+impl NonfiniteClauseForm for ToInfinitive {}
+impl NonfiniteClauseForm for Gerund {}
+impl NonfiniteClauseForm for PastParticiple {}
 
 impl DpHead for DeterminerPhrase {
     type Output = Self;
@@ -872,7 +999,7 @@ impl NpComplementLike for PrepositionalPhrase {
     }
 }
 
-impl NpComplementLike for TensePhrase {
+impl NpComplementLike for TensePhrase<ToInfinitive> {
     fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
@@ -902,7 +1029,7 @@ impl ApComplementLike for PrepositionalPhrase {
     }
 }
 
-impl ApComplementLike for TensePhrase {
+impl ApComplementLike for TensePhrase<ToInfinitive> {
     fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
@@ -938,7 +1065,7 @@ impl PpComplementLike for PrepositionalPhrase {
     }
 }
 
-impl PpComplementLike for TensePhrase {
+impl PpComplementLike for TensePhrase<Gerund> {
     fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
@@ -968,7 +1095,7 @@ impl VpComplementLike for AdjectivePhrase {
     }
 }
 
-impl VpComplementLike for TensePhrase {
+impl<Form: NonfiniteClauseForm> VpComplementLike for TensePhrase<Form> {
     fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
