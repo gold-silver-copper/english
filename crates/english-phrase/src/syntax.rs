@@ -2,7 +2,6 @@ use crate::lexical::{
     AdjectiveEntry, AdverbEntry, Determiner, NounEntry, PrepositionEntry, Pronoun, VerbEntry,
 };
 use english::Number;
-use std::marker::PhantomData;
 
 mod private {
     pub trait Sealed {}
@@ -16,7 +15,8 @@ pub enum Tense {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum VerbForm {
+#[doc(hidden)]
+pub enum AnyForm {
     Finite(Tense),
     #[default]
     BareInfinitive,
@@ -25,16 +25,28 @@ pub enum VerbForm {
     PastParticiple,
 }
 
-pub trait ClauseForm: private::Sealed {}
+pub type VerbForm = AnyForm;
+
+pub trait ClauseForm: private::Sealed + Copy {
+    fn erase(self) -> AnyForm;
+}
 
 pub trait NonfiniteClauseForm: ClauseForm {}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-#[doc(hidden)]
-pub struct AnyForm;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Finite(Tense);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct Finite;
+impl Default for Finite {
+    fn default() -> Self {
+        Self(Tense::Present)
+    }
+}
+
+impl Finite {
+    pub fn tense(&self) -> Tense {
+        self.0
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct BareInfinitive;
@@ -82,13 +94,7 @@ pub enum NpComplementSlot {}
 pub enum NpAdjunctSlot {}
 
 #[doc(hidden)]
-pub enum ApModifierSlot {}
-
-#[doc(hidden)]
 pub enum ApComplementSlot {}
-
-#[doc(hidden)]
-pub enum AdvpModifierSlot {}
 
 #[doc(hidden)]
 pub enum AdvpComplementSlot {}
@@ -118,15 +124,7 @@ trait NpAdjunctLike: private::Sealed {
     fn into_slot_phrase(self) -> Phrase;
 }
 
-trait ApModifierLike: private::Sealed {
-    fn into_slot_phrase(self) -> Phrase;
-}
-
 trait ApComplementLike: private::Sealed {
-    fn into_slot_phrase(self) -> Phrase;
-}
-
-trait AdvpModifierLike: private::Sealed {
     fn into_slot_phrase(self) -> Phrase;
 }
 
@@ -207,7 +205,7 @@ impl NounPhrase {
     /// use english_phrase::*;
     ///
     /// let phrase = np("attempt").complement(tp(vp("leave")).to_infinitive());
-    /// assert_eq!(phrase.realize().unwrap(), "attempt to leave");
+    /// assert_eq!(phrase.realize(), "attempt to leave");
     /// ```
     ///
     /// ```compile_fail
@@ -402,7 +400,7 @@ impl PronominalDeterminerPhrase {
     /// use english_phrase::*;
     ///
     /// let phrase = dp(Pronoun::She).reflexive();
-    /// assert_eq!(phrase.realize().unwrap(), "herself");
+    /// assert_eq!(phrase.realize(), "herself");
     /// ```
     ///
     /// ```compile_fail
@@ -426,7 +424,7 @@ impl PronominalDeterminerPhrase {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AdjectivePhrase {
-    modifier: Option<Box<Phrase>>,
+    modifier: Option<Box<AdverbPhrase>>,
     head: AdjectiveEntry,
     complements: Vec<Box<Phrase>>,
 }
@@ -440,8 +438,8 @@ impl AdjectivePhrase {
         }
     }
 
-    pub fn modifier<M: IntoSlot<ApModifierSlot>>(mut self, modifier: M) -> Self {
-        self.modifier = Some(Box::new(modifier.into_phrase()));
+    pub fn modifier(mut self, modifier: AdverbPhrase) -> Self {
+        self.modifier = Some(Box::new(modifier));
         self
     }
 
@@ -449,7 +447,7 @@ impl AdjectivePhrase {
     /// use english_phrase::*;
     ///
     /// let phrase = adjp("ready").complement(tp(vp("leave")).to_infinitive());
-    /// assert_eq!(phrase.realize().unwrap(), "ready to leave");
+    /// assert_eq!(phrase.realize(), "ready to leave");
     /// ```
     ///
     /// ```compile_fail
@@ -462,7 +460,7 @@ impl AdjectivePhrase {
         self
     }
 
-    pub fn modifier_opt(&self) -> Option<&Phrase> {
+    pub fn modifier_opt(&self) -> Option<&AdverbPhrase> {
         self.modifier.as_deref()
     }
 
@@ -477,7 +475,7 @@ impl AdjectivePhrase {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AdverbPhrase {
-    modifier: Option<Box<Phrase>>,
+    modifier: Option<Box<AdverbPhrase>>,
     head: AdverbEntry,
     complements: Vec<Box<Phrase>>,
 }
@@ -491,8 +489,8 @@ impl AdverbPhrase {
         }
     }
 
-    pub fn modifier<M: IntoSlot<AdvpModifierSlot>>(mut self, modifier: M) -> Self {
-        self.modifier = Some(Box::new(modifier.into_phrase()));
+    pub fn modifier(mut self, modifier: AdverbPhrase) -> Self {
+        self.modifier = Some(Box::new(modifier));
         self
     }
 
@@ -501,7 +499,7 @@ impl AdverbPhrase {
         self
     }
 
-    pub fn modifier_opt(&self) -> Option<&Phrase> {
+    pub fn modifier_opt(&self) -> Option<&AdverbPhrase> {
         self.modifier.as_deref()
     }
 
@@ -560,7 +558,7 @@ impl VerbPhrase {
     /// use english_phrase::*;
     ///
     /// let phrase = vp("expect").complement(tp(vp("leave")).to_infinitive());
-    /// assert_eq!(phrase.realize().unwrap(), "expect to leave");
+    /// assert_eq!(phrase.realize(), "expect to leave");
     /// ```
     ///
     /// ```compile_fail
@@ -594,37 +592,34 @@ impl VerbPhrase {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TensePhrase<Form: ClauseForm> {
     subject: Option<DeterminerPhrase>,
-    form: VerbForm,
+    form: Form,
     negative: bool,
     predicate: VerbPhrase,
-    form_marker: PhantomData<Form>,
 }
 
 impl TensePhrase<BareInfinitive> {
     pub fn new(predicate: VerbPhrase) -> Self {
         Self {
             subject: None,
-            form: VerbForm::BareInfinitive,
+            form: BareInfinitive,
             negative: false,
             predicate,
-            form_marker: PhantomData,
         }
     }
 }
 
 impl<Form: ClauseForm> TensePhrase<Form> {
-    fn map_form<Next: ClauseForm>(self, form: VerbForm) -> TensePhrase<Next> {
+    fn map_form<Next: ClauseForm>(self, form: Next) -> TensePhrase<Next> {
         TensePhrase {
             subject: self.subject,
             form,
             negative: self.negative,
             predicate: self.predicate,
-            form_marker: PhantomData,
         }
     }
 
     pub fn erase(self) -> TensePhrase<AnyForm> {
-        let form = self.form;
+        let form = self.form.erase();
         self.map_form(form)
     }
 
@@ -634,27 +629,27 @@ impl<Form: ClauseForm> TensePhrase<Form> {
     }
 
     pub fn present(self) -> TensePhrase<Finite> {
-        self.map_form(VerbForm::Finite(Tense::Present))
+        self.map_form(Finite(Tense::Present))
     }
 
     pub fn past(self) -> TensePhrase<Finite> {
-        self.map_form(VerbForm::Finite(Tense::Past))
+        self.map_form(Finite(Tense::Past))
     }
 
     pub fn bare_infinitive(self) -> TensePhrase<BareInfinitive> {
-        self.map_form(VerbForm::BareInfinitive)
+        self.map_form(BareInfinitive)
     }
 
     pub fn to_infinitive(self) -> TensePhrase<ToInfinitive> {
-        self.map_form(VerbForm::ToInfinitive)
+        self.map_form(ToInfinitive)
     }
 
     pub fn gerund_participle(self) -> TensePhrase<Gerund> {
-        self.map_form(VerbForm::GerundParticiple)
+        self.map_form(Gerund)
     }
 
     pub fn past_participle(self) -> TensePhrase<PastParticiple> {
-        self.map_form(VerbForm::PastParticiple)
+        self.map_form(PastParticiple)
     }
 
     pub fn negative(mut self) -> Self {
@@ -667,7 +662,7 @@ impl<Form: ClauseForm> TensePhrase<Form> {
     }
 
     pub fn form(&self) -> VerbForm {
-        self.form
+        self.form.erase()
     }
 
     pub fn is_negative(&self) -> bool {
@@ -758,7 +753,7 @@ pub fn advp(head: impl Into<AdverbEntry>) -> AdverbPhrase {
 /// use english_phrase::*;
 ///
 /// let phrase = pp("after", tp(vp("leave")).gerund_participle());
-/// assert_eq!(phrase.realize().unwrap(), "after leaving");
+/// assert_eq!(phrase.realize(), "after leaving");
 /// ```
 ///
 /// ```compile_fail
@@ -785,7 +780,7 @@ pub fn tp(predicate: VerbPhrase) -> TensePhrase<BareInfinitive> {
 /// use english_phrase::*;
 ///
 /// let phrase = cp(tp(vp("arrive")).past().subject(dp(Pronoun::She)));
-/// assert_eq!(phrase.realize().unwrap(), "she arrived");
+/// assert_eq!(phrase.realize(), "she arrived");
 /// ```
 ///
 /// ```compile_fail
@@ -909,12 +904,41 @@ impl private::Sealed for AdverbPhrase {}
 impl private::Sealed for Name {}
 impl private::Sealed for Pronoun {}
 
-impl ClauseForm for AnyForm {}
-impl ClauseForm for Finite {}
-impl ClauseForm for BareInfinitive {}
-impl ClauseForm for ToInfinitive {}
-impl ClauseForm for Gerund {}
-impl ClauseForm for PastParticiple {}
+impl ClauseForm for AnyForm {
+    fn erase(self) -> AnyForm {
+        self
+    }
+}
+
+impl ClauseForm for Finite {
+    fn erase(self) -> AnyForm {
+        AnyForm::Finite(self.0)
+    }
+}
+
+impl ClauseForm for BareInfinitive {
+    fn erase(self) -> AnyForm {
+        AnyForm::BareInfinitive
+    }
+}
+
+impl ClauseForm for ToInfinitive {
+    fn erase(self) -> AnyForm {
+        AnyForm::ToInfinitive
+    }
+}
+
+impl ClauseForm for Gerund {
+    fn erase(self) -> AnyForm {
+        AnyForm::GerundParticiple
+    }
+}
+
+impl ClauseForm for PastParticiple {
+    fn erase(self) -> AnyForm {
+        AnyForm::PastParticiple
+    }
+}
 
 impl NonfiniteClauseForm for BareInfinitive {}
 impl NonfiniteClauseForm for ToInfinitive {}
@@ -1017,12 +1041,6 @@ impl NpAdjunctLike for PrepositionalPhrase {
     }
 }
 
-impl ApModifierLike for AdverbPhrase {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
-    }
-}
-
 impl ApComplementLike for PrepositionalPhrase {
     fn into_slot_phrase(self) -> Phrase {
         self.into()
@@ -1036,12 +1054,6 @@ impl ApComplementLike for TensePhrase<ToInfinitive> {
 }
 
 impl ApComplementLike for ComplementizerPhrase {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
-    }
-}
-
-impl AdvpModifierLike for AdverbPhrase {
     fn into_slot_phrase(self) -> Phrase {
         self.into()
     }
@@ -1137,19 +1149,7 @@ impl<T: NpAdjunctLike> IntoSlot<NpAdjunctSlot> for T {
     }
 }
 
-impl<T: ApModifierLike> IntoSlot<ApModifierSlot> for T {
-    fn into_phrase(self) -> Phrase {
-        self.into_slot_phrase()
-    }
-}
-
 impl<T: ApComplementLike> IntoSlot<ApComplementSlot> for T {
-    fn into_phrase(self) -> Phrase {
-        self.into_slot_phrase()
-    }
-}
-
-impl<T: AdvpModifierLike> IntoSlot<AdvpModifierSlot> for T {
     fn into_phrase(self) -> Phrase {
         self.into_slot_phrase()
     }

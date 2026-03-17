@@ -2,7 +2,7 @@ use english_phrase::*;
 
 fn assert_sentence<Form: ClauseForm>(clause: TensePhrase<Form>, expected: &str) {
     assert_eq!(
-        clause.realize_with(RealizationOptions::sentence()).unwrap(),
+        clause.realize_with(RealizationOptions::sentence()),
         expected
     );
 }
