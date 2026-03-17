@@ -10,10 +10,37 @@ fn finite_clauses_remain_public_values() {
 }
 
 #[test]
+fn agreement_and_force_aliases_remain_public_values() {
+    let singular: SingularDeterminerPhrase = dp(np("editor")).the();
+    let plural: PluralDeterminerPhrase = dp(np("editor").plural()).those();
+    let dynamic: DynamicDeterminerPhrase = dp(Pronoun::They).into();
+    let content: ContentClause = cp(tp(vp("admire").complement(dp(Pronoun::She)))
+        .past()
+        .subject(dp(Pronoun::He)))
+    .content()
+    .that();
+    let relative: RelativeClause<ObjectGap> = cp(tp(vp("admire").object_gap())
+        .past()
+        .subject(dp(name("Alice"))))
+    .relative()
+    .that();
+
+    assert_eq!(singular.realize(), "the editor");
+    assert_eq!(plural.realize(), "those editors");
+    assert_eq!(dynamic.realize(), "they");
+    assert_eq!(content.realize(), "that he admired her");
+    assert_eq!(
+        np("editor").relative(relative).realize(),
+        "editor that Alice admired"
+    );
+}
+
+#[test]
 fn complementizer_phrases_remain_public_values() {
     let phrase = cp(tp(vp("admire").complement(dp(Pronoun::She)))
         .past()
         .subject(dp(Pronoun::He)))
+    .content()
     .that();
 
     assert_eq!(phrase.realize(), "that he admired her");
@@ -28,6 +55,19 @@ fn bare_vp_realizes_as_a_lexical_projection_not_a_clause() {
             .realize(),
         "admire her openly"
     );
+}
+
+#[test]
+fn verb_phrases_expose_complements_without_leaking_gap_bookkeeping() {
+    let filled = vp("admire")
+        .complement(dp(Pronoun::She))
+        .complement(pp("with", dp(Pronoun::He)));
+    let gapped = vp("admire").object_gap();
+
+    assert_eq!(filled.complements().count(), 2);
+    assert!(!filled.has_object_gap());
+    assert_eq!(gapped.complements().count(), 0);
+    assert!(gapped.has_object_gap());
 }
 
 #[test]
@@ -70,6 +110,7 @@ fn overt_complementizers_realize_above_tp() {
     let phrase = cp(tp(vp("admire").complement(dp(Pronoun::She)))
         .past()
         .subject(dp(name("Alice"))))
+    .content()
     .that();
 
     assert_eq!(phrase.realize(), "that Alice admired her");
@@ -101,11 +142,10 @@ fn noun_phrases_distinguish_selected_complements_from_pp_adjuncts() {
 #[test]
 fn object_gap_relative_clauses_realize_as_true_filler_gap_dependencies() {
     let phrase = np("editor").relative(
-        cp(
-            tp(vp("admire").object_gap())
-                .past()
-                .subject(dp(name("Alice"))),
-        )
+        cp(tp(vp("admire").object_gap())
+            .past()
+            .subject(dp(name("Alice"))))
+        .relative()
         .that(),
     );
 
@@ -115,19 +155,17 @@ fn object_gap_relative_clauses_realize_as_true_filler_gap_dependencies() {
 #[test]
 fn subject_gap_relative_clauses_carry_number_agreement_from_their_type() {
     let singular = np("editor").relative(
-        cp(
-            tp(vp("admire").complement(dp(Pronoun::She)))
-                .present()
-                .subject_gap::<SingularNumber>(),
-        )
+        cp(tp(vp("admire").complement(dp(Pronoun::She)))
+            .present()
+            .subject_gap::<SingularNumber>())
+        .relative()
         .who(),
     );
     let plural = np("editor").plural().relative(
-        cp(
-            tp(vp("admire").complement(dp(Pronoun::She)))
-                .present()
-                .subject_gap::<PluralNumber>(),
-        )
+        cp(tp(vp("admire").complement(dp(Pronoun::She)))
+            .present()
+            .subject_gap::<PluralNumber>())
+        .relative()
         .who(),
     );
 

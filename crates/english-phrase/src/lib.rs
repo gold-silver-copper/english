@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 pub mod lexical;
 pub mod realization;
 pub mod syntax;
@@ -9,11 +11,12 @@ pub use crate::lexical::{
 };
 pub use crate::realization::{Realizable, RealizationOptions, Terminal};
 pub use crate::syntax::{
-    AdjectivePhrase, AdverbPhrase, AdvpComplement, ApComplement, BareInfinitive,
-    ComplementizerPhrase, CountNoun, Countability, DeterminerPhrase, Finite, Gerund, MassNoun,
-    Name, NoGap, NominalDeterminerPhrase, NounPhrase, NpAdjunct, NpComplement, NpModifier,
-    ObjectGap, PastParticiple, PluralNumber, PpComplement, PrepositionalPhrase,
-    PronominalDeterminerPhrase, SingularNumber, SubjectGap, Tense, TensePhrase, ToInfinitive,
-    UnknownCountability, VerbForm, VerbPhrase, VpAdjunct, VpComplement, adjp, advp, cp, dp, name,
-    np, pp, tp, vp,
+    AdjectivePhrase, AdverbPhrase, AdvpComplement, ApComplement, BareInfinitive, ClauseBuilder,
+    ComplementizerPhrase, ContentClause, CountNoun, Countability, DeterminerPhrase,
+    DynamicDeterminerPhrase, Finite, Gerund, MassNoun, Name, NoGap, NominalDeterminerPhrase,
+    NounPhrase, NpAdjunct, NpComplement, NpModifier, ObjectGap, PastParticiple,
+    PluralDeterminerPhrase, PluralNumber, PpComplement, PrepositionalPhrase,
+    PronominalDeterminerPhrase, RelativeClause, SingularDeterminerPhrase, SingularNumber,
+    SubjectGap, Tense, TensePhrase, ToInfinitive, UnknownCountability, VerbForm, VerbPhrase,
+    VpAdjunct, VpComplement, adjp, advp, cp, dp, name, np, pp, tp, vp,
 };

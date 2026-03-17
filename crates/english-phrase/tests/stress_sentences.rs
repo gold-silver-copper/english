@@ -1,7 +1,6 @@
 use english_phrase::*;
-use english_phrase::syntax::TpForm;
 
-fn assert_sentence<Form: TpForm>(clause: TensePhrase<Form>, expected: &str) {
+fn assert_sentence<R: Realizable>(clause: R, expected: &str) {
     assert_eq!(
         clause.realize_with(RealizationOptions::sentence()),
         expected
@@ -100,7 +99,8 @@ fn patient_editor_showed_them_our_map_after_the_guide_described_it_to_us() {
         .adjunct(pp("to", dp(Pronoun::We)))
         .adjunct(pp("during", dp(np("meeting").modifier(adjp("long"))).the())))
     .past()
-    .subject(dp(np("guide").modifier(adjp("patient"))).the()));
+    .subject(dp(np("guide").modifier(adjp("patient"))).the()))
+    .content();
 
     let clause = tp(vp("show")
         .complement(dp(Pronoun::They))
@@ -460,7 +460,8 @@ fn cautious_pilot_relaxed_after_the_rescue_team_arrived_with_the_old_guide() {
             dp(np("inspection").modifier(adjp("final"))).the(),
         )))
     .past()
-    .subject(dp(np("team").modifier(adjp("rescue"))).the()));
+    .subject(dp(np("team").modifier(adjp("rescue"))).the()))
+    .content();
 
     let clause = tp(vp("relax").adjunct(pp("after", arrived_clause)))
         .past()
@@ -482,7 +483,8 @@ fn i_told_you_he_admired_her_after_the_long_rehearsal_near_the_harbor() {
         ))
         .adjunct(pp("near", dp(np("harbor")).the())))
     .past()
-    .subject(dp(Pronoun::He)));
+    .subject(dp(Pronoun::He)))
+    .content();
 
     let clause = tp(vp("tell")
         .complement(dp(Pronoun::You))

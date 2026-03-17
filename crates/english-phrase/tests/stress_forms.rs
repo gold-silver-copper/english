@@ -1,22 +1,17 @@
 use english_phrase::*;
-use english_phrase::syntax::TpForm;
 
-fn assert_sentence<Form: TpForm>(clause: TensePhrase<Form>, expected: &str) {
+fn assert_sentence<R: Realizable>(clause: R, expected: &str) {
     assert_eq!(
         clause.realize_with(RealizationOptions::sentence()),
         expected
     );
 }
 
-fn assert_with_options<Form: TpForm>(
-    clause: TensePhrase<Form>,
-    options: RealizationOptions,
-    expected: &str,
-) {
+fn assert_with_options<R: Realizable>(clause: R, options: RealizationOptions, expected: &str) {
     assert_eq!(clause.realize_with(options), expected);
 }
 
-fn long_editor_subject() -> DeterminerPhrase {
+fn long_editor_subject() -> SingularDeterminerPhrase {
     dp(np("editor")
         .modifier(adjp("patient").modifier(advp("remarkably")))
         .complement(pp(
@@ -26,7 +21,7 @@ fn long_editor_subject() -> DeterminerPhrase {
     .the()
 }
 
-fn long_editors_subject() -> DeterminerPhrase {
+fn long_editors_subject() -> PluralDeterminerPhrase {
     dp(np("editor")
         .plural()
         .modifier(adjp("patient").modifier(advp("remarkably")))
@@ -37,7 +32,7 @@ fn long_editors_subject() -> DeterminerPhrase {
     .these()
 }
 
-fn careful_guide_object() -> DeterminerPhrase {
+fn careful_guide_object() -> SingularDeterminerPhrase {
     dp(np("guide")
         .modifier(adjp("careful").modifier(advp("unusually")))
         .complement(pp(

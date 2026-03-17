@@ -39,6 +39,13 @@ pub trait TpForm: private::Sealed + Copy {
 }
 
 #[doc(hidden)]
+pub trait AgreementMarker: private::Sealed + Copy {
+    fn agreement() -> Option<(Person, Number)> {
+        None
+    }
+}
+
+#[doc(hidden)]
 pub trait NonfiniteTpForm: TpForm {}
 
 #[doc(hidden)]
@@ -49,6 +56,11 @@ pub trait NominalNumberMarker: private::Sealed + Copy {
 #[doc(hidden)]
 pub trait NominalCountabilityMarker: private::Sealed + Copy {
     fn countability() -> Countability;
+}
+
+#[doc(hidden)]
+pub trait NominalAgreementMarker: NominalNumberMarker {
+    type Agreement: AgreementMarker;
 }
 
 #[doc(hidden)]
@@ -64,18 +76,7 @@ pub trait TpGap: private::Sealed + Copy {
 }
 
 #[doc(hidden)]
-pub trait CpGap: TpGap {
-    fn default_complementizer() -> Option<Complementizer> {
-        None
-    }
-
-    fn default_relativizer() -> Option<Relativizer> {
-        None
-    }
-}
-
-#[doc(hidden)]
-pub trait RelativeTpGap: CpGap {}
+pub trait RelativeTpGap: TpGap {}
 
 #[doc(hidden)]
 pub trait BaseTpGap: TpGap<PredicateGap = Self> + PredicateGap {}
@@ -125,6 +126,18 @@ pub struct CountNoun;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MassNoun;
 
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct DynamicAgreement;
+
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ThirdSingularAgreement;
+
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ThirdPluralAgreement;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct NoGap;
 
@@ -171,10 +184,19 @@ pub enum Relativizer {
     Which,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CpHead {
-    Content(Complementizer),
-    Relative(Relativizer),
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ContentForce;
+
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct RelativeForce;
+
+#[doc(hidden)]
+pub trait CpForce<G: TpGap>: private::Sealed + Copy {
+    type Head: Copy;
+
+    fn default_head() -> Self::Head;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -307,14 +329,14 @@ impl<N: NominalNumberMarker, C: NominalCountabilityMarker> NounPhrase<N, C> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum DeterminerPhrase {
+pub(crate) enum DeterminerPhraseKind {
     BareNominal(Box<NounPhraseData>),
     DeterminedNominal {
         determiner: Determiner,
         nominal: Box<NounPhraseData>,
     },
     PossessedNominal {
-        possessor: Box<DeterminerPhrase>,
+        possessor: Box<DynamicDeterminerPhrase>,
         nominal: Box<NounPhraseData>,
     },
     ProperName(String),
@@ -324,59 +346,87 @@ pub enum DeterminerPhrase {
     },
 }
 
-impl DeterminerPhrase {
-    pub fn proper_name(name: impl Into<String>) -> Self {
-        Self::ProperName(name.into())
-    }
+#[derive(Debug, Clone, PartialEq)]
+pub struct DeterminerPhrase<A: AgreementMarker = DynamicAgreement> {
+    pub(crate) kind: DeterminerPhraseKind,
+    _agreement: PhantomData<A>,
+}
 
-    pub fn determiner_opt(&self) -> Option<Determiner> {
-        match self {
-            Self::DeterminedNominal { determiner, .. } => Some(*determiner),
-            Self::BareNominal(_)
-            | Self::PossessedNominal { .. }
-            | Self::ProperName(_)
-            | Self::Pronoun { .. } => None,
+/// A determiner phrase whose agreement must be recovered from its surface form.
+pub type DynamicDeterminerPhrase = DeterminerPhrase<DynamicAgreement>;
+
+/// A determiner phrase that contributes third-person singular agreement.
+pub type SingularDeterminerPhrase = DeterminerPhrase<ThirdSingularAgreement>;
+
+/// A determiner phrase that contributes third-person plural agreement.
+pub type PluralDeterminerPhrase = DeterminerPhrase<ThirdPluralAgreement>;
+
+impl<A: AgreementMarker> DeterminerPhrase<A> {
+    fn new(kind: DeterminerPhraseKind) -> Self {
+        Self {
+            kind,
+            _agreement: PhantomData,
         }
     }
 
-    pub fn possessor_opt(&self) -> Option<&DeterminerPhrase> {
-        match self {
-            Self::PossessedNominal { possessor, .. } => Some(possessor),
-            Self::BareNominal(_)
-            | Self::DeterminedNominal { .. }
-            | Self::ProperName(_)
-            | Self::Pronoun { .. } => None,
+    pub(crate) fn erase(self) -> DynamicDeterminerPhrase {
+        DeterminerPhrase::new(self.kind)
+    }
+
+    pub fn determiner_opt(&self) -> Option<Determiner> {
+        match &self.kind {
+            DeterminerPhraseKind::DeterminedNominal { determiner, .. } => Some(*determiner),
+            DeterminerPhraseKind::BareNominal(_)
+            | DeterminerPhraseKind::PossessedNominal { .. }
+            | DeterminerPhraseKind::ProperName(_)
+            | DeterminerPhraseKind::Pronoun { .. } => None,
+        }
+    }
+
+    pub fn possessor_opt(&self) -> Option<&DynamicDeterminerPhrase> {
+        match &self.kind {
+            DeterminerPhraseKind::PossessedNominal { possessor, .. } => Some(possessor),
+            DeterminerPhraseKind::BareNominal(_)
+            | DeterminerPhraseKind::DeterminedNominal { .. }
+            | DeterminerPhraseKind::ProperName(_)
+            | DeterminerPhraseKind::Pronoun { .. } => None,
         }
     }
 
     pub fn proper_name_opt(&self) -> Option<&str> {
-        match self {
-            Self::ProperName(name) => Some(name),
-            Self::BareNominal(_)
-            | Self::DeterminedNominal { .. }
-            | Self::PossessedNominal { .. }
-            | Self::Pronoun { .. } => None,
+        match &self.kind {
+            DeterminerPhraseKind::ProperName(name) => Some(name),
+            DeterminerPhraseKind::BareNominal(_)
+            | DeterminerPhraseKind::DeterminedNominal { .. }
+            | DeterminerPhraseKind::PossessedNominal { .. }
+            | DeterminerPhraseKind::Pronoun { .. } => None,
         }
     }
 
     pub fn pronoun_opt(&self) -> Option<Pronoun> {
-        match self {
-            Self::Pronoun { pronoun, .. } => Some(*pronoun),
-            Self::BareNominal(_)
-            | Self::DeterminedNominal { .. }
-            | Self::PossessedNominal { .. }
-            | Self::ProperName(_) => None,
+        match &self.kind {
+            DeterminerPhraseKind::Pronoun { pronoun, .. } => Some(*pronoun),
+            DeterminerPhraseKind::BareNominal(_)
+            | DeterminerPhraseKind::DeterminedNominal { .. }
+            | DeterminerPhraseKind::PossessedNominal { .. }
+            | DeterminerPhraseKind::ProperName(_) => None,
         }
     }
 
     pub fn is_reflexive(&self) -> bool {
         matches!(
-            self,
-            Self::Pronoun {
+            &self.kind,
+            DeterminerPhraseKind::Pronoun {
                 reflexive: true,
                 ..
             }
         )
+    }
+}
+
+impl SingularDeterminerPhrase {
+    pub fn proper_name(name: impl Into<String>) -> Self {
+        Self::new(DeterminerPhraseKind::ProperName(name.into()))
     }
 }
 
@@ -397,41 +447,53 @@ impl<N: NominalNumberMarker, C: NominalCountabilityMarker> NominalDeterminerPhra
         }
     }
 
-    fn determiner(self, determiner: Determiner) -> DeterminerPhrase {
-        DeterminerPhrase::DeterminedNominal {
+    fn determiner(self, determiner: Determiner) -> DeterminerPhrase<N::Agreement>
+    where
+        N: NominalAgreementMarker,
+    {
+        DeterminerPhrase::new(DeterminerPhraseKind::DeterminedNominal {
             determiner,
             nominal: self.nominal,
-        }
+        })
     }
 
-    pub fn the(self) -> DeterminerPhrase {
+    pub fn the(self) -> DeterminerPhrase<N::Agreement>
+    where
+        N: NominalAgreementMarker,
+    {
         self.determiner(Determiner::The)
     }
 
-    pub fn possessor<P: Into<DeterminerPhrase>>(self, possessor: P) -> DeterminerPhrase {
-        DeterminerPhrase::PossessedNominal {
+    pub fn possessor<P: Into<DynamicDeterminerPhrase>>(
+        self,
+        possessor: P,
+    ) -> DeterminerPhrase<N::Agreement>
+    where
+        N: NominalAgreementMarker,
+    {
+        DeterminerPhrase::new(DeterminerPhraseKind::PossessedNominal {
             possessor: Box::new(possessor.into()),
             nominal: self.nominal,
-        }
+        })
     }
 }
 
 impl<C: NominalCountabilityMarker> NominalDeterminerPhrase<SingularNumber, C> {
-    pub fn this(self) -> DeterminerPhrase {
+    pub fn this(self) -> SingularDeterminerPhrase {
         self.determiner(Determiner::This)
     }
 
-    pub fn that(self) -> DeterminerPhrase {
+    pub fn that(self) -> SingularDeterminerPhrase {
         self.determiner(Determiner::That)
     }
 }
 
 impl<C: NominalCountabilityMarker> NominalDeterminerPhrase<PluralNumber, C> {
-    pub fn these(self) -> DeterminerPhrase {
+    pub fn these(self) -> PluralDeterminerPhrase {
         self.determiner(Determiner::These)
     }
 
-    pub fn those(self) -> DeterminerPhrase {
+    pub fn those(self) -> PluralDeterminerPhrase {
         self.determiner(Determiner::Those)
     }
 }
@@ -449,7 +511,7 @@ impl NominalDeterminerPhrase<SingularNumber, CountNoun> {
     ///
     /// let _ = dp(np("water")).indefinite();
     /// ```
-    pub fn indefinite(self) -> DeterminerPhrase {
+    pub fn indefinite(self) -> SingularDeterminerPhrase {
         self.determiner(Determiner::Indefinite)
     }
 }
@@ -607,10 +669,17 @@ impl PrepositionalPhrase {
     }
 }
 
+#[doc(hidden)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum VpArgumentSlot {
+    Complement(VpComplement),
+    GapObject,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct VerbPhrase<G: PredicateGap = NoGap> {
     head: VerbEntry,
-    complements: Vec<VpComplement>,
+    arguments: Vec<VpArgumentSlot>,
     adjuncts: Vec<VpAdjunct>,
     _gap: PhantomData<G>,
 }
@@ -619,17 +688,17 @@ impl VerbPhrase<NoGap> {
     pub fn new(head: impl Into<VerbEntry>) -> Self {
         Self {
             head: head.into(),
-            complements: Vec::new(),
+            arguments: Vec::new(),
             adjuncts: Vec::new(),
             _gap: PhantomData,
         }
     }
 
     pub fn object_gap(mut self) -> VerbPhrase<ObjectGap> {
-        self.complements.push(VpComplement::GapObject);
+        self.arguments.push(VpArgumentSlot::GapObject);
         VerbPhrase {
             head: self.head,
-            complements: self.complements,
+            arguments: self.arguments,
             adjuncts: self.adjuncts,
             _gap: PhantomData,
         }
@@ -650,7 +719,8 @@ impl<G: PredicateGap> VerbPhrase<G> {
     /// let _ = vp("say").complement(tp(vp("leave")).past());
     /// ```
     pub fn complement<C: Into<VpComplement>>(mut self, complement: C) -> Self {
-        self.complements.push(complement.into());
+        self.arguments
+            .push(VpArgumentSlot::Complement(complement.into()));
         self
     }
 
@@ -663,8 +733,22 @@ impl<G: PredicateGap> VerbPhrase<G> {
         &self.head
     }
 
-    pub fn complements(&self) -> &[VpComplement] {
-        &self.complements
+    pub fn complements(&self) -> impl Iterator<Item = &VpComplement> + '_ {
+        self.arguments.iter().filter_map(|slot| match slot {
+            VpArgumentSlot::Complement(complement) => Some(complement),
+            VpArgumentSlot::GapObject => None,
+        })
+    }
+
+    pub fn has_object_gap(&self) -> bool {
+        self.arguments
+            .iter()
+            .any(|slot| matches!(slot, VpArgumentSlot::GapObject))
+    }
+
+    #[doc(hidden)]
+    pub fn argument_slots(&self) -> &[VpArgumentSlot] {
+        &self.arguments
     }
 
     pub fn adjuncts(&self) -> &[VpAdjunct] {
@@ -672,23 +756,32 @@ impl<G: PredicateGap> VerbPhrase<G> {
     }
 }
 
-#[derive(Clone)]
-struct VerbProjection<G: TpGap = NoGap> {
-    subject: Option<DeterminerPhrase>,
-    predicate: VerbPhrase<G::PredicateGap>,
+#[doc(hidden)]
+pub trait SubjectLike: private::Sealed {
+    type Agreement: AgreementMarker;
+
+    fn into_subject(self) -> DynamicDeterminerPhrase;
 }
 
-impl<G: BaseTpGap> VerbProjection<G> {
+#[derive(Clone)]
+struct LittleVerbPhrase<G: TpGap = NoGap, A: AgreementMarker = DynamicAgreement> {
+    subject: Option<DynamicDeterminerPhrase>,
+    predicate: VerbPhrase<G::PredicateGap>,
+    _agreement: PhantomData<A>,
+}
+
+impl<G: BaseTpGap> LittleVerbPhrase<G> {
     fn new(predicate: VerbPhrase<G>) -> Self {
         Self {
             subject: None,
             predicate,
+            _agreement: PhantomData,
         }
     }
 }
 
-impl<G: TpGap> VerbProjection<G> {
-    fn subject_opt(&self) -> Option<&DeterminerPhrase> {
+impl<G: TpGap, A: AgreementMarker> LittleVerbPhrase<G, A> {
+    fn subject_opt(&self) -> Option<&DynamicDeterminerPhrase> {
         self.subject.as_ref()
     }
 
@@ -697,40 +790,46 @@ impl<G: TpGap> VerbProjection<G> {
     }
 }
 
-impl<G: TpGap> std::fmt::Debug for VerbProjection<G> {
+impl<G: TpGap, A: AgreementMarker> std::fmt::Debug for LittleVerbPhrase<G, A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("VerbProjection")
+        f.debug_struct("LittleVerbPhrase")
             .field("subject", &self.subject)
             .field("predicate", &self.predicate)
             .finish()
     }
 }
 
-impl<G: TpGap> PartialEq for VerbProjection<G> {
-    fn eq(&self, other: &Self) -> bool {
+impl<G: TpGap, A: AgreementMarker, B: AgreementMarker> PartialEq<LittleVerbPhrase<G, B>>
+    for LittleVerbPhrase<G, A>
+{
+    fn eq(&self, other: &LittleVerbPhrase<G, B>) -> bool {
         self.subject == other.subject && self.predicate == other.predicate
     }
 }
 
-impl<G: OvertTpGap> VerbProjection<G> {
-    fn subject<S: Into<DeterminerPhrase>>(mut self, subject: S) -> Self {
-        self.subject = Some(subject.into());
-        self
+impl<G: OvertTpGap, A: AgreementMarker> LittleVerbPhrase<G, A> {
+    fn subject<S: SubjectLike>(self, subject: S) -> LittleVerbPhrase<G, S::Agreement> {
+        LittleVerbPhrase {
+            subject: Some(subject.into_subject()),
+            predicate: self.predicate,
+            _agreement: PhantomData,
+        }
     }
 }
 
-impl VerbProjection<NoGap> {
-    fn subject_gap<N: NominalNumberMarker>(self) -> VerbProjection<SubjectGap<N>> {
-        VerbProjection {
+impl<A: AgreementMarker> LittleVerbPhrase<NoGap, A> {
+    fn subject_gap<N: NominalNumberMarker>(self) -> LittleVerbPhrase<SubjectGap<N>, A> {
+        LittleVerbPhrase {
             subject: None,
             predicate: self.predicate,
+            _agreement: PhantomData,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TensePhrase<Form: TpForm, G: TpGap = NoGap> {
-    projection: VerbProjection<G>,
+pub struct TensePhrase<Form: TpForm, G: TpGap = NoGap, A: AgreementMarker = DynamicAgreement> {
+    projection: LittleVerbPhrase<G, A>,
     form: Form,
     negative: bool,
 }
@@ -738,15 +837,27 @@ pub struct TensePhrase<Form: TpForm, G: TpGap = NoGap> {
 impl<G: BaseTpGap> TensePhrase<BareInfinitive, G> {
     pub fn new(predicate: VerbPhrase<G>) -> Self {
         Self {
-            projection: VerbProjection::new(predicate),
+            projection: LittleVerbPhrase::new(predicate),
             form: BareInfinitive,
             negative: false,
         }
     }
 }
 
-impl<Form: TpForm, G: TpGap> TensePhrase<Form, G> {
-    fn map_form<Next: TpForm>(self, form: Next) -> TensePhrase<Next, G> {
+impl<Form: TpForm, G: TpGap, A: AgreementMarker> TensePhrase<Form, G, A> {
+    fn erase_agreement(self) -> TensePhrase<Form, G> {
+        TensePhrase {
+            projection: LittleVerbPhrase {
+                subject: self.projection.subject,
+                predicate: self.projection.predicate,
+                _agreement: PhantomData,
+            },
+            form: self.form,
+            negative: self.negative,
+        }
+    }
+
+    fn map_form<Next: TpForm>(self, form: Next) -> TensePhrase<Next, G, A> {
         TensePhrase {
             projection: self.projection,
             form,
@@ -754,27 +865,27 @@ impl<Form: TpForm, G: TpGap> TensePhrase<Form, G> {
         }
     }
 
-    pub fn present(self) -> TensePhrase<Finite, G> {
+    pub fn present(self) -> TensePhrase<Finite, G, A> {
         self.map_form(Finite(Tense::Present))
     }
 
-    pub fn past(self) -> TensePhrase<Finite, G> {
+    pub fn past(self) -> TensePhrase<Finite, G, A> {
         self.map_form(Finite(Tense::Past))
     }
 
-    pub fn bare_infinitive(self) -> TensePhrase<BareInfinitive, G> {
+    pub fn bare_infinitive(self) -> TensePhrase<BareInfinitive, G, A> {
         self.map_form(BareInfinitive)
     }
 
-    pub fn to_infinitive(self) -> TensePhrase<ToInfinitive, G> {
+    pub fn to_infinitive(self) -> TensePhrase<ToInfinitive, G, A> {
         self.map_form(ToInfinitive)
     }
 
-    pub fn gerund_participle(self) -> TensePhrase<Gerund, G> {
+    pub fn gerund_participle(self) -> TensePhrase<Gerund, G, A> {
         self.map_form(Gerund)
     }
 
-    pub fn past_participle(self) -> TensePhrase<PastParticiple, G> {
+    pub fn past_participle(self) -> TensePhrase<PastParticiple, G, A> {
         self.map_form(PastParticiple)
     }
 
@@ -783,7 +894,7 @@ impl<Form: TpForm, G: TpGap> TensePhrase<Form, G> {
         self
     }
 
-    pub fn subject_opt(&self) -> Option<&DeterminerPhrase> {
+    pub fn subject_opt(&self) -> Option<&DynamicDeterminerPhrase> {
         self.projection.subject_opt()
     }
 
@@ -800,15 +911,18 @@ impl<Form: TpForm, G: TpGap> TensePhrase<Form, G> {
     }
 }
 
-impl<Form: TpForm, G: OvertTpGap> TensePhrase<Form, G> {
-    pub fn subject<S: Into<DeterminerPhrase>>(mut self, subject: S) -> Self {
-        self.projection = self.projection.subject(subject);
-        self
+impl<Form: TpForm, G: OvertTpGap, A: AgreementMarker> TensePhrase<Form, G, A> {
+    pub fn subject<S: SubjectLike>(self, subject: S) -> TensePhrase<Form, G, S::Agreement> {
+        TensePhrase {
+            projection: self.projection.subject(subject),
+            form: self.form,
+            negative: self.negative,
+        }
     }
 }
 
-impl<Form: TpForm> TensePhrase<Form, NoGap> {
-    pub fn subject_gap<N: NominalNumberMarker>(self) -> TensePhrase<Form, SubjectGap<N>> {
+impl<Form: TpForm, A: AgreementMarker> TensePhrase<Form, NoGap, A> {
+    pub fn subject_gap<N: NominalNumberMarker>(self) -> TensePhrase<Form, SubjectGap<N>, A> {
         TensePhrase {
             projection: self.projection.subject_gap(),
             form: self.form,
@@ -817,26 +931,55 @@ impl<Form: TpForm> TensePhrase<Form, NoGap> {
     }
 }
 
+#[doc(hidden)]
 #[derive(Debug, Clone, PartialEq)]
-pub struct ComplementizerPhrase<G: CpGap = NoGap> {
-    head: CpHead,
-    complement: Box<TensePhrase<Finite, G>>,
+pub struct CpBuilder<G: TpGap = NoGap> {
+    complement: TensePhrase<Finite, G>,
 }
 
-impl<G: CpGap> ComplementizerPhrase<G> {
-    pub fn new(complement: TensePhrase<Finite, G>) -> Self {
-        let head = if let Some(head) = G::default_complementizer() {
-            CpHead::Content(head)
-        } else {
-            CpHead::Relative(
-                G::default_relativizer()
-                    .expect("CP gaps must define either a complementizer or a relativizer"),
-            )
-        };
+/// Builder returned by [`cp`] before choosing `content()` or `relative()`.
+pub type ClauseBuilder<G = NoGap> = CpBuilder<G>;
 
+/// A complementizer phrase introduced by an ordinary complementizer.
+pub type ContentClause = ComplementizerPhrase<ContentForce, NoGap>;
+
+/// A relative clause introduced by a relativizer such as `that`, `who`, or `which`.
+pub type RelativeClause<G = NoGap> = ComplementizerPhrase<RelativeForce, G>;
+
+impl<G: TpGap> CpBuilder<G> {
+    fn new(complement: TensePhrase<Finite, G>) -> Self {
+        Self { complement }
+    }
+}
+
+impl CpBuilder<NoGap> {
+    pub fn content(self) -> ContentClause {
+        ComplementizerPhrase::new(self.complement)
+    }
+}
+
+impl<G: RelativeTpGap> CpBuilder<G>
+where
+    RelativeForce: CpForce<G, Head = Relativizer>,
+{
+    pub fn relative(self) -> RelativeClause<G> {
+        ComplementizerPhrase::new(self.complement)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ComplementizerPhrase<F: CpForce<G>, G: TpGap = NoGap> {
+    head: F::Head,
+    complement: Box<TensePhrase<Finite, G>>,
+    _force: PhantomData<F>,
+}
+
+impl<F: CpForce<G>, G: TpGap> ComplementizerPhrase<F, G> {
+    pub fn new(complement: TensePhrase<Finite, G>) -> Self {
         Self {
-            head,
+            head: F::default_head(),
             complement: Box::new(complement),
+            _force: PhantomData,
         }
     }
 
@@ -845,9 +988,9 @@ impl<G: CpGap> ComplementizerPhrase<G> {
     }
 }
 
-impl ComplementizerPhrase<NoGap> {
+impl ComplementizerPhrase<ContentForce, NoGap> {
     pub fn complementizer(mut self, head: Complementizer) -> Self {
-        self.head = CpHead::Content(head);
+        self.head = head;
         self
     }
 
@@ -868,10 +1011,7 @@ impl ComplementizerPhrase<NoGap> {
     }
 
     pub fn head(&self) -> Complementizer {
-        match self.head {
-            CpHead::Content(head) => head,
-            CpHead::Relative(_) => unreachable!("content CPs only carry complementizers"),
-        }
+        self.head
     }
 }
 
@@ -880,9 +1020,12 @@ pub trait RelativeCpAttachment<N: NominalNumberMarker>: private::Sealed {
     fn into_np_adjunct(self) -> NpAdjunct;
 }
 
-impl<G: RelativeTpGap> ComplementizerPhrase<G> {
+impl<G: RelativeTpGap> ComplementizerPhrase<RelativeForce, G>
+where
+    RelativeForce: CpForce<G, Head = Relativizer>,
+{
     pub fn relativizer(mut self, head: Relativizer) -> Self {
-        self.head = CpHead::Relative(head);
+        self.head = head;
         self
     }
 
@@ -903,10 +1046,7 @@ impl<G: RelativeTpGap> ComplementizerPhrase<G> {
     }
 
     pub fn head(&self) -> Relativizer {
-        match self.head {
-            CpHead::Relative(head) => head,
-            CpHead::Content(_) => unreachable!("relative CPs only carry relativizers"),
-        }
+        self.head
     }
 }
 
@@ -919,22 +1059,22 @@ pub enum NpModifier {
 pub enum NpComplement {
     PP(PrepositionalPhrase),
     ToInf(TensePhrase<ToInfinitive>),
-    CP(ComplementizerPhrase<NoGap>),
+    CP(ContentClause),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum NpAdjunct {
     PP(PrepositionalPhrase),
-    RelativeObject(ComplementizerPhrase<ObjectGap>),
-    RelativeSubjectSingular(ComplementizerPhrase<SubjectGap<SingularNumber>>),
-    RelativeSubjectPlural(ComplementizerPhrase<SubjectGap<PluralNumber>>),
+    RelativeObject(RelativeClause<ObjectGap>),
+    RelativeSubjectSingular(RelativeClause<SubjectGap<SingularNumber>>),
+    RelativeSubjectPlural(RelativeClause<SubjectGap<PluralNumber>>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ApComplement {
     PP(PrepositionalPhrase),
     ToInf(TensePhrase<ToInfinitive>),
-    CP(ComplementizerPhrase<NoGap>),
+    CP(ContentClause),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -944,23 +1084,22 @@ pub enum AdvpComplement {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PpComplement {
-    DP(DeterminerPhrase),
+    DP(DynamicDeterminerPhrase),
     PP(PrepositionalPhrase),
     Gerund(TensePhrase<Gerund>),
-    CP(ComplementizerPhrase<NoGap>),
+    CP(ContentClause),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum VpComplement {
-    DP(DeterminerPhrase),
+    DP(DynamicDeterminerPhrase),
     PP(PrepositionalPhrase),
     AP(AdjectivePhrase),
-    CP(ComplementizerPhrase<NoGap>),
+    CP(ContentClause),
     BareInf(TensePhrase<BareInfinitive>),
     ToInf(TensePhrase<ToInfinitive>),
     Gerund(TensePhrase<Gerund>),
     PastParticiple(TensePhrase<PastParticiple>),
-    GapObject,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1022,7 +1161,9 @@ where
 /// ```
 /// use english_phrase::*;
 ///
-/// let phrase = cp(tp(vp("arrive")).past().subject(dp(Pronoun::She))).that();
+/// let phrase = cp(tp(vp("arrive")).past().subject(dp(Pronoun::She)))
+///     .content()
+///     .that();
 /// assert_eq!(phrase.realize(), "that she arrived");
 /// ```
 ///
@@ -1031,8 +1172,8 @@ where
 ///
 /// let _ = cp(tp(vp("leave")).to_infinitive());
 /// ```
-pub fn cp<G: CpGap>(complement: TensePhrase<Finite, G>) -> ComplementizerPhrase<G> {
-    ComplementizerPhrase::new(complement)
+pub fn cp<G: TpGap, A: AgreementMarker>(complement: TensePhrase<Finite, G, A>) -> ClauseBuilder<G> {
+    CpBuilder::new(complement.erase_agreement())
 }
 
 #[doc(hidden)]
@@ -1043,10 +1184,10 @@ pub trait DpHead: private::Sealed {
 }
 
 trait DpLike: private::Sealed {
-    fn into_determiner_phrase(self) -> DeterminerPhrase;
+    fn into_determiner_phrase(self) -> DynamicDeterminerPhrase;
 }
 
-impl DpHead for DeterminerPhrase {
+impl<A: AgreementMarker> DpHead for DeterminerPhrase<A> {
     type Output = Self;
 
     fn into_dp(self) -> Self::Output {
@@ -1089,67 +1230,112 @@ impl DpHead for Pronoun {
 }
 
 impl DpHead for Name {
-    type Output = DeterminerPhrase;
+    type Output = SingularDeterminerPhrase;
 
     fn into_dp(self) -> Self::Output {
         self.into()
     }
 }
 
-impl DpLike for DeterminerPhrase {
-    fn into_determiner_phrase(self) -> DeterminerPhrase {
-        self
+impl<A: AgreementMarker> DpLike for DeterminerPhrase<A> {
+    fn into_determiner_phrase(self) -> DynamicDeterminerPhrase {
+        self.erase()
     }
 }
 
-impl<N: NominalNumberMarker, C: NominalCountabilityMarker> DpLike
-    for NominalDeterminerPhrase<N, C>
+impl<N: NominalNumberMarker, C: NominalCountabilityMarker> DpLike for NominalDeterminerPhrase<N, C>
+where
+    N: NominalAgreementMarker,
 {
-    fn into_determiner_phrase(self) -> DeterminerPhrase {
-        self.into()
+    fn into_determiner_phrase(self) -> DynamicDeterminerPhrase {
+        DeterminerPhrase::<N::Agreement>::from(self).erase()
     }
 }
 
 impl DpLike for PronominalDeterminerPhrase {
-    fn into_determiner_phrase(self) -> DeterminerPhrase {
+    fn into_determiner_phrase(self) -> DynamicDeterminerPhrase {
         self.into()
     }
 }
 
 impl<N: NominalNumberMarker, C: NominalCountabilityMarker> From<NominalDeterminerPhrase<N, C>>
-    for DeterminerPhrase
+    for DeterminerPhrase<N::Agreement>
+where
+    N: NominalAgreementMarker,
 {
     fn from(value: NominalDeterminerPhrase<N, C>) -> Self {
-        DeterminerPhrase::BareNominal(value.nominal)
+        DeterminerPhrase::new(DeterminerPhraseKind::BareNominal(value.nominal))
     }
 }
 
 impl<N: NominalNumberMarker, C: NominalCountabilityMarker> From<NounPhrase<N, C>>
-    for DeterminerPhrase
+    for DeterminerPhrase<N::Agreement>
+where
+    N: NominalAgreementMarker,
 {
     fn from(value: NounPhrase<N, C>) -> Self {
         NominalDeterminerPhrase::new(value).into()
     }
 }
 
-impl From<PronominalDeterminerPhrase> for DeterminerPhrase {
+impl From<PronominalDeterminerPhrase> for DynamicDeterminerPhrase {
     fn from(value: PronominalDeterminerPhrase) -> Self {
-        DeterminerPhrase::Pronoun {
+        DeterminerPhrase::new(DeterminerPhraseKind::Pronoun {
             pronoun: value.pronoun,
             reflexive: value.reflexive,
-        }
+        })
     }
 }
 
-impl From<Pronoun> for DeterminerPhrase {
+impl From<Pronoun> for DynamicDeterminerPhrase {
     fn from(value: Pronoun) -> Self {
         PronominalDeterminerPhrase::new(value).into()
     }
 }
 
-impl From<Name> for DeterminerPhrase {
+impl From<Name> for SingularDeterminerPhrase {
     fn from(value: Name) -> Self {
         DeterminerPhrase::proper_name(value.0)
+    }
+}
+
+impl From<SingularDeterminerPhrase> for DynamicDeterminerPhrase {
+    fn from(value: SingularDeterminerPhrase) -> Self {
+        value.erase()
+    }
+}
+
+impl From<PluralDeterminerPhrase> for DynamicDeterminerPhrase {
+    fn from(value: PluralDeterminerPhrase) -> Self {
+        value.erase()
+    }
+}
+
+impl<A: AgreementMarker> SubjectLike for DeterminerPhrase<A> {
+    type Agreement = A;
+
+    fn into_subject(self) -> DynamicDeterminerPhrase {
+        self.erase()
+    }
+}
+
+impl SubjectLike for PronominalDeterminerPhrase {
+    type Agreement = DynamicAgreement;
+
+    fn into_subject(self) -> DynamicDeterminerPhrase {
+        self.into()
+    }
+}
+
+impl<N: NominalNumberMarker, C: NominalCountabilityMarker> SubjectLike
+    for NominalDeterminerPhrase<N, C>
+where
+    N: NominalAgreementMarker,
+{
+    type Agreement = N::Agreement;
+
+    fn into_subject(self) -> DynamicDeterminerPhrase {
+        DeterminerPhrase::<N::Agreement>::from(self).erase()
     }
 }
 
@@ -1171,8 +1357,8 @@ impl From<TensePhrase<ToInfinitive>> for NpComplement {
     }
 }
 
-impl From<ComplementizerPhrase<NoGap>> for NpComplement {
-    fn from(value: ComplementizerPhrase<NoGap>) -> Self {
+impl From<ContentClause> for NpComplement {
+    fn from(value: ContentClause) -> Self {
         Self::CP(value)
     }
 }
@@ -1183,19 +1369,19 @@ impl From<PrepositionalPhrase> for NpAdjunct {
     }
 }
 
-impl<N: NominalNumberMarker> RelativeCpAttachment<N> for ComplementizerPhrase<ObjectGap> {
+impl<N: NominalNumberMarker> RelativeCpAttachment<N> for RelativeClause<ObjectGap> {
     fn into_np_adjunct(self) -> NpAdjunct {
         NpAdjunct::RelativeObject(self)
     }
 }
 
-impl RelativeCpAttachment<SingularNumber> for ComplementizerPhrase<SubjectGap<SingularNumber>> {
+impl RelativeCpAttachment<SingularNumber> for RelativeClause<SubjectGap<SingularNumber>> {
     fn into_np_adjunct(self) -> NpAdjunct {
         NpAdjunct::RelativeSubjectSingular(self)
     }
 }
 
-impl RelativeCpAttachment<PluralNumber> for ComplementizerPhrase<SubjectGap<PluralNumber>> {
+impl RelativeCpAttachment<PluralNumber> for RelativeClause<SubjectGap<PluralNumber>> {
     fn into_np_adjunct(self) -> NpAdjunct {
         NpAdjunct::RelativeSubjectPlural(self)
     }
@@ -1213,8 +1399,8 @@ impl From<TensePhrase<ToInfinitive>> for ApComplement {
     }
 }
 
-impl From<ComplementizerPhrase<NoGap>> for ApComplement {
-    fn from(value: ComplementizerPhrase<NoGap>) -> Self {
+impl From<ContentClause> for ApComplement {
+    fn from(value: ContentClause) -> Self {
         Self::CP(value)
     }
 }
@@ -1243,8 +1429,8 @@ impl From<TensePhrase<Gerund>> for PpComplement {
     }
 }
 
-impl From<ComplementizerPhrase<NoGap>> for PpComplement {
-    fn from(value: ComplementizerPhrase<NoGap>) -> Self {
+impl From<ContentClause> for PpComplement {
+    fn from(value: ContentClause) -> Self {
         Self::CP(value)
     }
 }
@@ -1267,8 +1453,8 @@ impl From<AdjectivePhrase> for VpComplement {
     }
 }
 
-impl From<ComplementizerPhrase<NoGap>> for VpComplement {
-    fn from(value: ComplementizerPhrase<NoGap>) -> Self {
+impl From<ContentClause> for VpComplement {
+    fn from(value: ContentClause) -> Self {
         Self::CP(value)
     }
 }
@@ -1319,10 +1505,15 @@ impl private::Sealed for PluralNumber {}
 impl private::Sealed for UnknownCountability {}
 impl private::Sealed for CountNoun {}
 impl private::Sealed for MassNoun {}
+impl private::Sealed for DynamicAgreement {}
+impl private::Sealed for ThirdSingularAgreement {}
+impl private::Sealed for ThirdPluralAgreement {}
 impl private::Sealed for NoGap {}
 impl private::Sealed for ObjectGap {}
 impl<N: NominalNumberMarker> private::Sealed for SubjectGap<N> {}
-impl private::Sealed for DeterminerPhrase {}
+impl private::Sealed for ContentForce {}
+impl private::Sealed for RelativeForce {}
+impl<A: AgreementMarker> private::Sealed for DeterminerPhrase<A> {}
 impl<N: NominalNumberMarker, C: NominalCountabilityMarker> private::Sealed
     for NominalDeterminerPhrase<N, C>
 {
@@ -1330,8 +1521,9 @@ impl<N: NominalNumberMarker, C: NominalCountabilityMarker> private::Sealed
 impl private::Sealed for PronominalDeterminerPhrase {}
 impl<N: NominalNumberMarker, C: NominalCountabilityMarker> private::Sealed for NounPhrase<N, C> {}
 impl<G: PredicateGap> private::Sealed for VerbPhrase<G> {}
-impl<Form: TpForm, G: TpGap> private::Sealed for TensePhrase<Form, G> {}
-impl<G: CpGap> private::Sealed for ComplementizerPhrase<G> {}
+impl private::Sealed for VpArgumentSlot {}
+impl<Form: TpForm, G: TpGap, A: AgreementMarker> private::Sealed for TensePhrase<Form, G, A> {}
+impl<F: CpForce<G>, G: TpGap> private::Sealed for ComplementizerPhrase<F, G> {}
 impl private::Sealed for PrepositionalPhrase {}
 impl private::Sealed for AdjectivePhrase {}
 impl private::Sealed for AdverbPhrase {}
@@ -1392,6 +1584,14 @@ impl NominalNumberMarker for PluralNumber {
     }
 }
 
+impl NominalAgreementMarker for SingularNumber {
+    type Agreement = ThirdSingularAgreement;
+}
+
+impl NominalAgreementMarker for PluralNumber {
+    type Agreement = ThirdPluralAgreement;
+}
+
 impl NominalCountabilityMarker for UnknownCountability {
     fn countability() -> Countability {
         Countability::Unknown
@@ -1407,6 +1607,20 @@ impl NominalCountabilityMarker for CountNoun {
 impl NominalCountabilityMarker for MassNoun {
     fn countability() -> Countability {
         Countability::Mass
+    }
+}
+
+impl AgreementMarker for DynamicAgreement {}
+
+impl AgreementMarker for ThirdSingularAgreement {
+    fn agreement() -> Option<(Person, Number)> {
+        Some((Person::Third, Number::Singular))
+    }
+}
+
+impl AgreementMarker for ThirdPluralAgreement {
+    fn agreement() -> Option<(Person, Number)> {
+        Some((Person::Third, Number::Plural))
     }
 }
 
@@ -1435,21 +1649,27 @@ impl<N: NominalNumberMarker> TpGap for SubjectGap<N> {
     }
 }
 
-impl CpGap for NoGap {
-    fn default_complementizer() -> Option<Complementizer> {
-        Some(Complementizer::Null)
+impl CpForce<NoGap> for ContentForce {
+    type Head = Complementizer;
+
+    fn default_head() -> Self::Head {
+        Complementizer::Null
     }
 }
 
-impl CpGap for ObjectGap {
-    fn default_relativizer() -> Option<Relativizer> {
-        Some(Relativizer::Null)
+impl CpForce<ObjectGap> for RelativeForce {
+    type Head = Relativizer;
+
+    fn default_head() -> Self::Head {
+        Relativizer::Null
     }
 }
 
-impl<N: NominalNumberMarker> CpGap for SubjectGap<N> {
-    fn default_relativizer() -> Option<Relativizer> {
-        Some(Relativizer::Null)
+impl<N: NominalNumberMarker> CpForce<SubjectGap<N>> for RelativeForce {
+    type Head = Relativizer;
+
+    fn default_head() -> Self::Head {
+        Relativizer::Null
     }
 }
 

@@ -6,6 +6,7 @@ edition.workspace = true
 description = "Compositional English phrase realization built on top of english"
 license.workspace = true
 repository.workspace = true
+readme = "README.md"
 
 [dependencies]
 english = { workspace = true }

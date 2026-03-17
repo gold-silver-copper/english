@@ -1,11 +1,12 @@
 use crate::lexical::{Determiner, Pronoun};
 use crate::syntax::{
-    AdjectivePhrase, AdverbPhrase, AdvpComplement, ApComplement, Complementizer,
-    ComplementizerPhrase, DeterminerPhrase, NoGap, NominalCountabilityMarker,
-    NominalDeterminerPhrase, NominalNumberMarker, NounPhrase, NounPhraseData, NpAdjunct,
-    NpComplement, NpModifier, PpComplement, PredicateGap, PrepositionalPhrase,
-    PronominalDeterminerPhrase, RelativeTpGap, Relativizer, Tense, TensePhrase, TpForm, TpGap,
-    VerbForm, VerbPhrase, VpAdjunct, VpComplement,
+    AdjectivePhrase, AdverbPhrase, AdvpComplement, AgreementMarker, ApComplement, Complementizer,
+    ContentClause, DeterminerPhrase, DeterminerPhraseKind, DynamicDeterminerPhrase,
+    NominalCountabilityMarker, NominalDeterminerPhrase, NominalNumberMarker, NounPhrase,
+    NounPhraseData, NpAdjunct, NpComplement, NpModifier, PpComplement, PredicateGap,
+    PrepositionalPhrase, PronominalDeterminerPhrase, RelativeClause, RelativeTpGap, Relativizer,
+    Tense, TensePhrase, TpForm, TpGap, VerbForm, VerbPhrase, VpAdjunct, VpArgumentSlot,
+    VpComplement,
 };
 use english::{English, Form as MorphForm, Number, Person, Tense as MorphTense};
 
@@ -172,15 +173,15 @@ fn past_participle(lemma: &str) -> String {
     )
 }
 
-fn agreement_from_dp(dp: &DeterminerPhrase) -> (Person, Number) {
-    match dp {
-        DeterminerPhrase::BareNominal(nominal)
-        | DeterminerPhrase::DeterminedNominal { nominal, .. }
-        | DeterminerPhrase::PossessedNominal { nominal, .. } => {
+fn agreement_from_dp(dp: &DynamicDeterminerPhrase) -> (Person, Number) {
+    match &dp.kind {
+        DeterminerPhraseKind::BareNominal(nominal)
+        | DeterminerPhraseKind::DeterminedNominal { nominal, .. }
+        | DeterminerPhraseKind::PossessedNominal { nominal, .. } => {
             (Person::Third, nominal.number.clone())
         }
-        DeterminerPhrase::ProperName(_) => (Person::Third, Number::Singular),
-        DeterminerPhrase::Pronoun { pronoun, .. } => (pronoun.person(), pronoun.number()),
+        DeterminerPhraseKind::ProperName(_) => (Person::Third, Number::Singular),
+        DeterminerPhraseKind::Pronoun { pronoun, .. } => (pronoun.person(), pronoun.number()),
     }
 }
 
@@ -240,7 +241,6 @@ fn render_vp_complement(complement: &VpComplement) -> String {
         VpComplement::ToInf(tp) => render_tp(tp),
         VpComplement::Gerund(tp) => render_tp(tp),
         VpComplement::PastParticiple(tp) => render_tp(tp),
-        VpComplement::GapObject => String::new(),
     }
 }
 
@@ -251,7 +251,7 @@ fn render_vp_adjunct(adjunct: &VpAdjunct) -> String {
     }
 }
 
-fn render_cp(cp: &ComplementizerPhrase<NoGap>) -> String {
+fn render_cp(cp: &ContentClause) -> String {
     let mut parts = Vec::new();
 
     if let Some(head) = render_complementizer(cp.head()) {
@@ -262,7 +262,10 @@ fn render_cp(cp: &ComplementizerPhrase<NoGap>) -> String {
     join_nonempty(parts)
 }
 
-fn render_relative_cp<G: RelativeTpGap>(cp: &ComplementizerPhrase<G>) -> String {
+fn render_relative_cp<G: RelativeTpGap>(cp: &RelativeClause<G>) -> String
+where
+    crate::syntax::RelativeForce: crate::syntax::CpForce<G, Head = Relativizer>,
+{
     let mut parts = Vec::new();
 
     if let Some(head) = render_relativizer(cp.head()) {
@@ -291,12 +294,12 @@ fn render_relativizer(head: Relativizer) -> Option<&'static str> {
     }
 }
 
-fn render_tp<Form: TpForm, G: TpGap>(tp: &TensePhrase<Form, G>) -> String {
+fn render_tp<Form: TpForm, G: TpGap, A: AgreementMarker>(tp: &TensePhrase<Form, G, A>) -> String {
     let surfaced_subject = tp
         .subject_opt()
         .map(|dp| render_dp(dp, DpRenderRole::Subject));
 
-    let predicate = render_tense_head::<G>(
+    let predicate = render_tense_head::<G, A>(
         tp.predicate(),
         tp.form(),
         tp.is_negative(),
@@ -310,19 +313,19 @@ fn render_tp<Form: TpForm, G: TpGap>(tp: &TensePhrase<Form, G>) -> String {
     )
 }
 
-fn render_tense_head<G: TpGap>(
+fn render_tense_head<G: TpGap, A: AgreementMarker>(
     predicate: &VerbPhrase<G::PredicateGap>,
     form: VerbForm,
     negative: bool,
-    subject: Option<&DeterminerPhrase>,
+    subject: Option<&DynamicDeterminerPhrase>,
 ) -> String {
     let lemma = predicate.head().as_str();
     let neg_count = usize::from(negative);
 
     let mut parts = match form {
         VerbForm::Finite(tense) => {
-            let agreement = subject
-                .map(agreement_from_dp)
+            let agreement = A::agreement()
+                .or_else(|| subject.map(agreement_from_dp))
                 .or_else(G::subject_agreement)
                 .unwrap_or((Person::Third, Number::Singular));
 
@@ -366,9 +369,9 @@ fn render_tense_head<G: TpGap>(
 
     parts.extend(
         predicate
-            .complements()
+            .argument_slots()
             .iter()
-            .map(render_vp_complement)
+            .map(render_vp_argument_slot)
             .filter(|part| !part.is_empty()),
     );
     parts.extend(predicate.adjuncts().iter().map(render_vp_adjunct));
@@ -379,20 +382,27 @@ fn render_vp<G: PredicateGap>(vp: &VerbPhrase<G>) -> String {
     let mut parts = Vec::new();
     parts.push(base_form(vp.head().as_str()));
     parts.extend(
-        vp.complements()
+        vp.argument_slots()
             .iter()
-            .map(render_vp_complement)
+            .map(render_vp_argument_slot)
             .filter(|part| !part.is_empty()),
     );
     parts.extend(vp.adjuncts().iter().map(render_vp_adjunct));
     join_nonempty(parts)
 }
 
-fn is_pronoun_dp(dp: &DeterminerPhrase) -> bool {
-    matches!(dp, DeterminerPhrase::Pronoun { .. })
+fn render_vp_argument_slot(slot: &VpArgumentSlot) -> String {
+    match slot {
+        VpArgumentSlot::Complement(complement) => render_vp_complement(complement),
+        VpArgumentSlot::GapObject => String::new(),
+    }
 }
 
-fn render_possessor(dp: &DeterminerPhrase) -> String {
+fn is_pronoun_dp<A: AgreementMarker>(dp: &DeterminerPhrase<A>) -> bool {
+    matches!(&dp.kind, DeterminerPhraseKind::Pronoun { .. })
+}
+
+fn render_possessor(dp: &DynamicDeterminerPhrase) -> String {
     let rendered = render_dp(dp, DpRenderRole::PossessiveDependent);
     if rendered.is_empty() {
         rendered
@@ -403,18 +413,18 @@ fn render_possessor(dp: &DeterminerPhrase) -> String {
     }
 }
 
-fn render_dp(dp: &DeterminerPhrase, role: DpRenderRole) -> String {
-    match dp {
-        DeterminerPhrase::BareNominal(nominal) => render_nominal_dp(None, None, nominal),
-        DeterminerPhrase::DeterminedNominal {
+fn render_dp<A: AgreementMarker>(dp: &DeterminerPhrase<A>, role: DpRenderRole) -> String {
+    match &dp.kind {
+        DeterminerPhraseKind::BareNominal(nominal) => render_nominal_dp(None, None, nominal),
+        DeterminerPhraseKind::DeterminedNominal {
             determiner,
             nominal,
         } => render_nominal_dp(Some(*determiner), None, nominal),
-        DeterminerPhrase::PossessedNominal { possessor, nominal } => {
+        DeterminerPhraseKind::PossessedNominal { possessor, nominal } => {
             render_nominal_dp(None, Some(possessor), nominal)
         }
-        DeterminerPhrase::ProperName(name) => name.clone(),
-        DeterminerPhrase::Pronoun { pronoun, reflexive } => {
+        DeterminerPhraseKind::ProperName(name) => name.clone(),
+        DeterminerPhraseKind::Pronoun { pronoun, reflexive } => {
             render_pronoun(pronoun, *reflexive, role)
         }
     }
@@ -422,7 +432,7 @@ fn render_dp(dp: &DeterminerPhrase, role: DpRenderRole) -> String {
 
 fn render_nominal_dp(
     determiner: Option<Determiner>,
-    possessor: Option<&DeterminerPhrase>,
+    possessor: Option<&DynamicDeterminerPhrase>,
     nominal: &NounPhraseData,
 ) -> String {
     let mut parts = Vec::new();
@@ -498,7 +508,7 @@ fn render_pp(pp: &PrepositionalPhrase) -> String {
     ])
 }
 
-impl private::Sealed for DeterminerPhrase {}
+impl<A: AgreementMarker> private::Sealed for DeterminerPhrase<A> {}
 impl<N: NominalNumberMarker, C: NominalCountabilityMarker> private::Sealed
     for NominalDeterminerPhrase<N, C>
 {
@@ -509,11 +519,14 @@ impl private::Sealed for AdjectivePhrase {}
 impl private::Sealed for AdverbPhrase {}
 impl private::Sealed for PrepositionalPhrase {}
 impl<G: PredicateGap> private::Sealed for VerbPhrase<G> {}
-impl<Form: TpForm, G: TpGap> private::Sealed for TensePhrase<Form, G> {}
-impl private::Sealed for ComplementizerPhrase<NoGap> {}
-impl<G: RelativeTpGap> private::Sealed for ComplementizerPhrase<G> {}
+impl<Form: TpForm, G: TpGap, A: AgreementMarker> private::Sealed for TensePhrase<Form, G, A> {}
+impl private::Sealed for ContentClause {}
+impl<G: RelativeTpGap> private::Sealed for RelativeClause<G> where
+    crate::syntax::RelativeForce: crate::syntax::CpForce<G, Head = Relativizer>
+{
+}
 
-impl Realizable for DeterminerPhrase {
+impl<A: AgreementMarker> Realizable for DeterminerPhrase<A> {
     fn realize_with(&self, options: RealizationOptions) -> String {
         apply_realization_options(render_dp(self, DpRenderRole::Subject), options)
     }
@@ -521,16 +534,19 @@ impl Realizable for DeterminerPhrase {
 
 impl<N: NominalNumberMarker, C: NominalCountabilityMarker> Realizable
     for NominalDeterminerPhrase<N, C>
+where
+    N: crate::syntax::NominalAgreementMarker,
 {
     fn realize_with(&self, options: RealizationOptions) -> String {
-        let dp = DeterminerPhrase::from(self.clone());
+        let dp: DynamicDeterminerPhrase =
+            DeterminerPhrase::<N::Agreement>::from(self.clone()).erase();
         dp.realize_with(options)
     }
 }
 
 impl Realizable for PronominalDeterminerPhrase {
     fn realize_with(&self, options: RealizationOptions) -> String {
-        let dp = DeterminerPhrase::from(*self);
+        let dp: DynamicDeterminerPhrase = (*self).into();
         dp.realize_with(options)
     }
 }
@@ -565,19 +581,22 @@ impl<G: PredicateGap> Realizable for VerbPhrase<G> {
     }
 }
 
-impl<Form: TpForm, G: TpGap> Realizable for TensePhrase<Form, G> {
+impl<Form: TpForm, G: TpGap, A: AgreementMarker> Realizable for TensePhrase<Form, G, A> {
     fn realize_with(&self, options: RealizationOptions) -> String {
         apply_realization_options(render_tp(self), options)
     }
 }
 
-impl Realizable for ComplementizerPhrase<NoGap> {
+impl Realizable for ContentClause {
     fn realize_with(&self, options: RealizationOptions) -> String {
         apply_realization_options(render_cp(self), options)
     }
 }
 
-impl<G: RelativeTpGap> Realizable for ComplementizerPhrase<G> {
+impl<G: RelativeTpGap> Realizable for RelativeClause<G>
+where
+    crate::syntax::RelativeForce: crate::syntax::CpForce<G, Head = Relativizer>,
+{
     fn realize_with(&self, options: RealizationOptions) -> String {
         apply_realization_options(render_relative_cp(self), options)
     }
