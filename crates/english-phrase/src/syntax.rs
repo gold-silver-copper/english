@@ -15,8 +15,7 @@ pub enum Tense {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-#[doc(hidden)]
-pub enum AnyForm {
+pub enum VerbForm {
     Finite(Tense),
     #[default]
     BareInfinitive,
@@ -25,10 +24,8 @@ pub enum AnyForm {
     PastParticiple,
 }
 
-pub type VerbForm = AnyForm;
-
 pub trait ClauseForm: private::Sealed + Copy {
-    fn erase(self) -> AnyForm;
+    fn verb_form(self) -> VerbForm;
 }
 
 pub trait NonfiniteClauseForm: ClauseForm {}
@@ -60,90 +57,6 @@ pub struct Gerund;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct PastParticiple;
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Phrase {
-    CP(Box<ComplementizerPhrase>),
-    TP(Box<TensePhrase<AnyForm>>),
-    DP(Box<DeterminerPhrase>),
-    NP(Box<NounPhrase>),
-    VP(Box<VerbPhrase>),
-    PP(Box<PrepositionalPhrase>),
-    AdjP(Box<AdjectivePhrase>),
-    AdvP(Box<AdverbPhrase>),
-}
-
-#[doc(hidden)]
-pub trait DpHead: private::Sealed {
-    type Output;
-
-    fn into_dp(self) -> Self::Output;
-}
-
-#[doc(hidden)]
-pub trait IntoSlot<S>: private::Sealed {
-    fn into_phrase(self) -> Phrase;
-}
-
-#[doc(hidden)]
-pub enum NpModifierSlot {}
-
-#[doc(hidden)]
-pub enum NpComplementSlot {}
-
-#[doc(hidden)]
-pub enum NpAdjunctSlot {}
-
-#[doc(hidden)]
-pub enum ApComplementSlot {}
-
-#[doc(hidden)]
-pub enum AdvpComplementSlot {}
-
-#[doc(hidden)]
-pub enum PpComplementSlot {}
-
-#[doc(hidden)]
-pub enum VpComplementSlot {}
-
-#[doc(hidden)]
-pub enum VpAdjunctSlot {}
-
-trait DpLike: private::Sealed {
-    fn into_determiner_phrase(self) -> DeterminerPhrase;
-}
-
-trait NpModifierLike: private::Sealed {
-    fn into_slot_phrase(self) -> Phrase;
-}
-
-trait NpComplementLike: private::Sealed {
-    fn into_slot_phrase(self) -> Phrase;
-}
-
-trait NpAdjunctLike: private::Sealed {
-    fn into_slot_phrase(self) -> Phrase;
-}
-
-trait ApComplementLike: private::Sealed {
-    fn into_slot_phrase(self) -> Phrase;
-}
-
-trait AdvpComplementLike: private::Sealed {
-    fn into_slot_phrase(self) -> Phrase;
-}
-
-trait PpComplementLike: private::Sealed {
-    fn into_slot_phrase(self) -> Phrase;
-}
-
-trait VpComplementLike: private::Sealed {
-    fn into_slot_phrase(self) -> Phrase;
-}
-
-trait VpAdjunctLike: private::Sealed {
-    fn into_slot_phrase(self) -> Phrase;
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Name(String);
 
@@ -170,9 +83,9 @@ pub enum Complementizer {
 pub struct NounPhrase {
     head: NounEntry,
     number: Number,
-    modifiers: Vec<Box<Phrase>>,
-    complements: Vec<Box<Phrase>>,
-    adjuncts: Vec<Box<Phrase>>,
+    modifiers: Vec<NpModifier>,
+    complements: Vec<NpComplement>,
+    adjuncts: Vec<NpAdjunct>,
 }
 
 impl NounPhrase {
@@ -196,8 +109,8 @@ impl NounPhrase {
         self
     }
 
-    pub fn modifier<M: IntoSlot<NpModifierSlot>>(mut self, modifier: M) -> Self {
-        self.modifiers.push(Box::new(modifier.into_phrase()));
+    pub fn modifier<M: Into<NpModifier>>(mut self, modifier: M) -> Self {
+        self.modifiers.push(modifier.into());
         self
     }
 
@@ -213,13 +126,13 @@ impl NounPhrase {
     ///
     /// let _ = np("attempt").complement(tp(vp("leave")).bare_infinitive());
     /// ```
-    pub fn complement<C: IntoSlot<NpComplementSlot>>(mut self, complement: C) -> Self {
-        self.complements.push(Box::new(complement.into_phrase()));
+    pub fn complement<C: Into<NpComplement>>(mut self, complement: C) -> Self {
+        self.complements.push(complement.into());
         self
     }
 
-    pub fn adjunct<A: IntoSlot<NpAdjunctSlot>>(mut self, adjunct: A) -> Self {
-        self.adjuncts.push(Box::new(adjunct.into_phrase()));
+    pub fn adjunct<A: Into<NpAdjunct>>(mut self, adjunct: A) -> Self {
+        self.adjuncts.push(adjunct.into());
         self
     }
 
@@ -231,15 +144,15 @@ impl NounPhrase {
         &self.number
     }
 
-    pub fn modifiers(&self) -> &[Box<Phrase>] {
+    pub fn modifiers(&self) -> &[NpModifier] {
         &self.modifiers
     }
 
-    pub fn complements(&self) -> &[Box<Phrase>] {
+    pub fn complements(&self) -> &[NpComplement] {
         &self.complements
     }
 
-    pub fn adjuncts(&self) -> &[Box<Phrase>] {
+    pub fn adjuncts(&self) -> &[NpAdjunct] {
         &self.adjuncts
     }
 }
@@ -426,7 +339,7 @@ impl PronominalDeterminerPhrase {
 pub struct AdjectivePhrase {
     modifier: Option<Box<AdverbPhrase>>,
     head: AdjectiveEntry,
-    complements: Vec<Box<Phrase>>,
+    complements: Vec<ApComplement>,
 }
 
 impl AdjectivePhrase {
@@ -455,8 +368,8 @@ impl AdjectivePhrase {
     ///
     /// let _ = adjp("ready").complement(tp(vp("leave")).gerund_participle());
     /// ```
-    pub fn complement<C: IntoSlot<ApComplementSlot>>(mut self, complement: C) -> Self {
-        self.complements.push(Box::new(complement.into_phrase()));
+    pub fn complement<C: Into<ApComplement>>(mut self, complement: C) -> Self {
+        self.complements.push(complement.into());
         self
     }
 
@@ -468,7 +381,7 @@ impl AdjectivePhrase {
         &self.head
     }
 
-    pub fn complements(&self) -> &[Box<Phrase>] {
+    pub fn complements(&self) -> &[ApComplement] {
         &self.complements
     }
 }
@@ -477,7 +390,7 @@ impl AdjectivePhrase {
 pub struct AdverbPhrase {
     modifier: Option<Box<AdverbPhrase>>,
     head: AdverbEntry,
-    complements: Vec<Box<Phrase>>,
+    complements: Vec<AdvpComplement>,
 }
 
 impl AdverbPhrase {
@@ -494,8 +407,8 @@ impl AdverbPhrase {
         self
     }
 
-    pub fn complement<C: IntoSlot<AdvpComplementSlot>>(mut self, complement: C) -> Self {
-        self.complements.push(Box::new(complement.into_phrase()));
+    pub fn complement<C: Into<AdvpComplement>>(mut self, complement: C) -> Self {
+        self.complements.push(complement.into());
         self
     }
 
@@ -507,7 +420,7 @@ impl AdverbPhrase {
         &self.head
     }
 
-    pub fn complements(&self) -> &[Box<Phrase>] {
+    pub fn complements(&self) -> &[AdvpComplement] {
         &self.complements
     }
 }
@@ -515,17 +428,14 @@ impl AdverbPhrase {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PrepositionalPhrase {
     head: PrepositionEntry,
-    complement: Box<Phrase>,
+    complement: Box<PpComplement>,
 }
 
 impl PrepositionalPhrase {
-    pub fn new<C: IntoSlot<PpComplementSlot>>(
-        head: impl Into<PrepositionEntry>,
-        complement: C,
-    ) -> Self {
+    pub fn new<C: Into<PpComplement>>(head: impl Into<PrepositionEntry>, complement: C) -> Self {
         Self {
             head: head.into(),
-            complement: Box::new(complement.into_phrase()),
+            complement: Box::new(complement.into()),
         }
     }
 
@@ -533,7 +443,7 @@ impl PrepositionalPhrase {
         &self.head
     }
 
-    pub fn complement(&self) -> &Phrase {
+    pub fn complement(&self) -> &PpComplement {
         self.complement.as_ref()
     }
 }
@@ -541,8 +451,8 @@ impl PrepositionalPhrase {
 #[derive(Debug, Clone, PartialEq)]
 pub struct VerbPhrase {
     head: VerbEntry,
-    complements: Vec<Box<Phrase>>,
-    adjuncts: Vec<Box<Phrase>>,
+    complements: Vec<VpComplement>,
+    adjuncts: Vec<VpAdjunct>,
 }
 
 impl VerbPhrase {
@@ -566,13 +476,13 @@ impl VerbPhrase {
     ///
     /// let _ = vp("say").complement(tp(vp("leave")).past());
     /// ```
-    pub fn complement<C: IntoSlot<VpComplementSlot>>(mut self, complement: C) -> Self {
-        self.complements.push(Box::new(complement.into_phrase()));
+    pub fn complement<C: Into<VpComplement>>(mut self, complement: C) -> Self {
+        self.complements.push(complement.into());
         self
     }
 
-    pub fn adjunct<A: IntoSlot<VpAdjunctSlot>>(mut self, adjunct: A) -> Self {
-        self.adjuncts.push(Box::new(adjunct.into_phrase()));
+    pub fn adjunct<A: Into<VpAdjunct>>(mut self, adjunct: A) -> Self {
+        self.adjuncts.push(adjunct.into());
         self
     }
 
@@ -580,11 +490,11 @@ impl VerbPhrase {
         &self.head
     }
 
-    pub fn complements(&self) -> &[Box<Phrase>] {
+    pub fn complements(&self) -> &[VpComplement] {
         &self.complements
     }
 
-    pub fn adjuncts(&self) -> &[Box<Phrase>] {
+    pub fn adjuncts(&self) -> &[VpAdjunct] {
         &self.adjuncts
     }
 }
@@ -616,11 +526,6 @@ impl<Form: ClauseForm> TensePhrase<Form> {
             negative: self.negative,
             predicate: self.predicate,
         }
-    }
-
-    pub fn erase(self) -> TensePhrase<AnyForm> {
-        let form = self.form.erase();
-        self.map_form(form)
     }
 
     pub fn subject<S: Into<DeterminerPhrase>>(mut self, subject: S) -> Self {
@@ -662,7 +567,7 @@ impl<Form: ClauseForm> TensePhrase<Form> {
     }
 
     pub fn form(&self) -> VerbForm {
-        self.form.erase()
+        self.form.verb_form()
     }
 
     pub fn is_negative(&self) -> bool {
@@ -676,7 +581,7 @@ impl<Form: ClauseForm> TensePhrase<Form> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ComplementizerPhrase {
-    specifier: Option<Box<Phrase>>,
+    specifier: Option<Box<CpSpecifier>>,
     head: Complementizer,
     complement: Box<TensePhrase<Finite>>,
 }
@@ -690,7 +595,7 @@ impl ComplementizerPhrase {
         }
     }
 
-    pub fn specifier<S: Into<Phrase>>(mut self, specifier: S) -> Self {
+    pub fn specifier<S: Into<CpSpecifier>>(mut self, specifier: S) -> Self {
         self.specifier = Some(Box::new(specifier.into()));
         self
     }
@@ -716,7 +621,7 @@ impl ComplementizerPhrase {
         self.complementizer(Complementizer::If)
     }
 
-    pub fn specifier_opt(&self) -> Option<&Phrase> {
+    pub fn specifier_opt(&self) -> Option<&CpSpecifier> {
         self.specifier.as_deref()
     }
 
@@ -727,6 +632,77 @@ impl ComplementizerPhrase {
     pub fn complement(&self) -> &TensePhrase<Finite> {
         &self.complement
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum NpModifier {
+    Adj(AdjectivePhrase),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum NpComplement {
+    PP(PrepositionalPhrase),
+    ToInf(TensePhrase<ToInfinitive>),
+    CP(ComplementizerPhrase),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum NpAdjunct {
+    PP(PrepositionalPhrase),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ApComplement {
+    PP(PrepositionalPhrase),
+    ToInf(TensePhrase<ToInfinitive>),
+    CP(ComplementizerPhrase),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AdvpComplement {
+    PP(PrepositionalPhrase),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PpComplement {
+    DP(DeterminerPhrase),
+    PP(PrepositionalPhrase),
+    Gerund(TensePhrase<Gerund>),
+    CP(ComplementizerPhrase),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum VpComplement {
+    DP(DeterminerPhrase),
+    PP(PrepositionalPhrase),
+    AP(AdjectivePhrase),
+    CP(ComplementizerPhrase),
+    BareInf(TensePhrase<BareInfinitive>),
+    ToInf(TensePhrase<ToInfinitive>),
+    Gerund(TensePhrase<Gerund>),
+    PastParticiple(TensePhrase<PastParticiple>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum VpAdjunct {
+    PP(PrepositionalPhrase),
+    AdvP(AdverbPhrase),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CpSpecifier {
+    DP(DeterminerPhrase),
+    NP(NounPhrase),
+    VP(VerbPhrase),
+    PP(PrepositionalPhrase),
+    AdjP(AdjectivePhrase),
+    AdvP(AdverbPhrase),
+    CP(ComplementizerPhrase),
+    Finite(TensePhrase<Finite>),
+    BareInf(TensePhrase<BareInfinitive>),
+    ToInf(TensePhrase<ToInfinitive>),
+    Gerund(TensePhrase<Gerund>),
+    PastParticiple(TensePhrase<PastParticiple>),
 }
 
 pub fn np(head: impl Into<NounEntry>) -> NounPhrase {
@@ -761,7 +737,7 @@ pub fn advp(head: impl Into<AdverbEntry>) -> AdverbPhrase {
 ///
 /// let _ = pp("after", tp(vp("leave")).to_infinitive());
 /// ```
-pub fn pp<C: IntoSlot<PpComplementSlot>>(
+pub fn pp<C: Into<PpComplement>>(
     head: impl Into<PrepositionEntry>,
     complement: C,
 ) -> PrepositionalPhrase {
@@ -792,158 +768,16 @@ pub fn cp(complement: TensePhrase<Finite>) -> ComplementizerPhrase {
     ComplementizerPhrase::new(complement)
 }
 
-impl From<ComplementizerPhrase> for Phrase {
-    fn from(value: ComplementizerPhrase) -> Self {
-        Phrase::CP(Box::new(value))
-    }
+#[doc(hidden)]
+pub trait DpHead: private::Sealed {
+    type Output;
+
+    fn into_dp(self) -> Self::Output;
 }
 
-impl<Form: ClauseForm> From<TensePhrase<Form>> for Phrase {
-    fn from(value: TensePhrase<Form>) -> Self {
-        Phrase::TP(Box::new(value.erase()))
-    }
+trait DpLike: private::Sealed {
+    fn into_determiner_phrase(self) -> DeterminerPhrase;
 }
-
-impl From<DeterminerPhrase> for Phrase {
-    fn from(value: DeterminerPhrase) -> Self {
-        Phrase::DP(Box::new(value))
-    }
-}
-
-impl From<NominalDeterminerPhrase> for DeterminerPhrase {
-    fn from(value: NominalDeterminerPhrase) -> Self {
-        DeterminerPhrase::BareNominal(value.nominal)
-    }
-}
-
-impl From<NominalDeterminerPhrase> for Phrase {
-    fn from(value: NominalDeterminerPhrase) -> Self {
-        Phrase::from(DeterminerPhrase::from(value))
-    }
-}
-
-impl From<NounPhrase> for DeterminerPhrase {
-    fn from(value: NounPhrase) -> Self {
-        NominalDeterminerPhrase::new(value).into()
-    }
-}
-
-impl From<PronominalDeterminerPhrase> for DeterminerPhrase {
-    fn from(value: PronominalDeterminerPhrase) -> Self {
-        DeterminerPhrase::Pronoun {
-            pronoun: value.pronoun,
-            reflexive: value.reflexive,
-        }
-    }
-}
-
-impl From<PronominalDeterminerPhrase> for Phrase {
-    fn from(value: PronominalDeterminerPhrase) -> Self {
-        Phrase::from(DeterminerPhrase::from(value))
-    }
-}
-
-impl From<Pronoun> for DeterminerPhrase {
-    fn from(value: Pronoun) -> Self {
-        PronominalDeterminerPhrase::new(value).into()
-    }
-}
-
-impl From<Name> for DeterminerPhrase {
-    fn from(value: Name) -> Self {
-        DeterminerPhrase::proper_name(value.0)
-    }
-}
-
-impl From<NounPhrase> for Phrase {
-    fn from(value: NounPhrase) -> Self {
-        Phrase::NP(Box::new(value))
-    }
-}
-
-impl From<VerbPhrase> for Phrase {
-    fn from(value: VerbPhrase) -> Self {
-        Phrase::VP(Box::new(value))
-    }
-}
-
-impl From<PrepositionalPhrase> for Phrase {
-    fn from(value: PrepositionalPhrase) -> Self {
-        Phrase::PP(Box::new(value))
-    }
-}
-
-impl From<AdjectivePhrase> for Phrase {
-    fn from(value: AdjectivePhrase) -> Self {
-        Phrase::AdjP(Box::new(value))
-    }
-}
-
-impl From<AdverbPhrase> for Phrase {
-    fn from(value: AdverbPhrase) -> Self {
-        Phrase::AdvP(Box::new(value))
-    }
-}
-
-impl private::Sealed for AnyForm {}
-impl private::Sealed for Finite {}
-impl private::Sealed for BareInfinitive {}
-impl private::Sealed for ToInfinitive {}
-impl private::Sealed for Gerund {}
-impl private::Sealed for PastParticiple {}
-impl private::Sealed for DeterminerPhrase {}
-impl private::Sealed for NominalDeterminerPhrase {}
-impl private::Sealed for PronominalDeterminerPhrase {}
-impl private::Sealed for NounPhrase {}
-impl private::Sealed for VerbPhrase {}
-impl<Form: ClauseForm> private::Sealed for TensePhrase<Form> {}
-impl private::Sealed for ComplementizerPhrase {}
-impl private::Sealed for PrepositionalPhrase {}
-impl private::Sealed for AdjectivePhrase {}
-impl private::Sealed for AdverbPhrase {}
-impl private::Sealed for Name {}
-impl private::Sealed for Pronoun {}
-
-impl ClauseForm for AnyForm {
-    fn erase(self) -> AnyForm {
-        self
-    }
-}
-
-impl ClauseForm for Finite {
-    fn erase(self) -> AnyForm {
-        AnyForm::Finite(self.0)
-    }
-}
-
-impl ClauseForm for BareInfinitive {
-    fn erase(self) -> AnyForm {
-        AnyForm::BareInfinitive
-    }
-}
-
-impl ClauseForm for ToInfinitive {
-    fn erase(self) -> AnyForm {
-        AnyForm::ToInfinitive
-    }
-}
-
-impl ClauseForm for Gerund {
-    fn erase(self) -> AnyForm {
-        AnyForm::GerundParticiple
-    }
-}
-
-impl ClauseForm for PastParticiple {
-    fn erase(self) -> AnyForm {
-        AnyForm::PastParticiple
-    }
-}
-
-impl NonfiniteClauseForm for BareInfinitive {}
-impl NonfiniteClauseForm for ToInfinitive {}
-impl NonfiniteClauseForm for Gerund {}
-impl NonfiniteClauseForm for PastParticiple {}
 
 impl DpHead for DeterminerPhrase {
     type Output = Self;
@@ -1011,170 +845,307 @@ impl DpLike for PronominalDeterminerPhrase {
     }
 }
 
-impl NpModifierLike for AdjectivePhrase {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl From<NominalDeterminerPhrase> for DeterminerPhrase {
+    fn from(value: NominalDeterminerPhrase) -> Self {
+        DeterminerPhrase::BareNominal(value.nominal)
     }
 }
 
-impl NpComplementLike for PrepositionalPhrase {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl From<NounPhrase> for DeterminerPhrase {
+    fn from(value: NounPhrase) -> Self {
+        NominalDeterminerPhrase::new(value).into()
     }
 }
 
-impl NpComplementLike for TensePhrase<ToInfinitive> {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl From<PronominalDeterminerPhrase> for DeterminerPhrase {
+    fn from(value: PronominalDeterminerPhrase) -> Self {
+        DeterminerPhrase::Pronoun {
+            pronoun: value.pronoun,
+            reflexive: value.reflexive,
+        }
     }
 }
 
-impl NpComplementLike for ComplementizerPhrase {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl From<Pronoun> for DeterminerPhrase {
+    fn from(value: Pronoun) -> Self {
+        PronominalDeterminerPhrase::new(value).into()
     }
 }
 
-impl NpAdjunctLike for PrepositionalPhrase {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl From<Name> for DeterminerPhrase {
+    fn from(value: Name) -> Self {
+        DeterminerPhrase::proper_name(value.0)
     }
 }
 
-impl ApComplementLike for PrepositionalPhrase {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl From<AdjectivePhrase> for NpModifier {
+    fn from(value: AdjectivePhrase) -> Self {
+        Self::Adj(value)
     }
 }
 
-impl ApComplementLike for TensePhrase<ToInfinitive> {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl From<PrepositionalPhrase> for NpComplement {
+    fn from(value: PrepositionalPhrase) -> Self {
+        Self::PP(value)
     }
 }
 
-impl ApComplementLike for ComplementizerPhrase {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl From<TensePhrase<ToInfinitive>> for NpComplement {
+    fn from(value: TensePhrase<ToInfinitive>) -> Self {
+        Self::ToInf(value)
     }
 }
 
-impl AdvpComplementLike for PrepositionalPhrase {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl From<ComplementizerPhrase> for NpComplement {
+    fn from(value: ComplementizerPhrase) -> Self {
+        Self::CP(value)
     }
 }
 
-impl<T: DpLike> PpComplementLike for T {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into_determiner_phrase().into()
+impl From<PrepositionalPhrase> for NpAdjunct {
+    fn from(value: PrepositionalPhrase) -> Self {
+        Self::PP(value)
     }
 }
 
-impl PpComplementLike for PrepositionalPhrase {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl From<PrepositionalPhrase> for ApComplement {
+    fn from(value: PrepositionalPhrase) -> Self {
+        Self::PP(value)
     }
 }
 
-impl PpComplementLike for TensePhrase<Gerund> {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl From<TensePhrase<ToInfinitive>> for ApComplement {
+    fn from(value: TensePhrase<ToInfinitive>) -> Self {
+        Self::ToInf(value)
     }
 }
 
-impl PpComplementLike for ComplementizerPhrase {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl From<ComplementizerPhrase> for ApComplement {
+    fn from(value: ComplementizerPhrase) -> Self {
+        Self::CP(value)
     }
 }
 
-impl<T: DpLike> VpComplementLike for T {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into_determiner_phrase().into()
+impl From<PrepositionalPhrase> for AdvpComplement {
+    fn from(value: PrepositionalPhrase) -> Self {
+        Self::PP(value)
     }
 }
 
-impl VpComplementLike for PrepositionalPhrase {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl<T: DpLike> From<T> for PpComplement {
+    fn from(value: T) -> Self {
+        Self::DP(value.into_determiner_phrase())
     }
 }
 
-impl VpComplementLike for AdjectivePhrase {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl From<PrepositionalPhrase> for PpComplement {
+    fn from(value: PrepositionalPhrase) -> Self {
+        Self::PP(value)
     }
 }
 
-impl<Form: NonfiniteClauseForm> VpComplementLike for TensePhrase<Form> {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl From<TensePhrase<Gerund>> for PpComplement {
+    fn from(value: TensePhrase<Gerund>) -> Self {
+        Self::Gerund(value)
     }
 }
 
-impl VpComplementLike for ComplementizerPhrase {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl From<ComplementizerPhrase> for PpComplement {
+    fn from(value: ComplementizerPhrase) -> Self {
+        Self::CP(value)
     }
 }
 
-impl VpAdjunctLike for PrepositionalPhrase {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl<T: DpLike> From<T> for VpComplement {
+    fn from(value: T) -> Self {
+        Self::DP(value.into_determiner_phrase())
     }
 }
 
-impl VpAdjunctLike for AdverbPhrase {
-    fn into_slot_phrase(self) -> Phrase {
-        self.into()
+impl From<PrepositionalPhrase> for VpComplement {
+    fn from(value: PrepositionalPhrase) -> Self {
+        Self::PP(value)
     }
 }
 
-impl<T: NpModifierLike> IntoSlot<NpModifierSlot> for T {
-    fn into_phrase(self) -> Phrase {
-        self.into_slot_phrase()
+impl From<AdjectivePhrase> for VpComplement {
+    fn from(value: AdjectivePhrase) -> Self {
+        Self::AP(value)
     }
 }
 
-impl<T: NpComplementLike> IntoSlot<NpComplementSlot> for T {
-    fn into_phrase(self) -> Phrase {
-        self.into_slot_phrase()
+impl From<ComplementizerPhrase> for VpComplement {
+    fn from(value: ComplementizerPhrase) -> Self {
+        Self::CP(value)
     }
 }
 
-impl<T: NpAdjunctLike> IntoSlot<NpAdjunctSlot> for T {
-    fn into_phrase(self) -> Phrase {
-        self.into_slot_phrase()
+impl From<TensePhrase<BareInfinitive>> for VpComplement {
+    fn from(value: TensePhrase<BareInfinitive>) -> Self {
+        Self::BareInf(value)
     }
 }
 
-impl<T: ApComplementLike> IntoSlot<ApComplementSlot> for T {
-    fn into_phrase(self) -> Phrase {
-        self.into_slot_phrase()
+impl From<TensePhrase<ToInfinitive>> for VpComplement {
+    fn from(value: TensePhrase<ToInfinitive>) -> Self {
+        Self::ToInf(value)
     }
 }
 
-impl<T: AdvpComplementLike> IntoSlot<AdvpComplementSlot> for T {
-    fn into_phrase(self) -> Phrase {
-        self.into_slot_phrase()
+impl From<TensePhrase<Gerund>> for VpComplement {
+    fn from(value: TensePhrase<Gerund>) -> Self {
+        Self::Gerund(value)
     }
 }
 
-impl<T: PpComplementLike> IntoSlot<PpComplementSlot> for T {
-    fn into_phrase(self) -> Phrase {
-        self.into_slot_phrase()
+impl From<TensePhrase<PastParticiple>> for VpComplement {
+    fn from(value: TensePhrase<PastParticiple>) -> Self {
+        Self::PastParticiple(value)
     }
 }
 
-impl<T: VpComplementLike> IntoSlot<VpComplementSlot> for T {
-    fn into_phrase(self) -> Phrase {
-        self.into_slot_phrase()
+impl From<PrepositionalPhrase> for VpAdjunct {
+    fn from(value: PrepositionalPhrase) -> Self {
+        Self::PP(value)
     }
 }
 
-impl<T: VpAdjunctLike> IntoSlot<VpAdjunctSlot> for T {
-    fn into_phrase(self) -> Phrase {
-        self.into_slot_phrase()
+impl From<AdverbPhrase> for VpAdjunct {
+    fn from(value: AdverbPhrase) -> Self {
+        Self::AdvP(value)
     }
 }
+
+impl<T: DpLike> From<T> for CpSpecifier {
+    fn from(value: T) -> Self {
+        Self::DP(value.into_determiner_phrase())
+    }
+}
+
+impl From<NounPhrase> for CpSpecifier {
+    fn from(value: NounPhrase) -> Self {
+        Self::NP(value)
+    }
+}
+
+impl From<VerbPhrase> for CpSpecifier {
+    fn from(value: VerbPhrase) -> Self {
+        Self::VP(value)
+    }
+}
+
+impl From<PrepositionalPhrase> for CpSpecifier {
+    fn from(value: PrepositionalPhrase) -> Self {
+        Self::PP(value)
+    }
+}
+
+impl From<AdjectivePhrase> for CpSpecifier {
+    fn from(value: AdjectivePhrase) -> Self {
+        Self::AdjP(value)
+    }
+}
+
+impl From<AdverbPhrase> for CpSpecifier {
+    fn from(value: AdverbPhrase) -> Self {
+        Self::AdvP(value)
+    }
+}
+
+impl From<ComplementizerPhrase> for CpSpecifier {
+    fn from(value: ComplementizerPhrase) -> Self {
+        Self::CP(value)
+    }
+}
+
+impl From<TensePhrase<Finite>> for CpSpecifier {
+    fn from(value: TensePhrase<Finite>) -> Self {
+        Self::Finite(value)
+    }
+}
+
+impl From<TensePhrase<BareInfinitive>> for CpSpecifier {
+    fn from(value: TensePhrase<BareInfinitive>) -> Self {
+        Self::BareInf(value)
+    }
+}
+
+impl From<TensePhrase<ToInfinitive>> for CpSpecifier {
+    fn from(value: TensePhrase<ToInfinitive>) -> Self {
+        Self::ToInf(value)
+    }
+}
+
+impl From<TensePhrase<Gerund>> for CpSpecifier {
+    fn from(value: TensePhrase<Gerund>) -> Self {
+        Self::Gerund(value)
+    }
+}
+
+impl From<TensePhrase<PastParticiple>> for CpSpecifier {
+    fn from(value: TensePhrase<PastParticiple>) -> Self {
+        Self::PastParticiple(value)
+    }
+}
+
+impl private::Sealed for Finite {}
+impl private::Sealed for BareInfinitive {}
+impl private::Sealed for ToInfinitive {}
+impl private::Sealed for Gerund {}
+impl private::Sealed for PastParticiple {}
+impl private::Sealed for DeterminerPhrase {}
+impl private::Sealed for NominalDeterminerPhrase {}
+impl private::Sealed for PronominalDeterminerPhrase {}
+impl private::Sealed for NounPhrase {}
+impl private::Sealed for VerbPhrase {}
+impl<Form: ClauseForm> private::Sealed for TensePhrase<Form> {}
+impl private::Sealed for ComplementizerPhrase {}
+impl private::Sealed for PrepositionalPhrase {}
+impl private::Sealed for AdjectivePhrase {}
+impl private::Sealed for AdverbPhrase {}
+impl private::Sealed for Name {}
+impl private::Sealed for Pronoun {}
+impl private::Sealed for NpModifier {}
+impl private::Sealed for NpComplement {}
+impl private::Sealed for NpAdjunct {}
+impl private::Sealed for ApComplement {}
+impl private::Sealed for AdvpComplement {}
+impl private::Sealed for PpComplement {}
+impl private::Sealed for VpComplement {}
+impl private::Sealed for VpAdjunct {}
+impl private::Sealed for CpSpecifier {}
+
+impl ClauseForm for Finite {
+    fn verb_form(self) -> VerbForm {
+        VerbForm::Finite(self.0)
+    }
+}
+
+impl ClauseForm for BareInfinitive {
+    fn verb_form(self) -> VerbForm {
+        VerbForm::BareInfinitive
+    }
+}
+
+impl ClauseForm for ToInfinitive {
+    fn verb_form(self) -> VerbForm {
+        VerbForm::ToInfinitive
+    }
+}
+
+impl ClauseForm for Gerund {
+    fn verb_form(self) -> VerbForm {
+        VerbForm::GerundParticiple
+    }
+}
+
+impl ClauseForm for PastParticiple {
+    fn verb_form(self) -> VerbForm {
+        VerbForm::PastParticiple
+    }
+}
+
+impl NonfiniteClauseForm for BareInfinitive {}
+impl NonfiniteClauseForm for ToInfinitive {}
+impl NonfiniteClauseForm for Gerund {}
+impl NonfiniteClauseForm for PastParticiple {}

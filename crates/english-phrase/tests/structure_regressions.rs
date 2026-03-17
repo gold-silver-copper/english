@@ -1,24 +1,22 @@
 use english_phrase::*;
 
 #[test]
-fn phrase_enum_includes_public_tp() {
-    let phrase: Phrase = tp(vp("admire").complement(dp(Pronoun::She)))
+fn finite_clauses_remain_public_values() {
+    let clause = tp(vp("admire").complement(dp(Pronoun::She)))
         .present()
-        .subject(dp(Pronoun::He))
-        .into();
+        .subject(dp(Pronoun::He));
 
-    assert!(matches!(phrase, Phrase::TP(_)));
+    assert_eq!(clause.realize(), "he admires her");
 }
 
 #[test]
-fn phrase_enum_includes_public_cp() {
-    let phrase: Phrase = cp(tp(vp("admire").complement(dp(Pronoun::She)))
+fn complementizer_phrases_remain_public_values() {
+    let phrase = cp(tp(vp("admire").complement(dp(Pronoun::She)))
         .past()
         .subject(dp(Pronoun::He)))
-    .that()
-    .into();
+    .that();
 
-    assert!(matches!(phrase, Phrase::CP(_)));
+    assert_eq!(phrase.realize(), "that he admired her");
 }
 
 #[test]

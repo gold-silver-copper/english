@@ -1,8 +1,9 @@
 use crate::lexical::{Determiner, Pronoun};
 use crate::syntax::{
-    AdjectivePhrase, AdverbPhrase, ClauseForm, Complementizer, ComplementizerPhrase,
-    DeterminerPhrase, NominalDeterminerPhrase, NounPhrase, Phrase, PrepositionalPhrase,
-    PronominalDeterminerPhrase, Tense, TensePhrase, VerbForm, VerbPhrase,
+    AdjectivePhrase, AdverbPhrase, AdvpComplement, ApComplement, ClauseForm, Complementizer,
+    ComplementizerPhrase, CpSpecifier, DeterminerPhrase, NominalDeterminerPhrase, NounPhrase,
+    NpAdjunct, NpComplement, NpModifier, PpComplement, PrepositionalPhrase,
+    PronominalDeterminerPhrase, Tense, TensePhrase, VerbForm, VerbPhrase, VpAdjunct, VpComplement,
 };
 use english::{English, Form as MorphForm, Number, Person, Tense as MorphTense};
 
@@ -175,24 +176,6 @@ fn past_participle(lemma: &str) -> String {
     )
 }
 
-fn render_phrase_list(values: &[Box<Phrase>]) -> Vec<String> {
-    values
-        .iter()
-        .map(|value| render_phrase_in_context(value.as_ref(), DpRenderRole::Object))
-        .collect()
-}
-
-fn render_complement(phrase: &Phrase) -> String {
-    render_phrase_in_context(phrase, DpRenderRole::Object)
-}
-
-fn render_complement_list(values: &[Box<Phrase>]) -> Vec<String> {
-    values
-        .iter()
-        .map(|value| render_complement(value.as_ref()))
-        .collect()
-}
-
 fn agreement_from_dp(dp: &DeterminerPhrase) -> (Person, Number) {
     match dp {
         DeterminerPhrase::BareNominal(nominal)
@@ -205,20 +188,83 @@ fn agreement_from_dp(dp: &DeterminerPhrase) -> (Person, Number) {
     }
 }
 
-fn render_phrase(phrase: &Phrase) -> String {
-    render_phrase_in_context(phrase, DpRenderRole::Subject)
+fn render_np_modifier(modifier: &NpModifier) -> String {
+    match modifier {
+        NpModifier::Adj(ap) => render_ap(ap),
+    }
 }
 
-fn render_phrase_in_context(phrase: &Phrase, dp_role: DpRenderRole) -> String {
-    match phrase {
-        Phrase::CP(cp) => render_cp(cp),
-        Phrase::TP(tp) => render_tp(tp),
-        Phrase::DP(dp) => render_dp(dp, dp_role),
-        Phrase::NP(np) => render_np(np),
-        Phrase::VP(vp) => render_vp(vp, SubjectPosition::None),
-        Phrase::PP(pp) => render_pp(pp),
-        Phrase::AdjP(ap) => render_ap(ap),
-        Phrase::AdvP(advp) => render_advp(advp),
+fn render_np_complement(complement: &NpComplement) -> String {
+    match complement {
+        NpComplement::PP(pp) => render_pp(pp),
+        NpComplement::ToInf(tp) => render_tp(tp),
+        NpComplement::CP(cp) => render_cp(cp),
+    }
+}
+
+fn render_np_adjunct(adjunct: &NpAdjunct) -> String {
+    match adjunct {
+        NpAdjunct::PP(pp) => render_pp(pp),
+    }
+}
+
+fn render_ap_complement(complement: &ApComplement) -> String {
+    match complement {
+        ApComplement::PP(pp) => render_pp(pp),
+        ApComplement::ToInf(tp) => render_tp(tp),
+        ApComplement::CP(cp) => render_cp(cp),
+    }
+}
+
+fn render_advp_complement(complement: &AdvpComplement) -> String {
+    match complement {
+        AdvpComplement::PP(pp) => render_pp(pp),
+    }
+}
+
+fn render_pp_complement(complement: &PpComplement) -> String {
+    match complement {
+        PpComplement::DP(dp) => render_dp(dp, DpRenderRole::Object),
+        PpComplement::PP(pp) => render_pp(pp),
+        PpComplement::Gerund(tp) => render_tp(tp),
+        PpComplement::CP(cp) => render_cp(cp),
+    }
+}
+
+fn render_vp_complement(complement: &VpComplement) -> String {
+    match complement {
+        VpComplement::DP(dp) => render_dp(dp, DpRenderRole::Object),
+        VpComplement::PP(pp) => render_pp(pp),
+        VpComplement::AP(ap) => render_ap(ap),
+        VpComplement::CP(cp) => render_cp(cp),
+        VpComplement::BareInf(tp) => render_tp(tp),
+        VpComplement::ToInf(tp) => render_tp(tp),
+        VpComplement::Gerund(tp) => render_tp(tp),
+        VpComplement::PastParticiple(tp) => render_tp(tp),
+    }
+}
+
+fn render_vp_adjunct(adjunct: &VpAdjunct) -> String {
+    match adjunct {
+        VpAdjunct::PP(pp) => render_pp(pp),
+        VpAdjunct::AdvP(advp) => render_advp(advp),
+    }
+}
+
+fn render_cp_specifier(specifier: &CpSpecifier) -> String {
+    match specifier {
+        CpSpecifier::DP(dp) => render_dp(dp, DpRenderRole::Subject),
+        CpSpecifier::NP(np) => render_np(np),
+        CpSpecifier::VP(vp) => render_vp(vp, SubjectPosition::None),
+        CpSpecifier::PP(pp) => render_pp(pp),
+        CpSpecifier::AdjP(ap) => render_ap(ap),
+        CpSpecifier::AdvP(advp) => render_advp(advp),
+        CpSpecifier::CP(cp) => render_cp(cp),
+        CpSpecifier::Finite(tp) => render_tp(tp),
+        CpSpecifier::BareInf(tp) => render_tp(tp),
+        CpSpecifier::ToInf(tp) => render_tp(tp),
+        CpSpecifier::Gerund(tp) => render_tp(tp),
+        CpSpecifier::PastParticiple(tp) => render_tp(tp),
     }
 }
 
@@ -226,7 +272,7 @@ fn render_cp(cp: &ComplementizerPhrase) -> String {
     let mut parts = Vec::new();
 
     if let Some(specifier) = cp.specifier_opt() {
-        parts.push(render_phrase(specifier));
+        parts.push(render_cp_specifier(specifier));
     }
 
     if let Some(head) = render_complementizer(cp.head()) {
@@ -331,8 +377,8 @@ fn render_vp(vp: &VerbPhrase, subject_position: SubjectPosition) -> String {
     }
 
     parts.push(base_form(vp.head().as_str()));
-    parts.extend(render_complement_list(vp.complements()));
-    parts.extend(render_phrase_list(vp.adjuncts()));
+    parts.extend(vp.complements().iter().map(render_vp_complement));
+    parts.extend(vp.adjuncts().iter().map(render_vp_adjunct));
     join_nonempty(parts)
 }
 
@@ -343,8 +389,8 @@ fn render_vp_tail(vp: &VerbPhrase, subject_position: SubjectPosition) -> Vec<Str
         parts.push(subject);
     }
 
-    parts.extend(render_complement_list(vp.complements()));
-    parts.extend(render_phrase_list(vp.adjuncts()));
+    parts.extend(vp.complements().iter().map(render_vp_complement));
+    parts.extend(vp.adjuncts().iter().map(render_vp_adjunct));
     parts
 }
 
@@ -420,12 +466,10 @@ fn render_nominal_dp(
 }
 
 fn render_np(np: &NounPhrase) -> String {
-    let mut parts = render_phrase_list(np.modifiers());
-    parts.push(match np.head() {
-        entry => English::noun(entry.as_str(), np.number()),
-    });
-    parts.extend(render_complement_list(np.complements()));
-    parts.extend(render_phrase_list(np.adjuncts()));
+    let mut parts: Vec<String> = np.modifiers().iter().map(render_np_modifier).collect();
+    parts.push(English::noun(np.head().as_str(), np.number()));
+    parts.extend(np.complements().iter().map(render_np_complement));
+    parts.extend(np.adjuncts().iter().map(render_np_adjunct));
     join_nonempty(parts)
 }
 
@@ -447,7 +491,7 @@ fn render_ap(ap: &AdjectivePhrase) -> String {
         parts.push(render_advp(specifier));
     }
     parts.push(English::adj(ap.head().as_str(), &english::Degree::Positive));
-    parts.extend(render_complement_list(ap.complements()));
+    parts.extend(ap.complements().iter().map(render_ap_complement));
     join_nonempty(parts)
 }
 
@@ -457,18 +501,17 @@ fn render_advp(advp: &AdverbPhrase) -> String {
         parts.push(render_advp(specifier));
     }
     parts.push(advp.head().as_str().to_string());
-    parts.extend(render_phrase_list(advp.complements()));
+    parts.extend(advp.complements().iter().map(render_advp_complement));
     join_nonempty(parts)
 }
 
 fn render_pp(pp: &PrepositionalPhrase) -> String {
     join_nonempty(vec![
         pp.head().as_str().to_string(),
-        render_complement(pp.complement()),
+        render_pp_complement(pp.complement()),
     ])
 }
 
-impl private::Sealed for Phrase {}
 impl private::Sealed for DeterminerPhrase {}
 impl private::Sealed for NominalDeterminerPhrase {}
 impl private::Sealed for PronominalDeterminerPhrase {}
@@ -479,12 +522,6 @@ impl private::Sealed for PrepositionalPhrase {}
 impl private::Sealed for VerbPhrase {}
 impl<Form: ClauseForm> private::Sealed for TensePhrase<Form> {}
 impl private::Sealed for ComplementizerPhrase {}
-
-impl Realizable for Phrase {
-    fn realize_with(&self, options: RealizationOptions) -> String {
-        apply_realization_options(render_phrase(self), options)
-    }
-}
 
 impl Realizable for DeterminerPhrase {
     fn realize_with(&self, options: RealizationOptions) -> String {
