@@ -1,9 +1,9 @@
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Number {
     Singular,
     Plural,
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Case {
     Nominative,
     Accusative,
@@ -11,14 +11,14 @@ pub enum Case {
     Possessive,
     PersonalPossesive,
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Tense {
     Present,
     Past,
     // Future could be added too
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Form {
     Finite,
     Participle,
@@ -26,19 +26,19 @@ pub enum Form {
     // Transgressive, Supine, etc., depending on language
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Person {
     First,
     Second,
     Third,
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Gender {
     Masculine,
     Feminine,
     Neuter,
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Degree {
     Positive,
     Comparative,

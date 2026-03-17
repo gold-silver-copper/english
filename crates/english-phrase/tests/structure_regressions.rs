@@ -36,6 +36,23 @@ fn pp_complements_use_object_case_for_pronouns() {
 }
 
 #[test]
+fn phrase_pronouns_delegate_to_the_feature_based_paradigm() {
+    assert_eq!(dp(Pronoun::YouPlural).reflexive().realize(), "yourselves");
+    assert_eq!(
+        pp(
+            "with",
+            dp(Pronoun::new(
+                Person::Third,
+                Number::Singular,
+                Gender::Masculine,
+            )),
+        )
+        .realize(),
+        "with him"
+    );
+}
+
+#[test]
 fn orthography_is_realization_not_syntax() {
     let clause = tp(vp("admire").complement(dp(Pronoun::She)))
         .present()
@@ -84,7 +101,7 @@ fn noun_phrases_distinguish_selected_complements_from_pp_adjuncts() {
 #[test]
 fn object_gap_relative_clauses_realize_as_true_filler_gap_dependencies() {
     let phrase = np("editor").relative(
-        relcl(
+        cp(
             tp(vp("admire").object_gap())
                 .past()
                 .subject(dp(name("Alice"))),
@@ -98,7 +115,7 @@ fn object_gap_relative_clauses_realize_as_true_filler_gap_dependencies() {
 #[test]
 fn subject_gap_relative_clauses_carry_number_agreement_from_their_type() {
     let singular = np("editor").relative(
-        relcl(
+        cp(
             tp(vp("admire").complement(dp(Pronoun::She)))
                 .present()
                 .subject_gap::<SingularNumber>(),
@@ -106,7 +123,7 @@ fn subject_gap_relative_clauses_carry_number_agreement_from_their_type() {
         .who(),
     );
     let plural = np("editor").plural().relative(
-        relcl(
+        cp(
             tp(vp("admire").complement(dp(Pronoun::She)))
                 .present()
                 .subject_gap::<PluralNumber>(),

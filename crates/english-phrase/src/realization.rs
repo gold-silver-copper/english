@@ -1,11 +1,11 @@
 use crate::lexical::{Determiner, Pronoun};
 use crate::syntax::{
-    AdjectivePhrase, AdverbPhrase, AdvpComplement, ApComplement, ClauseForm, ClauseGap,
-    Complementizer, ComplementizerPhrase, DeterminerPhrase, NominalCountabilityMarker,
+    AdjectivePhrase, AdverbPhrase, AdvpComplement, ApComplement, Complementizer,
+    ComplementizerPhrase, DeterminerPhrase, NoGap, NominalCountabilityMarker,
     NominalDeterminerPhrase, NominalNumberMarker, NounPhrase, NounPhraseData, NpAdjunct,
-    NpComplement, NpModifier, PpComplement, PrepositionalPhrase, PronominalDeterminerPhrase,
-    RelativeClause, RelativeClauseData, RelativeGap, Relativizer, Tense, TensePhrase, VerbForm,
-    VerbPhrase, VpAdjunct, VpComplement,
+    NpComplement, NpModifier, PpComplement, PredicateGap, PrepositionalPhrase,
+    PronominalDeterminerPhrase, RelativeTpGap, Relativizer, Tense, TensePhrase, TpForm, TpGap,
+    VerbForm, VerbPhrase, VpAdjunct, VpComplement,
 };
 use english::{English, Form as MorphForm, Number, Person, Tense as MorphTense};
 
@@ -201,7 +201,9 @@ fn render_np_complement(complement: &NpComplement) -> String {
 fn render_np_adjunct(adjunct: &NpAdjunct) -> String {
     match adjunct {
         NpAdjunct::PP(pp) => render_pp(pp),
-        NpAdjunct::Relative(relative) => render_relative_clause_data(relative),
+        NpAdjunct::RelativeObject(relative) => render_relative_cp(relative),
+        NpAdjunct::RelativeSubjectSingular(relative) => render_relative_cp(relative),
+        NpAdjunct::RelativeSubjectPlural(relative) => render_relative_cp(relative),
     }
 }
 
@@ -249,7 +251,7 @@ fn render_vp_adjunct(adjunct: &VpAdjunct) -> String {
     }
 }
 
-fn render_cp(cp: &ComplementizerPhrase) -> String {
+fn render_cp(cp: &ComplementizerPhrase<NoGap>) -> String {
     let mut parts = Vec::new();
 
     if let Some(head) = render_complementizer(cp.head()) {
@@ -260,22 +262,14 @@ fn render_cp(cp: &ComplementizerPhrase) -> String {
     join_nonempty(parts)
 }
 
-fn render_relative_clause_data(relative: &RelativeClauseData) -> String {
-    match relative {
-        RelativeClauseData::Object(clause) => render_relative_clause(clause),
-        RelativeClauseData::SubjectSingular(clause) => render_relative_clause(clause),
-        RelativeClauseData::SubjectPlural(clause) => render_relative_clause(clause),
-    }
-}
-
-fn render_relative_clause<G: RelativeGap>(relative: &RelativeClause<G>) -> String {
+fn render_relative_cp<G: RelativeTpGap>(cp: &ComplementizerPhrase<G>) -> String {
     let mut parts = Vec::new();
 
-    if let Some(head) = render_relativizer(relative.head()) {
+    if let Some(head) = render_relativizer(cp.head()) {
         parts.push(head.to_string());
     }
 
-    parts.push(render_tp(relative.complement()));
+    parts.push(render_tp(cp.complement()));
     join_nonempty(parts)
 }
 
@@ -297,12 +291,12 @@ fn render_relativizer(head: Relativizer) -> Option<&'static str> {
     }
 }
 
-fn render_tp<Form: ClauseForm, G: ClauseGap>(tp: &TensePhrase<Form, G>) -> String {
+fn render_tp<Form: TpForm, G: TpGap>(tp: &TensePhrase<Form, G>) -> String {
     let surfaced_subject = tp
         .subject_opt()
         .map(|dp| render_dp(dp, DpRenderRole::Subject));
 
-    let predicate = render_tense_head(
+    let predicate = render_tense_head::<G>(
         tp.predicate(),
         tp.form(),
         tp.is_negative(),
@@ -316,8 +310,8 @@ fn render_tp<Form: ClauseForm, G: ClauseGap>(tp: &TensePhrase<Form, G>) -> Strin
     )
 }
 
-fn render_tense_head<G: ClauseGap>(
-    predicate: &VerbPhrase<G>,
+fn render_tense_head<G: TpGap>(
+    predicate: &VerbPhrase<G::PredicateGap>,
     form: VerbForm,
     negative: bool,
     subject: Option<&DeterminerPhrase>,
@@ -381,7 +375,7 @@ fn render_tense_head<G: ClauseGap>(
     join_nonempty(parts)
 }
 
-fn render_vp<G: ClauseGap>(vp: &VerbPhrase<G>) -> String {
+fn render_vp<G: PredicateGap>(vp: &VerbPhrase<G>) -> String {
     let mut parts = Vec::new();
     parts.push(base_form(vp.head().as_str()));
     parts.extend(
@@ -514,10 +508,10 @@ impl<N: NominalNumberMarker, C: NominalCountabilityMarker> private::Sealed for N
 impl private::Sealed for AdjectivePhrase {}
 impl private::Sealed for AdverbPhrase {}
 impl private::Sealed for PrepositionalPhrase {}
-impl<G: ClauseGap> private::Sealed for VerbPhrase<G> {}
-impl<Form: ClauseForm, G: ClauseGap> private::Sealed for TensePhrase<Form, G> {}
-impl private::Sealed for ComplementizerPhrase {}
-impl<G: RelativeGap> private::Sealed for RelativeClause<G> {}
+impl<G: PredicateGap> private::Sealed for VerbPhrase<G> {}
+impl<Form: TpForm, G: TpGap> private::Sealed for TensePhrase<Form, G> {}
+impl private::Sealed for ComplementizerPhrase<NoGap> {}
+impl<G: RelativeTpGap> private::Sealed for ComplementizerPhrase<G> {}
 
 impl Realizable for DeterminerPhrase {
     fn realize_with(&self, options: RealizationOptions) -> String {
@@ -565,26 +559,26 @@ impl Realizable for PrepositionalPhrase {
     }
 }
 
-impl<G: ClauseGap> Realizable for VerbPhrase<G> {
+impl<G: PredicateGap> Realizable for VerbPhrase<G> {
     fn realize_with(&self, options: RealizationOptions) -> String {
         apply_realization_options(render_vp(self), options)
     }
 }
 
-impl<Form: ClauseForm, G: ClauseGap> Realizable for TensePhrase<Form, G> {
+impl<Form: TpForm, G: TpGap> Realizable for TensePhrase<Form, G> {
     fn realize_with(&self, options: RealizationOptions) -> String {
         apply_realization_options(render_tp(self), options)
     }
 }
 
-impl Realizable for ComplementizerPhrase {
+impl Realizable for ComplementizerPhrase<NoGap> {
     fn realize_with(&self, options: RealizationOptions) -> String {
         apply_realization_options(render_cp(self), options)
     }
 }
 
-impl<G: RelativeGap> Realizable for RelativeClause<G> {
+impl<G: RelativeTpGap> Realizable for ComplementizerPhrase<G> {
     fn realize_with(&self, options: RealizationOptions) -> String {
-        apply_realization_options(render_relative_clause(self), options)
+        apply_realization_options(render_relative_cp(self), options)
     }
 }

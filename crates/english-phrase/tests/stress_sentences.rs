@@ -1,6 +1,7 @@
 use english_phrase::*;
+use english_phrase::syntax::TpForm;
 
-fn assert_sentence<Form: ClauseForm>(clause: TensePhrase<Form>, expected: &str) {
+fn assert_sentence<Form: TpForm>(clause: TensePhrase<Form>, expected: &str) {
     assert_eq!(
         clause.realize_with(RealizationOptions::sentence()),
         expected

@@ -33,27 +33,55 @@ pub enum Countability {
     Mass,
 }
 
-pub trait ClauseForm: private::Sealed + Copy {
+#[doc(hidden)]
+pub trait TpForm: private::Sealed + Copy {
     fn verb_form(self) -> VerbForm;
 }
 
-pub trait NonfiniteClauseForm: ClauseForm {}
+#[doc(hidden)]
+pub trait NonfiniteTpForm: TpForm {}
 
+#[doc(hidden)]
 pub trait NominalNumberMarker: private::Sealed + Copy {
     fn number() -> Number;
 }
 
+#[doc(hidden)]
 pub trait NominalCountabilityMarker: private::Sealed + Copy {
     fn countability() -> Countability;
 }
 
-pub trait ClauseGap: private::Sealed + Copy {
+#[doc(hidden)]
+pub trait PredicateGap: private::Sealed + Copy + std::fmt::Debug + PartialEq + Eq {}
+
+#[doc(hidden)]
+pub trait TpGap: private::Sealed + Copy {
+    type PredicateGap: PredicateGap;
+
     fn subject_agreement() -> Option<(Person, Number)> {
         None
     }
 }
 
-pub trait RelativeGap: ClauseGap {}
+#[doc(hidden)]
+pub trait CpGap: TpGap {
+    fn default_complementizer() -> Option<Complementizer> {
+        None
+    }
+
+    fn default_relativizer() -> Option<Relativizer> {
+        None
+    }
+}
+
+#[doc(hidden)]
+pub trait RelativeTpGap: CpGap {}
+
+#[doc(hidden)]
+pub trait BaseTpGap: TpGap<PredicateGap = Self> + PredicateGap {}
+
+#[doc(hidden)]
+pub trait OvertTpGap: TpGap {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Finite(Tense);
@@ -141,6 +169,12 @@ pub enum Relativizer {
     That,
     Who,
     Which,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CpHead {
+    Content(Complementizer),
+    Relative(Relativizer),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -241,11 +275,9 @@ impl<N: NominalNumberMarker, C: NominalCountabilityMarker> NounPhrase<N, C> {
 
     pub fn relative<R>(mut self, relative: R) -> Self
     where
-        R: RelativeClauseAttachment<N>,
+        R: RelativeCpAttachment<N>,
     {
-        self.data
-            .adjuncts
-            .push(NpAdjunct::Relative(relative.into_relative_clause_data()));
+        self.data.adjuncts.push(relative.into_np_adjunct());
         self
     }
 
@@ -576,7 +608,7 @@ impl PrepositionalPhrase {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct VerbPhrase<G: ClauseGap = NoGap> {
+pub struct VerbPhrase<G: PredicateGap = NoGap> {
     head: VerbEntry,
     complements: Vec<VpComplement>,
     adjuncts: Vec<VpAdjunct>,
@@ -604,7 +636,7 @@ impl VerbPhrase<NoGap> {
     }
 }
 
-impl<G: ClauseGap> VerbPhrase<G> {
+impl<G: PredicateGap> VerbPhrase<G> {
     /// ```
     /// use english_phrase::*;
     ///
@@ -640,32 +672,85 @@ impl<G: ClauseGap> VerbPhrase<G> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct TensePhrase<Form: ClauseForm, G: ClauseGap = NoGap> {
+#[derive(Clone)]
+struct VerbProjection<G: TpGap = NoGap> {
     subject: Option<DeterminerPhrase>,
-    form: Form,
-    negative: bool,
-    predicate: VerbPhrase<G>,
+    predicate: VerbPhrase<G::PredicateGap>,
 }
 
-impl<G: ClauseGap> TensePhrase<BareInfinitive, G> {
-    pub fn new(predicate: VerbPhrase<G>) -> Self {
+impl<G: BaseTpGap> VerbProjection<G> {
+    fn new(predicate: VerbPhrase<G>) -> Self {
         Self {
             subject: None,
-            form: BareInfinitive,
-            negative: false,
             predicate,
         }
     }
 }
 
-impl<Form: ClauseForm, G: ClauseGap> TensePhrase<Form, G> {
-    fn map_form<Next: ClauseForm>(self, form: Next) -> TensePhrase<Next, G> {
+impl<G: TpGap> VerbProjection<G> {
+    fn subject_opt(&self) -> Option<&DeterminerPhrase> {
+        self.subject.as_ref()
+    }
+
+    fn predicate(&self) -> &VerbPhrase<G::PredicateGap> {
+        &self.predicate
+    }
+}
+
+impl<G: TpGap> std::fmt::Debug for VerbProjection<G> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("VerbProjection")
+            .field("subject", &self.subject)
+            .field("predicate", &self.predicate)
+            .finish()
+    }
+}
+
+impl<G: TpGap> PartialEq for VerbProjection<G> {
+    fn eq(&self, other: &Self) -> bool {
+        self.subject == other.subject && self.predicate == other.predicate
+    }
+}
+
+impl<G: OvertTpGap> VerbProjection<G> {
+    fn subject<S: Into<DeterminerPhrase>>(mut self, subject: S) -> Self {
+        self.subject = Some(subject.into());
+        self
+    }
+}
+
+impl VerbProjection<NoGap> {
+    fn subject_gap<N: NominalNumberMarker>(self) -> VerbProjection<SubjectGap<N>> {
+        VerbProjection {
+            subject: None,
+            predicate: self.predicate,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TensePhrase<Form: TpForm, G: TpGap = NoGap> {
+    projection: VerbProjection<G>,
+    form: Form,
+    negative: bool,
+}
+
+impl<G: BaseTpGap> TensePhrase<BareInfinitive, G> {
+    pub fn new(predicate: VerbPhrase<G>) -> Self {
+        Self {
+            projection: VerbProjection::new(predicate),
+            form: BareInfinitive,
+            negative: false,
+        }
+    }
+}
+
+impl<Form: TpForm, G: TpGap> TensePhrase<Form, G> {
+    fn map_form<Next: TpForm>(self, form: Next) -> TensePhrase<Next, G> {
         TensePhrase {
-            subject: self.subject,
+            projection: self.projection,
             form,
             negative: self.negative,
-            predicate: self.predicate,
         }
     }
 
@@ -699,7 +784,7 @@ impl<Form: ClauseForm, G: ClauseGap> TensePhrase<Form, G> {
     }
 
     pub fn subject_opt(&self) -> Option<&DeterminerPhrase> {
-        self.subject.as_ref()
+        self.projection.subject_opt()
     }
 
     pub fn form(&self) -> VerbForm {
@@ -710,56 +795,59 @@ impl<Form: ClauseForm, G: ClauseGap> TensePhrase<Form, G> {
         self.negative
     }
 
-    pub fn predicate(&self) -> &VerbPhrase<G> {
-        &self.predicate
+    pub fn predicate(&self) -> &VerbPhrase<G::PredicateGap> {
+        self.projection.predicate()
     }
 }
 
-impl<Form: ClauseForm> TensePhrase<Form, NoGap> {
+impl<Form: TpForm, G: OvertTpGap> TensePhrase<Form, G> {
     pub fn subject<S: Into<DeterminerPhrase>>(mut self, subject: S) -> Self {
-        self.subject = Some(subject.into());
+        self.projection = self.projection.subject(subject);
         self
     }
+}
 
-    pub fn subject_gap<N: NominalNumberMarker>(mut self) -> TensePhrase<Form, SubjectGap<N>> {
-        self.subject = None;
+impl<Form: TpForm> TensePhrase<Form, NoGap> {
+    pub fn subject_gap<N: NominalNumberMarker>(self) -> TensePhrase<Form, SubjectGap<N>> {
         TensePhrase {
-            subject: self.subject,
+            projection: self.projection.subject_gap(),
             form: self.form,
             negative: self.negative,
-            predicate: VerbPhrase {
-                head: self.predicate.head,
-                complements: self.predicate.complements,
-                adjuncts: self.predicate.adjuncts,
-                _gap: PhantomData,
-            },
         }
-    }
-}
-
-impl<Form: ClauseForm> TensePhrase<Form, ObjectGap> {
-    pub fn subject<S: Into<DeterminerPhrase>>(mut self, subject: S) -> Self {
-        self.subject = Some(subject.into());
-        self
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ComplementizerPhrase {
-    head: Complementizer,
-    complement: Box<TensePhrase<Finite, NoGap>>,
+pub struct ComplementizerPhrase<G: CpGap = NoGap> {
+    head: CpHead,
+    complement: Box<TensePhrase<Finite, G>>,
 }
 
-impl ComplementizerPhrase {
-    pub fn new(complement: TensePhrase<Finite, NoGap>) -> Self {
+impl<G: CpGap> ComplementizerPhrase<G> {
+    pub fn new(complement: TensePhrase<Finite, G>) -> Self {
+        let head = if let Some(head) = G::default_complementizer() {
+            CpHead::Content(head)
+        } else {
+            CpHead::Relative(
+                G::default_relativizer()
+                    .expect("CP gaps must define either a complementizer or a relativizer"),
+            )
+        };
+
         Self {
-            head: Complementizer::Null,
+            head,
             complement: Box::new(complement),
         }
     }
 
+    pub fn complement(&self) -> &TensePhrase<Finite, G> {
+        &self.complement
+    }
+}
+
+impl ComplementizerPhrase<NoGap> {
     pub fn complementizer(mut self, head: Complementizer) -> Self {
-        self.head = head;
+        self.head = CpHead::Content(head);
         self
     }
 
@@ -780,30 +868,21 @@ impl ComplementizerPhrase {
     }
 
     pub fn head(&self) -> Complementizer {
-        self.head
-    }
-
-    pub fn complement(&self) -> &TensePhrase<Finite, NoGap> {
-        &self.complement
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct RelativeClause<G: RelativeGap> {
-    head: Relativizer,
-    complement: Box<TensePhrase<Finite, G>>,
-}
-
-impl<G: RelativeGap> RelativeClause<G> {
-    pub fn new(complement: TensePhrase<Finite, G>) -> Self {
-        Self {
-            head: Relativizer::Null,
-            complement: Box::new(complement),
+        match self.head {
+            CpHead::Content(head) => head,
+            CpHead::Relative(_) => unreachable!("content CPs only carry complementizers"),
         }
     }
+}
 
+#[doc(hidden)]
+pub trait RelativeCpAttachment<N: NominalNumberMarker>: private::Sealed {
+    fn into_np_adjunct(self) -> NpAdjunct;
+}
+
+impl<G: RelativeTpGap> ComplementizerPhrase<G> {
     pub fn relativizer(mut self, head: Relativizer) -> Self {
-        self.head = head;
+        self.head = CpHead::Relative(head);
         self
     }
 
@@ -824,24 +903,11 @@ impl<G: RelativeGap> RelativeClause<G> {
     }
 
     pub fn head(&self) -> Relativizer {
-        self.head
+        match self.head {
+            CpHead::Relative(head) => head,
+            CpHead::Content(_) => unreachable!("relative CPs only carry relativizers"),
+        }
     }
-
-    pub fn complement(&self) -> &TensePhrase<Finite, G> {
-        &self.complement
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-#[doc(hidden)]
-pub enum RelativeClauseData {
-    Object(RelativeClause<ObjectGap>),
-    SubjectSingular(RelativeClause<SubjectGap<SingularNumber>>),
-    SubjectPlural(RelativeClause<SubjectGap<PluralNumber>>),
-}
-
-pub trait RelativeClauseAttachment<N: NominalNumberMarker>: private::Sealed {
-    fn into_relative_clause_data(self) -> RelativeClauseData;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -853,20 +919,22 @@ pub enum NpModifier {
 pub enum NpComplement {
     PP(PrepositionalPhrase),
     ToInf(TensePhrase<ToInfinitive>),
-    CP(ComplementizerPhrase),
+    CP(ComplementizerPhrase<NoGap>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum NpAdjunct {
     PP(PrepositionalPhrase),
-    Relative(RelativeClauseData),
+    RelativeObject(ComplementizerPhrase<ObjectGap>),
+    RelativeSubjectSingular(ComplementizerPhrase<SubjectGap<SingularNumber>>),
+    RelativeSubjectPlural(ComplementizerPhrase<SubjectGap<PluralNumber>>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ApComplement {
     PP(PrepositionalPhrase),
     ToInf(TensePhrase<ToInfinitive>),
-    CP(ComplementizerPhrase),
+    CP(ComplementizerPhrase<NoGap>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -879,7 +947,7 @@ pub enum PpComplement {
     DP(DeterminerPhrase),
     PP(PrepositionalPhrase),
     Gerund(TensePhrase<Gerund>),
-    CP(ComplementizerPhrase),
+    CP(ComplementizerPhrase<NoGap>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -887,7 +955,7 @@ pub enum VpComplement {
     DP(DeterminerPhrase),
     PP(PrepositionalPhrase),
     AP(AdjectivePhrase),
-    CP(ComplementizerPhrase),
+    CP(ComplementizerPhrase<NoGap>),
     BareInf(TensePhrase<BareInfinitive>),
     ToInf(TensePhrase<ToInfinitive>),
     Gerund(TensePhrase<Gerund>),
@@ -944,15 +1012,18 @@ pub fn vp(head: impl Into<VerbEntry>) -> VerbPhrase<NoGap> {
     VerbPhrase::new(head)
 }
 
-pub fn tp<G: ClauseGap>(predicate: VerbPhrase<G>) -> TensePhrase<BareInfinitive, G> {
+pub fn tp<G>(predicate: VerbPhrase<G>) -> TensePhrase<BareInfinitive, G>
+where
+    G: BaseTpGap,
+{
     TensePhrase::new(predicate)
 }
 
 /// ```
 /// use english_phrase::*;
 ///
-/// let phrase = cp(tp(vp("arrive")).past().subject(dp(Pronoun::She)));
-/// assert_eq!(phrase.realize(), "she arrived");
+/// let phrase = cp(tp(vp("arrive")).past().subject(dp(Pronoun::She))).that();
+/// assert_eq!(phrase.realize(), "that she arrived");
 /// ```
 ///
 /// ```compile_fail
@@ -960,12 +1031,8 @@ pub fn tp<G: ClauseGap>(predicate: VerbPhrase<G>) -> TensePhrase<BareInfinitive,
 ///
 /// let _ = cp(tp(vp("leave")).to_infinitive());
 /// ```
-pub fn cp(complement: TensePhrase<Finite, NoGap>) -> ComplementizerPhrase {
+pub fn cp<G: CpGap>(complement: TensePhrase<Finite, G>) -> ComplementizerPhrase<G> {
     ComplementizerPhrase::new(complement)
-}
-
-pub fn relcl<G: RelativeGap>(complement: TensePhrase<Finite, G>) -> RelativeClause<G> {
-    RelativeClause::new(complement)
 }
 
 #[doc(hidden)]
@@ -1104,8 +1171,8 @@ impl From<TensePhrase<ToInfinitive>> for NpComplement {
     }
 }
 
-impl From<ComplementizerPhrase> for NpComplement {
-    fn from(value: ComplementizerPhrase) -> Self {
+impl From<ComplementizerPhrase<NoGap>> for NpComplement {
+    fn from(value: ComplementizerPhrase<NoGap>) -> Self {
         Self::CP(value)
     }
 }
@@ -1116,21 +1183,21 @@ impl From<PrepositionalPhrase> for NpAdjunct {
     }
 }
 
-impl<N: NominalNumberMarker> RelativeClauseAttachment<N> for RelativeClause<ObjectGap> {
-    fn into_relative_clause_data(self) -> RelativeClauseData {
-        RelativeClauseData::Object(self)
+impl<N: NominalNumberMarker> RelativeCpAttachment<N> for ComplementizerPhrase<ObjectGap> {
+    fn into_np_adjunct(self) -> NpAdjunct {
+        NpAdjunct::RelativeObject(self)
     }
 }
 
-impl RelativeClauseAttachment<SingularNumber> for RelativeClause<SubjectGap<SingularNumber>> {
-    fn into_relative_clause_data(self) -> RelativeClauseData {
-        RelativeClauseData::SubjectSingular(self)
+impl RelativeCpAttachment<SingularNumber> for ComplementizerPhrase<SubjectGap<SingularNumber>> {
+    fn into_np_adjunct(self) -> NpAdjunct {
+        NpAdjunct::RelativeSubjectSingular(self)
     }
 }
 
-impl RelativeClauseAttachment<PluralNumber> for RelativeClause<SubjectGap<PluralNumber>> {
-    fn into_relative_clause_data(self) -> RelativeClauseData {
-        RelativeClauseData::SubjectPlural(self)
+impl RelativeCpAttachment<PluralNumber> for ComplementizerPhrase<SubjectGap<PluralNumber>> {
+    fn into_np_adjunct(self) -> NpAdjunct {
+        NpAdjunct::RelativeSubjectPlural(self)
     }
 }
 
@@ -1146,8 +1213,8 @@ impl From<TensePhrase<ToInfinitive>> for ApComplement {
     }
 }
 
-impl From<ComplementizerPhrase> for ApComplement {
-    fn from(value: ComplementizerPhrase) -> Self {
+impl From<ComplementizerPhrase<NoGap>> for ApComplement {
+    fn from(value: ComplementizerPhrase<NoGap>) -> Self {
         Self::CP(value)
     }
 }
@@ -1176,8 +1243,8 @@ impl From<TensePhrase<Gerund>> for PpComplement {
     }
 }
 
-impl From<ComplementizerPhrase> for PpComplement {
-    fn from(value: ComplementizerPhrase) -> Self {
+impl From<ComplementizerPhrase<NoGap>> for PpComplement {
+    fn from(value: ComplementizerPhrase<NoGap>) -> Self {
         Self::CP(value)
     }
 }
@@ -1200,8 +1267,8 @@ impl From<AdjectivePhrase> for VpComplement {
     }
 }
 
-impl From<ComplementizerPhrase> for VpComplement {
-    fn from(value: ComplementizerPhrase) -> Self {
+impl From<ComplementizerPhrase<NoGap>> for VpComplement {
+    fn from(value: ComplementizerPhrase<NoGap>) -> Self {
         Self::CP(value)
     }
 }
@@ -1262,10 +1329,9 @@ impl<N: NominalNumberMarker, C: NominalCountabilityMarker> private::Sealed
 }
 impl private::Sealed for PronominalDeterminerPhrase {}
 impl<N: NominalNumberMarker, C: NominalCountabilityMarker> private::Sealed for NounPhrase<N, C> {}
-impl<G: ClauseGap> private::Sealed for VerbPhrase<G> {}
-impl<Form: ClauseForm, G: ClauseGap> private::Sealed for TensePhrase<Form, G> {}
-impl private::Sealed for ComplementizerPhrase {}
-impl<G: RelativeGap> private::Sealed for RelativeClause<G> {}
+impl<G: PredicateGap> private::Sealed for VerbPhrase<G> {}
+impl<Form: TpForm, G: TpGap> private::Sealed for TensePhrase<Form, G> {}
+impl<G: CpGap> private::Sealed for ComplementizerPhrase<G> {}
 impl private::Sealed for PrepositionalPhrase {}
 impl private::Sealed for AdjectivePhrase {}
 impl private::Sealed for AdverbPhrase {}
@@ -1279,40 +1345,40 @@ impl private::Sealed for AdvpComplement {}
 impl private::Sealed for PpComplement {}
 impl private::Sealed for VpComplement {}
 impl private::Sealed for VpAdjunct {}
-impl ClauseForm for Finite {
+impl TpForm for Finite {
     fn verb_form(self) -> VerbForm {
         VerbForm::Finite(self.0)
     }
 }
 
-impl ClauseForm for BareInfinitive {
+impl TpForm for BareInfinitive {
     fn verb_form(self) -> VerbForm {
         VerbForm::BareInfinitive
     }
 }
 
-impl ClauseForm for ToInfinitive {
+impl TpForm for ToInfinitive {
     fn verb_form(self) -> VerbForm {
         VerbForm::ToInfinitive
     }
 }
 
-impl ClauseForm for Gerund {
+impl TpForm for Gerund {
     fn verb_form(self) -> VerbForm {
         VerbForm::GerundParticiple
     }
 }
 
-impl ClauseForm for PastParticiple {
+impl TpForm for PastParticiple {
     fn verb_form(self) -> VerbForm {
         VerbForm::PastParticiple
     }
 }
 
-impl NonfiniteClauseForm for BareInfinitive {}
-impl NonfiniteClauseForm for ToInfinitive {}
-impl NonfiniteClauseForm for Gerund {}
-impl NonfiniteClauseForm for PastParticiple {}
+impl NonfiniteTpForm for BareInfinitive {}
+impl NonfiniteTpForm for ToInfinitive {}
+impl NonfiniteTpForm for Gerund {}
+impl NonfiniteTpForm for PastParticiple {}
 
 impl NominalNumberMarker for SingularNumber {
     fn number() -> Number {
@@ -1344,15 +1410,48 @@ impl NominalCountabilityMarker for MassNoun {
     }
 }
 
-impl ClauseGap for NoGap {}
+impl PredicateGap for NoGap {}
+impl PredicateGap for ObjectGap {}
 
-impl ClauseGap for ObjectGap {}
+impl BaseTpGap for NoGap {}
+impl BaseTpGap for ObjectGap {}
 
-impl<N: NominalNumberMarker> ClauseGap for SubjectGap<N> {
+impl OvertTpGap for NoGap {}
+impl OvertTpGap for ObjectGap {}
+
+impl TpGap for NoGap {
+    type PredicateGap = NoGap;
+}
+
+impl TpGap for ObjectGap {
+    type PredicateGap = ObjectGap;
+}
+
+impl<N: NominalNumberMarker> TpGap for SubjectGap<N> {
+    type PredicateGap = NoGap;
+
     fn subject_agreement() -> Option<(Person, Number)> {
         Some((Person::Third, N::number()))
     }
 }
 
-impl RelativeGap for ObjectGap {}
-impl<N: NominalNumberMarker> RelativeGap for SubjectGap<N> {}
+impl CpGap for NoGap {
+    fn default_complementizer() -> Option<Complementizer> {
+        Some(Complementizer::Null)
+    }
+}
+
+impl CpGap for ObjectGap {
+    fn default_relativizer() -> Option<Relativizer> {
+        Some(Relativizer::Null)
+    }
+}
+
+impl<N: NominalNumberMarker> CpGap for SubjectGap<N> {
+    fn default_relativizer() -> Option<Relativizer> {
+        Some(Relativizer::Null)
+    }
+}
+
+impl RelativeTpGap for ObjectGap {}
+impl<N: NominalNumberMarker> RelativeTpGap for SubjectGap<N> {}
