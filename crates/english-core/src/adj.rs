@@ -5,8 +5,8 @@ impl EnglishCore {
     pub fn adjective(word: &str, degree: &Degree) -> String {
         match degree {
             Degree::Positive => word.to_string(),
-            Degree::Comparative => Self::superlative(word),
-            Degree::Superlative => Self::comparative(word),
+            Degree::Comparative => Self::comparative(word),
+            Degree::Superlative => Self::superlative(word),
         }
     }
     pub fn superlative(word: &str) -> String {
