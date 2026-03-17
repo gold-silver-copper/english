@@ -80,3 +80,40 @@ fn noun_phrases_distinguish_selected_complements_from_pp_adjuncts() {
 
     assert_eq!(phrase.realize(), "map of the cave from the museum");
 }
+
+#[test]
+fn object_gap_relative_clauses_realize_as_true_filler_gap_dependencies() {
+    let phrase = np("editor").relative(
+        relcl(
+            tp(vp("admire").object_gap())
+                .past()
+                .subject(dp(name("Alice"))),
+        )
+        .that(),
+    );
+
+    assert_eq!(phrase.realize(), "editor that Alice admired");
+}
+
+#[test]
+fn subject_gap_relative_clauses_carry_number_agreement_from_their_type() {
+    let singular = np("editor").relative(
+        relcl(
+            tp(vp("admire").complement(dp(Pronoun::She)))
+                .present()
+                .subject_gap::<SingularNumber>(),
+        )
+        .who(),
+    );
+    let plural = np("editor").plural().relative(
+        relcl(
+            tp(vp("admire").complement(dp(Pronoun::She)))
+                .present()
+                .subject_gap::<PluralNumber>(),
+        )
+        .who(),
+    );
+
+    assert_eq!(singular.realize(), "editor who admires her");
+    assert_eq!(plural.realize(), "editors who admire her");
+}

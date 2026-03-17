@@ -10,9 +10,12 @@ pub use crate::lexical::{
 pub use crate::realization::{Realizable, RealizationOptions, Terminal};
 pub use crate::syntax::{
     AdjectivePhrase, AdverbPhrase, AdvpComplement, ApComplement, BareInfinitive, ClauseForm,
-    Complementizer, ComplementizerPhrase, CpSpecifier, DeterminerPhrase, Finite, Gerund, Name,
-    NominalDeterminerPhrase, NonfiniteClauseForm, NounPhrase, NpAdjunct, NpComplement, NpModifier,
-    PastParticiple, PpComplement, PrepositionalPhrase, PronominalDeterminerPhrase, Tense,
-    TensePhrase, ToInfinitive, VerbForm, VerbPhrase, VpAdjunct, VpComplement, adjp, advp, cp, dp,
-    name, np, pp, tp, vp,
+    ClauseGap, Complementizer, ComplementizerPhrase, CountNoun, Countability, DeterminerPhrase,
+    Finite, Gerund, MassNoun, Name, NoGap, NominalCountabilityMarker, NominalDeterminerPhrase,
+    NominalNumberMarker, NonfiniteClauseForm, NounPhrase, NpAdjunct, NpComplement, NpModifier,
+    ObjectGap, PastParticiple, PluralNumber, PpComplement, PrepositionalPhrase,
+    PronominalDeterminerPhrase, RelativeClause, RelativeClauseAttachment, RelativeClauseData,
+    RelativeGap, Relativizer, SingularNumber, SubjectGap, Tense, TensePhrase, ToInfinitive,
+    UnknownCountability, VerbForm, VerbPhrase, VpAdjunct, VpComplement, adjp, advp, cp, dp, name,
+    np, pp, relcl, tp, vp,
 };

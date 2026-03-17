@@ -172,6 +172,7 @@ fn those_remarkably_detailed_reports_about_the_northern_coast_alarmed_the_commit
 #[test]
 fn an_unusually_quiet_engine_under_the_old_staircase_alarmed_the_patient_mechanic() {
     let subject = dp(np("engine")
+        .countable()
         .modifier(adjp("quiet").modifier(advp("unusually")))
         .complement(pp("under", dp(np("staircase").modifier(adjp("old"))).the())))
     .indefinite();
@@ -225,7 +226,7 @@ fn we_did_not_expect_the_editor_with_a_lantern_to_read_the_manuscript_after_midn
         .complement(
             dp(np("editor")
                 .modifier(adjp("patient").modifier(advp("remarkably")))
-                .complement(pp("with", dp(np("lantern")).indefinite())))
+                .complement(pp("with", dp(np("lantern").countable()).indefinite())))
             .the(),
         )
         .complement(
