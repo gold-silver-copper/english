@@ -1,4 +1,4 @@
-use english::Animacy;
+use english::{Animacy, Gender, Number, Person};
 use english_ccg::cat;
 use english_ccg::prelude::*;
 
@@ -102,7 +102,17 @@ fn entry_driven_ccg_examples() {
         "Jordan trusts Alice."
     );
 
-    let s = pronoun(Pronoun::She) + verb(&trust).past() + pronoun(Pronoun::Him);
+    let she = referent()
+        .person(Person::Third)
+        .number(Number::Singular)
+        .gender(Gender::Feminine)
+        .animate();
+    let him = referent()
+        .person(Person::Third)
+        .number(Number::Singular)
+        .gender(Gender::Masculine)
+        .animate();
+    let s = pro(&she) + verb(&trust).past() + pro(&him);
     assert_eq!(realize_as(&s, RealizeOpts::sentence()), "She trusted him.");
 
     let s = name(&alice)

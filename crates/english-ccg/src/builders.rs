@@ -1,6 +1,6 @@
 use std::ops::Add;
 
-use english::{Animacy, English, Gender, Number, Person, Pronoun};
+use english::{Animacy, Case, English, Gender, Number, Person};
 
 use crate::cat::{bwd, fwd, Cat};
 use crate::derivation::{token, AgreementInfo, Ccg, TokenKind};
@@ -52,6 +52,79 @@ pub struct VerbBuilder {
 #[derive(Debug, Clone)]
 pub struct PrepBuilder {
     lemma: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Referent {
+    person: Person,
+    number: Number,
+    gender: Gender,
+    animacy: Animacy,
+}
+
+impl Default for Referent {
+    fn default() -> Self {
+        Self {
+            person: Person::Third,
+            number: Number::Singular,
+            gender: Gender::Neuter,
+            animacy: Animacy::Inanimate,
+        }
+    }
+}
+
+impl Referent {
+    pub fn person(mut self, person: Person) -> Self {
+        self.person = person;
+        self
+    }
+
+    pub fn number(mut self, number: Number) -> Self {
+        self.number = number;
+        self
+    }
+
+    pub fn gender(mut self, gender: Gender) -> Self {
+        self.gender = gender;
+        self
+    }
+
+    pub fn animacy(mut self, animacy: Animacy) -> Self {
+        self.animacy = animacy;
+        self
+    }
+
+    pub fn animate(self) -> Self {
+        self.animacy(Animacy::Animate)
+    }
+
+    pub fn inanimate(self) -> Self {
+        self.animacy(Animacy::Inanimate)
+    }
+
+    pub(crate) fn agreement(self) -> AgreementInfo {
+        AgreementInfo {
+            person: self.person,
+            number: self.number,
+            gender: self.gender,
+        }
+    }
+
+    pub(crate) fn person_value(self) -> Person {
+        self.person
+    }
+
+    pub(crate) fn number_value(self) -> Number {
+        self.number
+    }
+
+    pub(crate) fn gender_value(self) -> Gender {
+        self.gender
+    }
+
+    pub(crate) fn animacy_value(self) -> Animacy {
+        self.animacy
+    }
 }
 
 impl Modal {
@@ -210,18 +283,23 @@ pub fn name(entry: &LexEntry) -> Ccg {
     )
 }
 
-pub fn pronoun(p: Pronoun) -> Ccg {
-    let (person, number, gender) = p.agreement();
+pub fn referent() -> Referent {
+    Referent::default()
+}
+
+pub fn pro(referent: &Referent) -> Ccg {
+    let agreement = referent.agreement();
     token(
-        English::pronoun(&p.person(), &p.number(), &p.gender(), &p.canonical_case()),
+        English::pronoun(
+            &referent.person_value(),
+            &referent.number_value(),
+            &referent.gender_value(),
+            &Case::Nominative,
+        ),
         Cat::NP,
-        TokenKind::Pronoun { pronoun: p },
-        Some(p.animacy()),
-        Some(AgreementInfo {
-            person,
-            number,
-            gender,
-        }),
+        TokenKind::Pronoun,
+        Some(referent.animacy_value()),
+        Some(agreement),
     )
 }
 

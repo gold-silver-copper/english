@@ -1,6 +1,6 @@
 use std::ops::{Add, Range};
 
-use english::{Animacy, Gender, Number, Person, Pronoun};
+use english::{Animacy, Gender, Number, Person};
 
 use crate::builders::{Conj, Modal, PrepRole, VerbFormKind};
 use crate::cat::{bwd, can_bapply, can_bcomp, can_fapply, can_fcomp, fwd, type_raise, Cat};
@@ -67,7 +67,7 @@ pub(crate) enum TokenKind {
     Plain,
     Name,
     Noun { lemma: String },
-    Pronoun { pronoun: Pronoun },
+    Pronoun,
     Verb { lemma: String, form: VerbFormKind },
     Modal { modal: Modal },
     Prep { _lemma: String, _role: PrepRole },
@@ -348,14 +348,14 @@ fn surface_from_atoms(atoms: &[Atom]) -> String {
 
 fn lexical_np_agreement(token: &Token) -> Option<AgreementInfo> {
     match &token.kind {
-        TokenKind::Name | TokenKind::Pronoun { .. } | TokenKind::Noun { .. } => token.agreement,
+        TokenKind::Name | TokenKind::Pronoun | TokenKind::Noun { .. } => token.agreement,
         _ => None,
     }
 }
 
 fn lexical_animacy(token: &Token) -> Option<Animacy> {
     match token.kind {
-        TokenKind::Name | TokenKind::Pronoun { .. } | TokenKind::Noun { .. } => token.animacy,
+        TokenKind::Name | TokenKind::Pronoun | TokenKind::Noun { .. } => token.animacy,
         _ => None,
     }
 }

@@ -11,7 +11,6 @@ pub use builders::*;
 pub use cat::*;
 pub use combinators::*;
 pub use derivation::*;
-pub use english::Pronoun;
 pub use helpers::*;
 pub use lexicon::*;
 pub use morphology::*;
@@ -26,5 +25,4 @@ pub mod prelude {
     pub use crate::lexicon::*;
     pub use crate::morphology::*;
     pub use crate::realization::*;
-    pub use english::Pronoun;
 }

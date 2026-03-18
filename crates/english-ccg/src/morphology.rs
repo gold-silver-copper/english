@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use english::{Case, English, Form, Gender, Number, Person, Pronoun, Tense};
+use english::{Case, English, Form, Gender, Number, Person, Tense};
 
 use crate::builders::{Modal, VerbFormKind};
 use crate::derivation::{AgreementInfo, Token, TokenKind};
@@ -65,7 +65,7 @@ pub(crate) fn realize_token(
             token.surface.clone()
         }
         TokenKind::Noun { lemma } => morph.noun(lemma, Number::Singular),
-        TokenKind::Pronoun { pronoun } => realize_pronoun(*pronoun, subject_range, index, morph),
+        TokenKind::Pronoun => realize_pronoun(token, subject_range, index, morph),
         TokenKind::Verb { lemma, form } => realize_verb(*form, lemma, agreement, morph),
         TokenKind::Modal { modal } => realize_modal(*modal, agreement, morph),
         TokenKind::Gap { .. } => return None,
@@ -78,12 +78,12 @@ pub(crate) fn realize_token(
 }
 
 fn realize_pronoun(
-    pronoun: Pronoun,
+    token: &Token,
     subject_range: Option<&Range<usize>>,
     index: usize,
     morph: &impl MorphLexicon,
 ) -> String {
-    let (person, number, gender) = pronoun.agreement();
+    let agreement = token.agreement.unwrap_or_else(default_agreement);
     let case = if subject_range
         .map(|range| range.contains(&index))
         .unwrap_or(false)
@@ -92,7 +92,7 @@ fn realize_pronoun(
     } else {
         Case::Accusative
     };
-    morph.pronoun(person, number, gender, case)
+    morph.pronoun(agreement.person, agreement.number, agreement.gender, case)
 }
 
 fn realize_verb(
