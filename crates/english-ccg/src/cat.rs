@@ -6,8 +6,17 @@ pub enum Cat {
     N,
     NP,
     PP,
+    VP(VpForm),
     Fwd(Box<Cat>, Box<Cat>),
     Bwd(Box<Cat>, Box<Cat>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum VpForm {
+    Bare,
+    To,
+    PresPart,
+    PastPart,
 }
 
 pub fn fwd(result: Cat, arg: Cat) -> Cat {
@@ -20,7 +29,7 @@ pub fn bwd(result: Cat, arg: Cat) -> Cat {
 
 impl Cat {
     pub fn is_complete(&self) -> bool {
-        matches!(self, Self::S | Self::N | Self::NP | Self::PP)
+        matches!(self, Self::S | Self::N | Self::NP | Self::PP | Self::VP(_))
     }
 
     pub fn result(&self) -> Option<&Cat> {
@@ -43,6 +52,12 @@ impl Cat {
             Self::N => "N".to_string(),
             Self::NP => "NP".to_string(),
             Self::PP => "PP".to_string(),
+            Self::VP(form) => match form {
+                VpForm::Bare => "VP[bare]".to_string(),
+                VpForm::To => "VP[to]".to_string(),
+                VpForm::PresPart => "VP[prespart]".to_string(),
+                VpForm::PastPart => "VP[pastpart]".to_string(),
+            },
             Self::Fwd(result, arg) => format!("{}/{}", wrap(result), wrap(arg)),
             Self::Bwd(result, arg) => format!("{}\\{}", wrap(result), wrap(arg)),
         }
@@ -180,6 +195,36 @@ impl<'a> Parser<'a> {
                     Err("expected `PP`".to_string())
                 }
             }
+            Some('V') => {
+                self.idx += 1;
+                if self.peek() != Some('P') {
+                    return Err("expected `VP[...]`".to_string());
+                }
+                self.idx += 1;
+                if self.peek() != Some('[') {
+                    return Err("expected `[` in `VP[...]`".to_string());
+                }
+                self.idx += 1;
+                let start = self.idx;
+                while let Some(ch) = self.peek() {
+                    if ch == ']' {
+                        break;
+                    }
+                    self.idx += 1;
+                }
+                if self.peek() != Some(']') {
+                    return Err("expected `]` in `VP[...]`".to_string());
+                }
+                let label: String = self.chars[start..self.idx].iter().collect();
+                self.idx += 1;
+                match label.as_str() {
+                    "bare" => Ok(Cat::VP(VpForm::Bare)),
+                    "to" => Ok(Cat::VP(VpForm::To)),
+                    "prespart" => Ok(Cat::VP(VpForm::PresPart)),
+                    "pastpart" => Ok(Cat::VP(VpForm::PastPart)),
+                    _ => Err(format!("unknown VP form `{label}`")),
+                }
+            }
             Some(other) => Err(format!("unexpected token `{other}` in category")),
             None => Err("unexpected end of category".to_string()),
         }
@@ -202,7 +247,7 @@ macro_rules! cat {
 
 #[cfg(test)]
 mod tests {
-    use super::{bwd, fwd, Cat};
+    use super::{bwd, fwd, Cat, VpForm};
 
     #[test]
     fn parses_raw_string_literals() {
@@ -212,5 +257,6 @@ mod tests {
             fwd(bwd(Cat::S, Cat::NP), Cat::NP)
         );
         assert_eq!(crate::cat!(r"NP"), Cat::NP);
+        assert_eq!(crate::cat!(r"VP[bare]"), Cat::VP(VpForm::Bare));
     }
 }

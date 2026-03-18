@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use english::{Case, English, Form, Gender, Number, Person, Tense};
 
-use crate::builders::{Modal, VerbFormKind};
+use crate::builders::{AuxInflection, VerbFormKind};
 use crate::derivation::{AgreementInfo, Token, TokenKind};
 
 pub trait MorphLexicon {
@@ -67,7 +67,7 @@ pub(crate) fn realize_token(
         TokenKind::Noun { lemma } => morph.noun(lemma, Number::Singular),
         TokenKind::Pronoun => realize_pronoun(token, subject_range, index, morph),
         TokenKind::Verb { lemma, form } => realize_verb(*form, lemma, agreement, morph),
-        TokenKind::Modal { modal } => realize_modal(*modal, agreement, morph),
+        TokenKind::Aux { inflection } => realize_aux(&token.surface, *inflection, agreement, morph),
         TokenKind::Gap { .. } => return None,
     };
     if surface.is_empty() {
@@ -174,22 +174,16 @@ fn realize_verb(
     }
 }
 
-fn realize_modal(modal: Modal, agreement: AgreementInfo, morph: &impl MorphLexicon) -> String {
-    match modal {
-        Modal::Can => "can".to_string(),
-        Modal::Must => "must".to_string(),
-        Modal::Should => "should".to_string(),
-        Modal::Will => "will".to_string(),
-        Modal::Would => "would".to_string(),
-        Modal::Have => morph.verb(
-            "have",
-            agreement.person,
-            agreement.number,
-            Tense::Present,
-            Form::Finite,
-        ),
-        Modal::Be => morph.verb(
-            "be",
+fn realize_aux(
+    surface: &str,
+    inflection: AuxInflection,
+    agreement: AgreementInfo,
+    morph: &impl MorphLexicon,
+) -> String {
+    match inflection {
+        AuxInflection::Invariant => surface.to_string(),
+        AuxInflection::Inflecting => morph.verb(
+            surface,
             agreement.person,
             agreement.number,
             Tense::Present,

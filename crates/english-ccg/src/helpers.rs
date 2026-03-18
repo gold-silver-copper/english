@@ -32,5 +32,5 @@ pub fn scomp(surface: &str) -> LexEntry {
 }
 
 pub fn vpcomp(surface: &str) -> LexEntry {
-    entry(surface, cat!(r"(S\NP)/(S\NP)"))
+    entry(surface, cat!(r"(S\NP)/VP[to]"))
 }

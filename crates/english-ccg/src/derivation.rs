@@ -2,7 +2,7 @@ use std::ops::{Add, Range};
 
 use english::{Animacy, Gender, Number, Person};
 
-use crate::builders::{Conj, Modal, PrepRole, VerbFormKind};
+use crate::builders::{AuxInflection, Conj, PrepRole, VerbFormKind};
 use crate::cat::{bwd, can_bapply, can_bcomp, can_fapply, can_fcomp, fwd, type_raise, Cat};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,7 +69,7 @@ pub(crate) enum TokenKind {
     Noun { lemma: String },
     Pronoun,
     Verb { lemma: String, form: VerbFormKind },
-    Modal { modal: Modal },
+    Aux { inflection: AuxInflection },
     Prep { _lemma: String, _role: PrepRole },
     Gap { original: Cat },
     Conj { _conj: Conj },

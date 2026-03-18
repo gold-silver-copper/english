@@ -2,20 +2,9 @@ use std::ops::Add;
 
 use english::{Animacy, Case, English, Gender, Number, Person};
 
-use crate::cat::{bwd, fwd, Cat};
+use crate::cat::{bwd, fwd, Cat, VpForm};
 use crate::derivation::{token, AgreementInfo, Ccg, TokenKind};
 use crate::lexicon::LexEntry;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Modal {
-    Can,
-    Must,
-    Should,
-    Will,
-    Would,
-    Have,
-    Be,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Conj {
@@ -43,6 +32,12 @@ pub(crate) enum VerbFormKind {
     PassiveBy,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AuxInflection {
+    Invariant,
+    Inflecting,
+}
+
 #[derive(Debug, Clone)]
 pub struct VerbBuilder {
     lemma: String,
@@ -52,6 +47,12 @@ pub struct VerbBuilder {
 #[derive(Debug, Clone)]
 pub struct PrepBuilder {
     lemma: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct AuxBuilder {
+    surface: String,
+    inflection: Option<AuxInflection>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -127,20 +128,6 @@ impl Referent {
     }
 }
 
-impl Modal {
-    pub(crate) fn as_str(self) -> &'static str {
-        match self {
-            Self::Can => "can",
-            Self::Must => "must",
-            Self::Should => "should",
-            Self::Will => "will",
-            Self::Would => "would",
-            Self::Have => "have",
-            Self::Be => "be",
-        }
-    }
-}
-
 impl Conj {
     pub(crate) fn as_str(self) -> &'static str {
         match self {
@@ -162,17 +149,17 @@ impl VerbBuilder {
     }
 
     pub fn bare(self) -> Ccg {
-        let cat = self.cat.clone();
+        let cat = replace_finite_predicate(&self.cat, Cat::VP(VpForm::Bare));
         self.build(VerbFormKind::Bare, cat)
     }
 
     pub fn perfective(self) -> Ccg {
-        let cat = self.cat.clone();
+        let cat = replace_finite_predicate(&self.cat, Cat::VP(VpForm::PastPart));
         self.build(VerbFormKind::Perfective, cat)
     }
 
     pub fn progressive(self) -> Ccg {
-        let cat = self.cat.clone();
+        let cat = replace_finite_predicate(&self.cat, Cat::VP(VpForm::PresPart));
         self.build(VerbFormKind::Progressive, cat)
     }
 
@@ -199,6 +186,59 @@ impl VerbBuilder {
             TokenKind::Verb {
                 lemma: self.lemma,
                 form,
+            },
+            None,
+            None,
+        )
+    }
+}
+
+impl AuxBuilder {
+    pub fn invariant(mut self) -> Self {
+        self.inflection = Some(AuxInflection::Invariant);
+        self
+    }
+
+    pub fn inflecting(mut self) -> Self {
+        self.inflection = Some(AuxInflection::Inflecting);
+        self
+    }
+
+    pub fn bare_infinitive_modal(self) -> Ccg {
+        self.build(fwd(bwd(Cat::S, Cat::NP), Cat::VP(VpForm::Bare)))
+    }
+
+    pub fn to_infinitive_modal(self) -> Ccg {
+        self.build(fwd(bwd(Cat::S, Cat::NP), Cat::VP(VpForm::To)))
+    }
+
+    pub fn past_participle_perfect(self) -> Ccg {
+        self.build(fwd(bwd(Cat::S, Cat::NP), Cat::VP(VpForm::PastPart)))
+    }
+
+    pub fn present_participle_progressive(self) -> Ccg {
+        self.build(fwd(bwd(Cat::S, Cat::NP), Cat::VP(VpForm::PresPart)))
+    }
+
+    pub fn past_participle_passive(self) -> Ccg {
+        self.build(fwd(bwd(Cat::S, Cat::NP), Cat::VP(VpForm::PastPart)))
+    }
+
+    pub fn bare_infinitive_support(self) -> Ccg {
+        self.build(fwd(bwd(Cat::S, Cat::NP), Cat::VP(VpForm::Bare)))
+    }
+
+    fn build(self, cat: Cat) -> Ccg {
+        token(
+            self.surface.clone(),
+            cat,
+            TokenKind::Aux {
+                inflection: self.inflection.unwrap_or_else(|| {
+                    panic!(
+                        "aux(\"{}\"): choose .invariant() or .inflecting() first",
+                        self.surface
+                    )
+                }),
             },
             None,
             None,
@@ -318,6 +358,13 @@ pub fn noun(entry: &LexEntry) -> Ccg {
     )
 }
 
+pub fn aux(surface: &str) -> AuxBuilder {
+    AuxBuilder {
+        surface: surface.to_string(),
+        inflection: None,
+    }
+}
+
 pub fn det(s: &str) -> Ccg {
     token(s, fwd(Cat::NP, Cat::N), TokenKind::Plain, None, None)
 }
@@ -339,20 +386,10 @@ pub fn verb(entry: &LexEntry) -> VerbBuilder {
     }
 }
 
-pub fn modal(m: Modal) -> Ccg {
-    token(
-        m.as_str(),
-        fwd(bwd(Cat::S, Cat::NP), bwd(Cat::S, Cat::NP)),
-        TokenKind::Modal { modal: m },
-        None,
-        None,
-    )
-}
-
 pub fn inf() -> Ccg {
     token(
         "to",
-        fwd(bwd(Cat::S, Cat::NP), bwd(Cat::S, Cat::NP)),
+        fwd(Cat::VP(VpForm::To), Cat::VP(VpForm::Bare)),
         TokenKind::Plain,
         None,
         None,
@@ -391,4 +428,15 @@ pub fn gap(cat: Cat) -> Ccg {
         None,
         None,
     )
+}
+
+fn replace_finite_predicate(cat: &Cat, replacement: Cat) -> Cat {
+    match cat {
+        Cat::Bwd(result, arg) if **result == Cat::S && **arg == Cat::NP => replacement,
+        Cat::Fwd(result, arg) => fwd(
+            replace_finite_predicate(result, replacement),
+            (**arg).clone(),
+        ),
+        _ => cat.clone(),
+    }
 }

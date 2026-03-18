@@ -67,7 +67,7 @@ fn entry_driven_ccg_examples() {
     );
 
     let s = name(&alice)
-        + modal(Modal::Have)
+        + aux("have").inflecting().past_participle_perfect()
         + verb(&repair).perfective()
         + (det("the") + noun(&bridge));
     assert_eq!(
@@ -76,12 +76,40 @@ fn entry_driven_ccg_examples() {
     );
 
     let s = name(&alice)
-        + modal(Modal::Be)
+        + aux("be").inflecting().present_participle_progressive()
         + verb(&repair).progressive()
         + (det("the") + noun(&bridge));
     assert_eq!(
         realize_as(&s, RealizeOpts::sentence()),
         "Alice is repairing the bridge."
+    );
+
+    let s = name(&alice)
+        + aux("can").invariant().bare_infinitive_modal()
+        + verb(&repair).bare()
+        + (det("the") + noun(&bridge));
+    assert_eq!(
+        realize_as(&s, RealizeOpts::sentence()),
+        "Alice can repair the bridge."
+    );
+
+    let s = name(&alice)
+        + aux("ought").invariant().to_infinitive_modal()
+        + inf()
+        + verb(&repair).bare()
+        + (det("the") + noun(&bridge));
+    assert_eq!(
+        realize_as(&s, RealizeOpts::sentence()),
+        "Alice ought to repair the bridge."
+    );
+
+    let s = name(&alice)
+        + aux("do").inflecting().bare_infinitive_support()
+        + verb(&repair).bare()
+        + (det("the") + noun(&bridge));
+    assert_eq!(
+        realize_as(&s, RealizeOpts::sentence()),
+        "Alice does repair the bridge."
     );
 
     let s = (det("the") + noun(&bridge)) + verb(&repair).passive();
