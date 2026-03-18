@@ -21,125 +21,119 @@ fn entry_driven_ccg_examples() {
     let engineer = common("engineer", Animacy::Animate);
     let water = common("water", Animacy::Inanimate);
 
-    let s = name(alice.clone()) + verb(arrive.clone()).past();
+    let s = name(&alice) + verb(&arrive).past();
     assert_eq!(realize_as(&s, RealizeOpts::sentence()), "Alice arrived.");
 
-    let s = name(jordan.clone()) + verb(trust.clone()).past() + name(alice.clone());
+    let s = name(&jordan) + verb(&trust).past() + name(&alice);
     assert_eq!(
         realize_as(&s, RealizeOpts::sentence()),
         "Jordan trusted Alice."
     );
 
-    let s = name(alice.clone())
-        + verb(arrive.clone()).past()
+    let s = name(&alice)
+        + verb(&arrive).past()
         + prep("before").adverbial()
-        + (det("the") + noun(inspection.clone()));
+        + (det("the") + noun(&inspection));
     assert_eq!(
         realize_as(&s, RealizeOpts::sentence()),
         "Alice arrived before the inspection."
     );
 
-    let s = name(alice.clone())
-        + verb(inspect.clone()).past()
-        + (det("the")
-            + (noun(bridge.clone()) + prep("of").adnominal() + (det("the") + noun(city.clone()))));
+    let s = name(&alice)
+        + verb(&inspect).past()
+        + (det("the") + (noun(&bridge) + prep("of").adnominal() + (det("the") + noun(&city))));
     assert_eq!(
         realize_as(&s, RealizeOpts::sentence()),
         "Alice inspected the bridge of the city."
     );
 
-    let pp = prep("before") + (det("the") + noun(inspection.clone()));
+    let pp = prep("before") + (det("the") + noun(&inspection));
     assert_eq!(pp.cat().to_notation(), "PP");
 
-    let s = name(alice.clone())
-        + verb(inspect.clone()).past()
-        + (det("the") + (verb(damage.clone()).past_participle() + noun(bridge.clone())));
+    let s = name(&alice)
+        + verb(&inspect).past()
+        + (det("the") + (verb(&damage).past_participle() + noun(&bridge)));
     assert_eq!(
         realize_as(&s, RealizeOpts::sentence()),
         "Alice inspected the damaged bridge."
     );
 
-    let s = name(alice.clone())
-        + verb(inspect.clone()).past()
-        + (det("the") + (verb(run.clone()).present_participle() + noun(water.clone())));
+    let s = name(&alice)
+        + verb(&inspect).past()
+        + (det("the") + (verb(&run).present_participle() + noun(&water)));
     assert_eq!(
         realize_as(&s, RealizeOpts::sentence()),
         "Alice inspected the running water."
     );
 
-    let s = name(alice.clone())
+    let s = name(&alice)
         + modal(Modal::Have)
-        + verb(repair.clone()).perfective()
-        + (det("the") + noun(bridge.clone()));
+        + verb(&repair).perfective()
+        + (det("the") + noun(&bridge));
     assert_eq!(
         realize_as(&s, RealizeOpts::sentence()),
         "Alice has repaired the bridge."
     );
 
-    let s = name(alice.clone())
+    let s = name(&alice)
         + modal(Modal::Be)
-        + verb(repair.clone()).progressive()
-        + (det("the") + noun(bridge.clone()));
+        + verb(&repair).progressive()
+        + (det("the") + noun(&bridge));
     assert_eq!(
         realize_as(&s, RealizeOpts::sentence()),
         "Alice is repairing the bridge."
     );
 
-    let s = (det("the") + noun(bridge.clone())) + verb(repair.clone()).passive();
+    let s = (det("the") + noun(&bridge)) + verb(&repair).passive();
     assert_eq!(
         realize_as(&s, RealizeOpts::sentence()),
         "The bridge was repaired."
     );
 
-    let s = (det("the") + noun(bridge.clone()))
-        + verb(repair.clone()).passive_by()
-        + name(alice.clone());
+    let s = (det("the") + noun(&bridge)) + verb(&repair).passive_by() + name(&alice);
     assert_eq!(
         realize_as(&s, RealizeOpts::sentence()),
         "The bridge was repaired by Alice."
     );
 
-    let s = name(jordan.clone()) + verb(trust.clone()).present() + name(alice.clone());
+    let s = name(&jordan) + verb(&trust).present() + name(&alice);
     assert_eq!(
         realize_as(&s, RealizeOpts::sentence()),
         "Jordan trusts Alice."
     );
 
-    let s = pronoun(Pronoun::She) + verb(trust.clone()).past() + pronoun(Pronoun::Him);
+    let s = pronoun(Pronoun::She) + verb(&trust).past() + pronoun(Pronoun::Him);
     assert_eq!(realize_as(&s, RealizeOpts::sentence()), "She trusted him.");
 
-    let s = name(alice.clone())
-        + verb(trust.clone()).past()
+    let s = name(&alice)
+        + verb(&trust).past()
         + (det("the")
-            + (noun(engineer.clone())
-                + (rel("who")
-                    + (name(jordan.clone()) + verb(trust.clone()).past() + gap(cat!("NP"))))));
+            + (noun(&engineer)
+                + (rel("who") + (name(&jordan) + verb(&trust).past() + gap(cat!("NP"))))));
     assert_eq!(
         realize_as(&s, RealizeOpts::sentence()),
         "Alice trusted the engineer who Jordan trusted."
     );
 
-    let s =
-        coord(Conj::And, name(alice.clone()), name(jordan.clone())) + verb(arrive.clone()).past();
+    let s = coord(Conj::And, name(&alice), name(&jordan)) + verb(&arrive).past();
     assert_eq!(
         realize_as(&s, RealizeOpts::sentence()),
         "Alice and Jordan arrived."
     );
 
-    let s = name(jordan.clone())
-        + verb(say.clone()).past()
+    let s = name(&jordan)
+        + verb(&say).past()
         + comp("that")
         + ((det("the")
             + adj("smart")
-            + (noun(engineer.clone())
-                + (rel("who")
-                    + (name(alice.clone()) + verb(trust.clone()).past() + gap(cat!("NP"))))))
-            + verb(promise.clone()).past()
+            + (noun(&engineer)
+                + (rel("who") + (name(&alice) + verb(&trust).past() + gap(cat!("NP"))))))
+            + verb(&promise).past()
             + inf()
-            + verb(repair.clone()).bare()
-            + (det("the") + (verb(damage.clone()).past_participle() + noun(bridge.clone())))
+            + verb(&repair).bare()
+            + (det("the") + (verb(&damage).past_participle() + noun(&bridge)))
             + prep("before").adverbial()
-            + (det("the") + (adj("final") + noun(inspection.clone()))));
+            + (det("the") + (adj("final") + noun(&inspection))));
     assert_eq!(
         realize_as(&s, RealizeOpts::sentence()),
         "Jordan said that the smart engineer who Alice trusted promised to repair the damaged bridge before the final inspection."

@@ -33,6 +33,14 @@ impl LexEntry {
         &self.cat
     }
 
+    pub(crate) fn animacy(&self) -> Option<Animacy> {
+        self.animacy
+    }
+
+    pub(crate) fn agreement(&self) -> Option<AgreementInfo> {
+        self.agreement
+    }
+
     pub fn animate(mut self) -> Self {
         self.animacy = Some(Animacy::Animate);
         self
@@ -50,9 +58,5 @@ impl LexEntry {
             gender,
         });
         self
-    }
-
-    pub(crate) fn into_parts(self) -> (String, Cat, Option<Animacy>, Option<AgreementInfo>) {
-        (self.surface, self.cat, self.animacy, self.agreement)
     }
 }

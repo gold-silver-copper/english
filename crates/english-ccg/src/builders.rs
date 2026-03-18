@@ -261,14 +261,13 @@ impl Add<PrepBuilder> for Ccg {
     }
 }
 
-pub fn name(entry: LexEntry) -> Ccg {
-    let (surface, cat, animacy, agreement) = entry.into_parts();
+pub fn name(entry: &LexEntry) -> Ccg {
     token(
-        surface,
-        cat,
+        entry.surface().to_string(),
+        entry.cat().clone(),
         TokenKind::Name,
-        animacy.or(Some(Animacy::Animate)),
-        agreement.or(Some(AgreementInfo {
+        entry.animacy().or(Some(Animacy::Animate)),
+        entry.agreement().or(Some(AgreementInfo {
             person: Person::Third,
             number: Number::Singular,
             gender: Gender::Neuter,
@@ -294,14 +293,14 @@ pub fn pronoun(p: Pronoun) -> Ccg {
     )
 }
 
-pub fn noun(entry: LexEntry) -> Ccg {
-    let (surface, cat, animacy, agreement) = entry.into_parts();
+pub fn noun(entry: &LexEntry) -> Ccg {
+    let surface = entry.surface().to_string();
     token(
         surface.clone(),
-        cat,
+        entry.cat().clone(),
         TokenKind::Noun { lemma: surface },
-        animacy,
-        agreement.or(Some(AgreementInfo {
+        entry.animacy(),
+        entry.agreement().or(Some(AgreementInfo {
             person: Person::Third,
             number: Number::Singular,
             gender: Gender::Neuter,
@@ -323,11 +322,10 @@ pub fn rel(s: &str) -> Ccg {
     )
 }
 
-pub fn verb(entry: LexEntry) -> VerbBuilder {
-    let (surface, cat, _, _) = entry.into_parts();
+pub fn verb(entry: &LexEntry) -> VerbBuilder {
     VerbBuilder {
-        lemma: surface,
-        cat,
+        lemma: entry.surface().to_string(),
+        cat: entry.cat().clone(),
     }
 }
 
