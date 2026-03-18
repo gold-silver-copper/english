@@ -1,8 +1,8 @@
 use std::ops::{Add, Range};
 
-use english::{Animacy, Gender, Number, Person};
+use english::{Animacy, Gender, Number, Person, Pronoun};
 
-use crate::builders::{Conj, Modal, PrepRole, Pronoun, VerbFormKind};
+use crate::builders::{Conj, Modal, PrepRole, VerbFormKind};
 use crate::cat::{bwd, can_bapply, can_bcomp, can_fapply, can_fcomp, fwd, type_raise, Cat};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

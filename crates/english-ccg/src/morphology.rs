@@ -1,8 +1,8 @@
 use std::ops::Range;
 
-use english::{Case, English, Form, Gender, Number, Person, Tense};
+use english::{Case, English, Form, Gender, Number, Person, Pronoun, Tense};
 
-use crate::builders::{Modal, Pronoun, VerbFormKind};
+use crate::builders::{Modal, VerbFormKind};
 use crate::derivation::{AgreementInfo, Token, TokenKind};
 
 pub trait MorphLexicon {
@@ -83,7 +83,7 @@ fn realize_pronoun(
     index: usize,
     morph: &impl MorphLexicon,
 ) -> String {
-    let agreement = pronoun.agreement();
+    let (person, number, gender) = pronoun.agreement();
     let case = if subject_range
         .map(|range| range.contains(&index))
         .unwrap_or(false)
@@ -92,7 +92,7 @@ fn realize_pronoun(
     } else {
         Case::Accusative
     };
-    morph.pronoun(agreement.person, agreement.number, agreement.gender, case)
+    morph.pronoun(person, number, gender, case)
 }
 
 fn realize_verb(

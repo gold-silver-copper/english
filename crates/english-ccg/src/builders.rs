@@ -1,26 +1,10 @@
 use std::ops::Add;
 
-use english::{Animacy, Gender, Number, Person};
+use english::{Animacy, English, Gender, Number, Person, Pronoun};
 
 use crate::cat::{bwd, fwd, Cat};
 use crate::derivation::{token, AgreementInfo, Ccg, TokenKind};
 use crate::lexicon::LexEntry;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Pronoun {
-    I,
-    Me,
-    You,
-    He,
-    Him,
-    She,
-    Her,
-    It,
-    We,
-    Us,
-    They,
-    Them,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Modal {
@@ -68,55 +52,6 @@ pub struct VerbBuilder {
 #[derive(Debug, Clone)]
 pub struct PrepBuilder {
     lemma: String,
-}
-
-impl Pronoun {
-    pub(crate) fn agreement(self) -> AgreementInfo {
-        match self {
-            Self::I | Self::Me => AgreementInfo {
-                person: Person::First,
-                number: Number::Singular,
-                gender: Gender::Neuter,
-            },
-            Self::You => AgreementInfo {
-                person: Person::Second,
-                number: Number::Singular,
-                gender: Gender::Neuter,
-            },
-            Self::He | Self::Him => AgreementInfo {
-                person: Person::Third,
-                number: Number::Singular,
-                gender: Gender::Masculine,
-            },
-            Self::She | Self::Her => AgreementInfo {
-                person: Person::Third,
-                number: Number::Singular,
-                gender: Gender::Feminine,
-            },
-            Self::It => AgreementInfo {
-                person: Person::Third,
-                number: Number::Singular,
-                gender: Gender::Neuter,
-            },
-            Self::We | Self::Us => AgreementInfo {
-                person: Person::First,
-                number: Number::Plural,
-                gender: Gender::Neuter,
-            },
-            Self::They | Self::Them => AgreementInfo {
-                person: Person::Third,
-                number: Number::Plural,
-                gender: Gender::Neuter,
-            },
-        }
-    }
-
-    pub(crate) fn animacy(self) -> Animacy {
-        match self {
-            Self::It => Animacy::Inanimate,
-            _ => Animacy::Animate,
-        }
-    }
 }
 
 impl Modal {
@@ -276,20 +211,17 @@ pub fn name(entry: &LexEntry) -> Ccg {
 }
 
 pub fn pronoun(p: Pronoun) -> Ccg {
+    let (person, number, gender) = p.agreement();
     token(
-        match p {
-            Pronoun::I | Pronoun::Me => "I",
-            Pronoun::You => "you",
-            Pronoun::He | Pronoun::Him => "he",
-            Pronoun::She | Pronoun::Her => "she",
-            Pronoun::It => "it",
-            Pronoun::We | Pronoun::Us => "we",
-            Pronoun::They | Pronoun::Them => "they",
-        },
+        English::pronoun(&p.person(), &p.number(), &p.gender(), &p.canonical_case()),
         Cat::NP,
         TokenKind::Pronoun { pronoun: p },
         Some(p.animacy()),
-        Some(p.agreement()),
+        Some(AgreementInfo {
+            person,
+            number,
+            gender,
+        }),
     )
 }
 
