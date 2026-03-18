@@ -7,14 +7,7 @@ use crate::derivation::{AgreementInfo, Token, TokenKind};
 
 pub trait MorphLexicon {
     fn noun(&self, word: &str, number: Number) -> String;
-    fn verb(
-        &self,
-        word: &str,
-        person: Person,
-        number: Number,
-        tense: Tense,
-        form: Form,
-    ) -> String;
+    fn verb(&self, word: &str, person: Person, number: Number, tense: Tense, form: Form) -> String;
     fn pronoun(&self, person: Person, number: Number, gender: Gender, case: Case) -> String;
 }
 
@@ -26,14 +19,7 @@ impl MorphLexicon for EnglishMorphology {
         English::noun(word, &number)
     }
 
-    fn verb(
-        &self,
-        word: &str,
-        person: Person,
-        number: Number,
-        tense: Tense,
-        form: Form,
-    ) -> String {
+    fn verb(&self, word: &str, person: Person, number: Number, tense: Tense, form: Form) -> String {
         English::verb(word, &person, &number, &tense, &form)
     }
 
@@ -106,12 +92,7 @@ fn realize_pronoun(
     } else {
         Case::Accusative
     };
-    morph.pronoun(
-        agreement.person,
-        agreement.number,
-        agreement.gender,
-        case,
-    )
+    morph.pronoun(agreement.person, agreement.number, agreement.gender, case)
 }
 
 fn realize_verb(

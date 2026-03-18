@@ -45,6 +45,12 @@ pub enum Degree {
     Superlative,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Animacy {
+    Animate,
+    Inanimate,
+}
+
 /*#[derive(Debug, PartialEq, Clone)]
 pub enum Mood {
     Indicative,

@@ -79,18 +79,14 @@ pub fn can_bapply(left: &Cat, right: &Cat) -> Option<Cat> {
 
 pub fn can_fcomp(left: &Cat, right: &Cat) -> Option<Cat> {
     match (left, right) {
-        (Cat::Fwd(x, y1), Cat::Fwd(y2, z)) if y1 == y2 => {
-            Some(fwd((**x).clone(), (**z).clone()))
-        }
+        (Cat::Fwd(x, y1), Cat::Fwd(y2, z)) if y1 == y2 => Some(fwd((**x).clone(), (**z).clone())),
         _ => None,
     }
 }
 
 pub fn can_bcomp(left: &Cat, right: &Cat) -> Option<Cat> {
     match (left, right) {
-        (Cat::Bwd(y1, z), Cat::Bwd(x, y2)) if y1 == y2 => {
-            Some(bwd((**x).clone(), (**z).clone()))
-        }
+        (Cat::Bwd(y1, z), Cat::Bwd(x, y2)) if y1 == y2 => Some(bwd((**x).clone(), (**z).clone())),
         _ => None,
     }
 }
@@ -105,7 +101,10 @@ pub fn type_raise(cat: &Cat) -> Option<Cat> {
 pub fn parse_cat(input: &str) -> Result<Cat, String> {
     let compact: String = input.chars().filter(|ch| !ch.is_whitespace()).collect();
     let chars: Vec<char> = compact.chars().collect();
-    let mut parser = Parser { chars: &chars, idx: 0 };
+    let mut parser = Parser {
+        chars: &chars,
+        idx: 0,
+    };
     let cat = parser.parse_expr()?;
     if parser.idx != chars.len() {
         return Err(format!("unexpected trailing input in category `{input}`"));
@@ -126,7 +125,11 @@ impl<'a> Parser<'a> {
                 '/' | '\\' => {
                     self.idx += 1;
                     let rhs = self.parse_primary()?;
-                    lhs = if op == '/' { fwd(lhs, rhs) } else { bwd(lhs, rhs) };
+                    lhs = if op == '/' {
+                        fwd(lhs, rhs)
+                    } else {
+                        bwd(lhs, rhs)
+                    };
                 }
                 ')' => break,
                 _ => return Err(format!("unexpected token `{op}` in category")),

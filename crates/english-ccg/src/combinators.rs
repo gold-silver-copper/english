@@ -40,8 +40,8 @@ pub fn bcomp(f: Ccg, g: Ccg) -> Ccg {
 
 pub fn traise(x: Ccg) -> Ccg {
     let parse = expect_parse(&x);
-    let cat = type_raise(&parse.cat)
-        .unwrap_or_else(|| panic!("type raising failed: {}", parse.cat));
+    let cat =
+        type_raise(&parse.cat).unwrap_or_else(|| panic!("type raising failed: {}", parse.cat));
     let derivation = DerivTree::Inner {
         cat: cat.clone(),
         rule: CombRule::TypeRaising,

@@ -1,20 +1,25 @@
 use std::ops::{Add, Range};
 
-use english::{Gender, Number, Person};
+use english::{Animacy, Gender, Number, Person};
 
-use crate::builders::{Animacy, Conj, Modal, PrepRole, Pronoun, VerbFormKind};
+use crate::builders::{Conj, Modal, PrepRole, Pronoun, VerbFormKind};
 use crate::cat::{bwd, can_bapply, can_bcomp, can_fapply, can_fcomp, fwd, type_raise, Cat};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DerivTree {
-    Leaf { surface: String, cat: Cat },
+    Leaf {
+        surface: String,
+        cat: Cat,
+    },
     Inner {
         cat: Cat,
         rule: CombRule,
         left: Box<DerivTree>,
         right: Box<DerivTree>,
     },
-    Gap { cat: Cat },
+    Gap {
+        cat: Cat,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,10 +70,7 @@ pub(crate) enum TokenKind {
     Pronoun { pronoun: Pronoun },
     Verb { lemma: String, form: VerbFormKind },
     Modal { modal: Modal },
-    Prep {
-        _lemma: String,
-        _role: PrepRole,
-    },
+    Prep { _lemma: String, _role: PrepRole },
     Gap { original: Cat },
     Conj { _conj: Conj },
 }
@@ -414,7 +416,8 @@ pub(crate) fn parse_full(atoms: &[Atom]) -> Option<Parse> {
 
 fn atom_token_spans(atoms: &[Atom]) -> Vec<Range<usize>> {
     let mut next = 0;
-    atoms.iter()
+    atoms
+        .iter()
         .map(|atom| {
             let width = match atom {
                 Atom::Lex(_) => 1,
@@ -523,20 +526,14 @@ fn meta_for_forward_application(cat: &Cat, left: &Parse, right: &Parse) -> Parse
     }
 
     if *cat == Cat::S {
-        meta.subject_agreement = left
-            .meta
-            .subject_agreement
-            .or(right.meta.subject_agreement);
+        meta.subject_agreement = left.meta.subject_agreement.or(right.meta.subject_agreement);
         meta.subject_range = left
             .meta
             .subject_range
             .clone()
             .or(right.meta.subject_range.clone());
     } else {
-        meta.subject_agreement = left
-            .meta
-            .subject_agreement
-            .or(right.meta.subject_agreement);
+        meta.subject_agreement = left.meta.subject_agreement.or(right.meta.subject_agreement);
         meta.subject_range = left
             .meta
             .subject_range
@@ -562,10 +559,7 @@ fn meta_for_backward_application(cat: &Cat, left: &Parse, right: &Parse) -> Pars
         meta.subject_agreement = left.meta.np_agreement;
         meta.subject_range = Some(left.meta.span.clone());
     } else {
-        meta.subject_agreement = right
-            .meta
-            .subject_agreement
-            .or(left.meta.subject_agreement);
+        meta.subject_agreement = right.meta.subject_agreement.or(left.meta.subject_agreement);
         meta.subject_range = right
             .meta
             .subject_range
@@ -587,10 +581,7 @@ fn meta_for_composition(cat: &Cat, left: &Parse, right: &Parse) -> ParseMeta {
         meta.animacy = left.meta.animacy.or(right.meta.animacy);
     }
 
-    meta.subject_agreement = left
-        .meta
-        .subject_agreement
-        .or(right.meta.subject_agreement);
+    meta.subject_agreement = left.meta.subject_agreement.or(right.meta.subject_agreement);
     meta.subject_range = left
         .meta
         .subject_range

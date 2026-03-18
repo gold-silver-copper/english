@@ -1,16 +1,10 @@
 use std::ops::Add;
 
-use english::{Gender, Number, Person};
+use english::{Animacy, Gender, Number, Person};
 
 use crate::cat::{bwd, fwd, Cat};
 use crate::derivation::{token, AgreementInfo, Ccg, TokenKind};
-use crate::lexicon::{noun_animacy, verb_cat};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Animacy {
-    Animate,
-    Inanimate,
-}
+use crate::lexicon::LexEntry;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Pronoun {
@@ -267,33 +261,18 @@ impl Add<PrepBuilder> for Ccg {
     }
 }
 
-pub fn name(s: &str) -> Ccg {
+pub fn name(entry: LexEntry) -> Ccg {
+    let (surface, cat, animacy, agreement) = entry.into_parts();
     token(
-        s,
-        Cat::NP,
+        surface,
+        cat,
         TokenKind::Name,
-        Some(Animacy::Animate),
-        Some(AgreementInfo {
+        animacy.or(Some(Animacy::Animate)),
+        agreement.or(Some(AgreementInfo {
             person: Person::Third,
             number: Number::Singular,
             gender: Gender::Neuter,
-        }),
-    )
-}
-
-pub fn noun(s: &str) -> Ccg {
-    token(
-        s,
-        Cat::N,
-        TokenKind::Noun {
-            lemma: s.to_string(),
-        },
-        Some(noun_animacy(s)),
-        Some(AgreementInfo {
-            person: Person::Third,
-            number: Number::Singular,
-            gender: Gender::Neuter,
-        }),
+        })),
     )
 }
 
@@ -315,14 +294,23 @@ pub fn pronoun(p: Pronoun) -> Ccg {
     )
 }
 
-pub fn det(s: &str) -> Ccg {
+pub fn noun(entry: LexEntry) -> Ccg {
+    let (surface, cat, animacy, agreement) = entry.into_parts();
     token(
-        s,
-        fwd(Cat::NP, Cat::N),
-        TokenKind::Plain,
-        None,
-        None,
+        surface.clone(),
+        cat,
+        TokenKind::Noun { lemma: surface },
+        animacy,
+        agreement.or(Some(AgreementInfo {
+            person: Person::Third,
+            number: Number::Singular,
+            gender: Gender::Neuter,
+        })),
     )
+}
+
+pub fn det(s: &str) -> Ccg {
+    token(s, fwd(Cat::NP, Cat::N), TokenKind::Plain, None, None)
 }
 
 pub fn rel(s: &str) -> Ccg {
@@ -335,10 +323,11 @@ pub fn rel(s: &str) -> Ccg {
     )
 }
 
-pub fn verb(s: &str) -> VerbBuilder {
+pub fn verb(entry: LexEntry) -> VerbBuilder {
+    let (surface, cat, _, _) = entry.into_parts();
     VerbBuilder {
-        lemma: s.to_string(),
-        cat: verb_cat(s),
+        lemma: surface,
+        cat,
     }
 }
 
@@ -363,13 +352,7 @@ pub fn inf() -> Ccg {
 }
 
 pub fn adj(s: &str) -> Ccg {
-    token(
-        s,
-        fwd(Cat::N, Cat::N),
-        TokenKind::Plain,
-        None,
-        None,
-    )
+    token(s, fwd(Cat::N, Cat::N), TokenKind::Plain, None, None)
 }
 
 pub fn adv(s: &str) -> Ccg {
@@ -389,13 +372,7 @@ pub fn prep(s: &str) -> PrepBuilder {
 }
 
 pub fn comp(s: &str) -> Ccg {
-    token(
-        s,
-        fwd(Cat::S, Cat::S),
-        TokenKind::Plain,
-        None,
-        None,
-    )
+    token(s, fwd(Cat::S, Cat::S), TokenKind::Plain, None, None)
 }
 
 pub fn gap(cat: Cat) -> Ccg {
