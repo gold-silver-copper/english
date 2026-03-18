@@ -112,6 +112,13 @@ pub fn parse_cat(input: &str) -> Result<Cat, String> {
     Ok(cat)
 }
 
+pub const fn assert_raw_string_literal(source: &str) {
+    let bytes = source.as_bytes();
+    if bytes.is_empty() || bytes[0] != b'r' {
+        panic!("cat! expects a raw string literal, e.g. cat!(r\"(S\\NP)/NP\")");
+    }
+}
+
 struct Parser<'a> {
     chars: &'a [char],
     idx: usize,
@@ -185,19 +192,25 @@ impl<'a> Parser<'a> {
 
 #[macro_export]
 macro_rules! cat {
-    ($lit:literal) => {
-        $crate::cat::parse_cat($lit).expect("invalid category literal")
-    };
-    (S) => {
-        $crate::cat::Cat::S
-    };
-    (N) => {
-        $crate::cat::Cat::N
-    };
-    (NP) => {
-        $crate::cat::Cat::NP
-    };
-    (PP) => {
-        $crate::cat::Cat::PP
-    };
+    ($lit:literal) => {{
+        {
+            const _: () = $crate::cat::assert_raw_string_literal(stringify!($lit));
+            $crate::cat::parse_cat($lit).expect("invalid category literal")
+        }
+    }};
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{bwd, fwd, Cat};
+
+    #[test]
+    fn parses_raw_string_literals() {
+        assert_eq!(crate::cat!(r"S\NP"), bwd(Cat::S, Cat::NP));
+        assert_eq!(
+            crate::cat!(r"(S\NP)/NP"),
+            fwd(bwd(Cat::S, Cat::NP), Cat::NP)
+        );
+        assert_eq!(crate::cat!(r"NP"), Cat::NP);
+    }
 }

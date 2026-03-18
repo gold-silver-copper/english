@@ -20,17 +20,17 @@ pub fn common(surface: &str, animacy: Animacy) -> LexEntry {
 }
 
 pub fn iv(surface: &str) -> LexEntry {
-    entry(surface, cat!("S\\NP"))
+    entry(surface, cat!(r"S\NP"))
 }
 
 pub fn tv(surface: &str) -> LexEntry {
-    entry(surface, cat!("(S\\NP)/NP"))
+    entry(surface, cat!(r"(S\NP)/NP"))
 }
 
 pub fn scomp(surface: &str) -> LexEntry {
-    entry(surface, cat!("(S\\NP)/S"))
+    entry(surface, cat!(r"(S\NP)/S"))
 }
 
 pub fn vpcomp(surface: &str) -> LexEntry {
-    entry(surface, cat!("(S\\NP)/(S\\NP)"))
+    entry(surface, cat!(r"(S\NP)/(S\NP)"))
 }

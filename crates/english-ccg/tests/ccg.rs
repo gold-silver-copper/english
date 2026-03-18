@@ -109,7 +109,7 @@ fn entry_driven_ccg_examples() {
         + verb(&trust).past()
         + (det("the")
             + (noun(&engineer)
-                + (rel("who") + (name(&jordan) + verb(&trust).past() + gap(cat!("NP"))))));
+                + (rel("who") + (name(&jordan) + verb(&trust).past() + gap(cat!(r"NP"))))));
     assert_eq!(
         realize_as(&s, RealizeOpts::sentence()),
         "Alice trusted the engineer who Jordan trusted."
@@ -127,7 +127,7 @@ fn entry_driven_ccg_examples() {
         + ((det("the")
             + adj("smart")
             + (noun(&engineer)
-                + (rel("who") + (name(&alice) + verb(&trust).past() + gap(cat!("NP"))))))
+                + (rel("who") + (name(&alice) + verb(&trust).past() + gap(cat!(r"NP"))))))
             + verb(&promise).past()
             + inf()
             + verb(&repair).bare()
