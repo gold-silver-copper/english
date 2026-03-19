@@ -1,0 +1,12 @@
+[package]
+name = "english-phrase"
+version = "0.1.0"
+authors = ["gold-silver-copper"]
+edition = "2024"
+description = "Compositional English phrase realization built on top of english"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/gold-silver-copper/english"
+readme = "README.md"
+
+[dependencies]
+english = { path = "../../crates/english", version = "0.1.3" }
