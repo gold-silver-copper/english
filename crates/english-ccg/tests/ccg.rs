@@ -1,3 +1,5 @@
+use std::panic::{catch_unwind, AssertUnwindSafe};
+
 use english::{Animacy, Gender, Number, Person};
 use english_ccg::cat;
 use english_ccg::prelude::*;
@@ -176,4 +178,68 @@ fn entry_driven_ccg_examples() {
         realize_as(&s, RealizeOpts::sentence()),
         "Jordan said that the smart engineer who Alice trusted promised to repair the damaged bridge before the final inspection."
     );
+}
+
+fn panic_message<F>(f: F) -> String
+where
+    F: FnOnce(),
+{
+    let payload = catch_unwind(AssertUnwindSafe(f)).expect_err("expected panic");
+    if let Some(message) = payload.downcast_ref::<String>() {
+        return message.clone();
+    }
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        return (*message).to_owned();
+    }
+    "non-string panic payload".to_owned()
+}
+
+#[test]
+fn rejects_bare_modal_with_past_participle_vp() {
+    let alice = proper("Alice");
+    let arrive = iv("arrive");
+
+    let message = panic_message(|| {
+        let bad = name(&alice)
+            + aux("can").invariant().bare_infinitive_modal()
+            + verb(&arrive).perfective();
+        let _ = bad.cat();
+    });
+
+    assert!(message.contains("Forward Application: expected VP[bare], got VP[pastpart]"));
+    assert!(message.contains("left span: \"Alice can\" :: S/VP[bare]"));
+    assert!(message.contains("right span: \"arrive\" :: VP[pastpart]"));
+}
+
+#[test]
+fn rejects_perfect_auxiliary_with_bare_vp() {
+    let alice = proper("Alice");
+    let arrive = iv("arrive");
+
+    let message = panic_message(|| {
+        let bad = name(&alice)
+            + aux("have").inflecting().past_participle_perfect()
+            + verb(&arrive).bare();
+        let _ = bad.cat();
+    });
+
+    assert!(message.contains("Forward Application: expected VP[pastpart], got VP[bare]"));
+    assert!(message.contains("left span: \"Alice have\" :: S/VP[pastpart]"));
+    assert!(message.contains("right span: \"arrive\" :: VP[bare]"));
+}
+
+#[test]
+fn rejects_to_selecting_auxiliary_with_bare_vp() {
+    let alice = proper("Alice");
+    let arrive = iv("arrive");
+
+    let message = panic_message(|| {
+        let bad =
+            name(&alice) + aux("ought").invariant().to_infinitive_modal() + verb(&arrive).bare();
+        let _ = bad.cat();
+    });
+
+    assert!(message.contains("Forward Application: expected VP[to], got VP[bare]"));
+    assert!(message.contains("left span: \"Alice ought\" :: S/VP[to]"));
+    assert!(message.contains("right span: \"arrive\" :: VP[bare]"));
 }

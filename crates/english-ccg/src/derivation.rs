@@ -110,6 +110,8 @@ impl Default for ParseMeta {
     }
 }
 
+type Chart = Vec<Vec<Vec<Parse>>>;
+
 impl Ccg {
     pub(crate) fn from_token(token: Token) -> Self {
         let atoms = vec![Atom::Lex(token)];
@@ -257,7 +259,10 @@ impl Ccg {
             .map(|cat| cat.to_notation())
             .collect::<Vec<_>>()
             .join(" + ");
-        format!("unreduced CCG sequence: {cats}")
+        match explain_failure(&self.atoms) {
+            Some(detail) => format!("unreduced CCG sequence: {cats}\n{detail}"),
+            None => format!("unreduced CCG sequence: {cats}"),
+        }
     }
 }
 
@@ -365,6 +370,12 @@ pub(crate) fn parse_full(atoms: &[Atom]) -> Option<Parse> {
         return None;
     }
 
+    let chart = build_chart(atoms);
+    let n = atoms.len();
+    chart[0][n].first().cloned()
+}
+
+fn build_chart(atoms: &[Atom]) -> Chart {
     let spans = atom_token_spans(atoms);
     let n = atoms.len();
     let mut chart = vec![vec![Vec::<Parse>::new(); n + 1]; n];
@@ -411,7 +422,7 @@ pub(crate) fn parse_full(atoms: &[Atom]) -> Option<Parse> {
         }
     }
 
-    chart[0][n].first().cloned()
+    chart
 }
 
 fn atom_token_spans(atoms: &[Atom]) -> Vec<Range<usize>> {
@@ -434,6 +445,109 @@ fn push_parse(cell: &mut Vec<Parse>, parse: Parse) {
     if !cell.iter().any(|existing| existing.cat == parse.cat) {
         cell.push(parse);
     }
+}
+
+fn explain_failure(atoms: &[Atom]) -> Option<String> {
+    if atoms.len() < 2 {
+        return None;
+    }
+
+    let chart = build_chart(atoms);
+    let n = atoms.len();
+
+    for split in (1..n).rev() {
+        let Some(left) = chart[0][split].first() else {
+            continue;
+        };
+        let Some(right) = chart[split][n].first() else {
+            continue;
+        };
+        let rule_attempts = describe_rule_attempts(&left.cat, &right.cat);
+        if !rule_attempts.is_empty() {
+            let left_surface = surface_from_atoms(&atoms[..split]);
+            let right_surface = surface_from_atoms(&atoms[split..]);
+            return Some(format!(
+                "top-level mismatch:\n  left span: \"{}\" :: {}\n  right span: \"{}\" :: {}\n{}",
+                left_surface,
+                left.cat,
+                right_surface,
+                right.cat,
+                rule_attempts.join("\n")
+            ));
+        }
+    }
+
+    None
+}
+
+fn describe_rule_attempts(left: &Cat, right: &Cat) -> Vec<String> {
+    let mut lines = Vec::new();
+
+    match left {
+        Cat::Fwd(_, arg) => {
+            if arg.as_ref() != right {
+                lines.push(format!(
+                    "  Forward Application: expected {}, got {}",
+                    arg.as_ref(),
+                    right
+                ));
+            }
+        }
+        _ => lines.push(format!(
+            "  Forward Application: left category {} is not X/Y",
+            left
+        )),
+    }
+
+    match right {
+        Cat::Bwd(_, arg) => {
+            if arg.as_ref() != left {
+                lines.push(format!(
+                    "  Backward Application: expected {}, got {}",
+                    arg.as_ref(),
+                    left
+                ));
+            }
+        }
+        _ => lines.push(format!(
+            "  Backward Application: right category {} is not X\\Y",
+            right
+        )),
+    }
+
+    match (left, right) {
+        (Cat::Fwd(_, y1), Cat::Fwd(y2, _)) if y1 != y2 => lines.push(format!(
+            "  Forward Composition: expected left argument {}, got {}",
+            y1.as_ref(),
+            y2.as_ref()
+        )),
+        (Cat::Fwd(_, _), _) => lines.push(format!(
+            "  Forward Composition: right category {} is not Y/Z",
+            right
+        )),
+        _ => lines.push(format!(
+            "  Forward Composition: left category {} is not X/Y",
+            left
+        )),
+    }
+
+    match (left, right) {
+        (Cat::Bwd(y1, _), Cat::Bwd(_, y2)) if y1 != y2 => lines.push(format!(
+            "  Backward Composition: expected right argument {}, got {}",
+            y1.as_ref(),
+            y2.as_ref()
+        )),
+        (Cat::Bwd(_, _), _) => lines.push(format!(
+            "  Backward Composition: right category {} is not X\\Y",
+            right
+        )),
+        _ => lines.push(format!(
+            "  Backward Composition: left category {} is not Y\\Z",
+            left
+        )),
+    }
+
+    lines
 }
 
 fn maybe_type_raise(parse: &Parse) -> Option<Parse> {
