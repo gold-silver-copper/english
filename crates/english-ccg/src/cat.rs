@@ -1,5 +1,15 @@
 use std::fmt;
 
+/// CCG categories used by `english-ccg`.
+///
+/// Finite verbal predicates continue to use the standard CCG category
+/// `S\NP`. Nonfinite verbal forms are represented explicitly as `VP[...]`
+/// atoms so auxiliary selection can be enforced in the derivation:
+///
+/// - `VP[bare]`
+/// - `VP[to]`
+/// - `VP[prespart]`
+/// - `VP[pastpart]`
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Cat {
     S,
@@ -11,6 +21,7 @@ pub enum Cat {
     Bwd(Box<Cat>, Box<Cat>),
 }
 
+/// The nonfinite verbal form tracked by `Cat::VP`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VpForm {
     Bare,
@@ -19,19 +30,23 @@ pub enum VpForm {
     PastPart,
 }
 
+/// Construct a forward-slash category `X/Y`.
 pub fn fwd(result: Cat, arg: Cat) -> Cat {
     Cat::Fwd(Box::new(result), Box::new(arg))
 }
 
+/// Construct a backward-slash category `X\Y`.
 pub fn bwd(result: Cat, arg: Cat) -> Cat {
     Cat::Bwd(Box::new(result), Box::new(arg))
 }
 
 impl Cat {
+    /// Returns `true` for atomic categories and `false` for slash categories.
     pub fn is_complete(&self) -> bool {
         matches!(self, Self::S | Self::N | Self::NP | Self::PP | Self::VP(_))
     }
 
+    /// Returns the result category for a slash category.
     pub fn result(&self) -> Option<&Cat> {
         match self {
             Self::Fwd(result, _) | Self::Bwd(result, _) => Some(result),
@@ -39,6 +54,7 @@ impl Cat {
         }
     }
 
+    /// Returns the argument category for a slash category.
     pub fn arg(&self) -> Option<&Cat> {
         match self {
             Self::Fwd(_, arg) | Self::Bwd(_, arg) => Some(arg),
@@ -46,6 +62,7 @@ impl Cat {
         }
     }
 
+    /// Render the category in standard CCG notation.
     pub fn to_notation(&self) -> String {
         match self {
             Self::S => "S".to_string(),
@@ -113,6 +130,7 @@ pub fn type_raise(cat: &Cat) -> Option<Cat> {
     }
 }
 
+/// Parse a category from CCG notation such as `"(S\\NP)/NP"` or `"VP[to]"`.
 pub fn parse_cat(input: &str) -> Result<Cat, String> {
     let compact: String = input.chars().filter(|ch| !ch.is_whitespace()).collect();
     let chars: Vec<char> = compact.chars().collect();
@@ -127,6 +145,7 @@ pub fn parse_cat(input: &str) -> Result<Cat, String> {
     Ok(cat)
 }
 
+/// Assert at compile time that `cat!` received a raw string literal.
 pub const fn assert_raw_string_literal(source: &str) {
     let bytes = source.as_bytes();
     if bytes.is_empty() || bytes[0] != b'r' {
