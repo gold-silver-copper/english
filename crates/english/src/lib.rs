@@ -1,12 +1,6 @@
 use english_core::EnglishCore;
 pub use english_core::grammar::*;
 
-mod noun;
-pub use noun::*;
-mod verb;
-pub use verb::*;
-mod adj;
-pub use adj::*;
 mod noun_phf {
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -38,7 +32,8 @@ fn strip_trailing_number(word: &str) -> &str {
 /// `English` is the low-level `&str` API for handling English nouns, verbs,
 /// adjectives, pronouns, and possessives. It delegates irregular forms to
 /// lookup tables and falls back on [`EnglishCore`] for regular inflection
-/// rules.
+/// rules. For noun counting ergonomics, see [`count`] and
+/// [`count_with_number`].
 pub struct English;
 impl English {
     /// Inflects a noun into singular or plural form.
@@ -207,4 +202,35 @@ impl English {
             Some(first) => first.to_uppercase().collect::<String>() + c.as_str(),
         }
     }
+}
+
+/// Inflect a noun according to a numeric count.
+///
+/// # Examples
+/// ```rust
+/// use english::count;
+///
+/// assert_eq!(count("cat", 1), "cat");
+/// assert_eq!(count("cat", 2), "cats");
+/// ```
+pub fn count(noun: &str, count: u32) -> String {
+    if count == 1 {
+        English::noun(noun, &Number::Singular)
+    } else {
+        English::noun(noun, &Number::Plural)
+    }
+}
+
+/// Inflect a noun according to a numeric count and keep the number in the
+/// output.
+///
+/// # Examples
+/// ```rust
+/// use english::count_with_number;
+///
+/// assert_eq!(count_with_number("cat", 1), "1 cat");
+/// assert_eq!(count_with_number("cat", 2), "2 cats");
+/// ```
+pub fn count_with_number(noun: &str, amount: u32) -> String {
+    format!("{} {}", amount, count(noun, amount))
 }
