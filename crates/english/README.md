@@ -14,9 +14,9 @@ Evaluation of the English inflector (`extractor/main.rs/check_*`) and performanc
 
 | Part of Speech | Correct / Total | Accuracy  | Throughput (calls/sec) | Time per Call |
 |----------------|----------------|-----------|-----------------------|---------------|
-| **Nouns**      | 238106 / 238549 | 99.81%   | 5,228,300             | 191 ns        |
-| **Verbs**      | 158056 / 161643 | 97.78%   | 8,473,248             | 118 ns        |
-| **Adjectives** | 119200 / 119356 | 99.86%   | 11,999,052             | 83 ns        |
+| **Nouns**      | 242677 / 244001 | 99.46%   | 7,499,749             | 133 ns        |
+| **Verbs**      | 161225 / 165457 | 97.44%   | 12,423,891            | 80 ns         |
+| **Adjectives** | 121271 / 121719 | 99.63%   | 15,607,807            | 64 ns         |
 
 *Note: Benchmarking was done under a worst-case scenario; typical real-world usage is 50~ nanoseconds faster.*
 
