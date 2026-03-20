@@ -35,7 +35,13 @@ fn main() {
     let subject_number = Number::Plural;
     let subject = format!(
         "{} {}",
-        Verb::new("run").present_participle(),
+        English::verb(
+            "run",
+            &Person::First,
+            &Number::Singular,
+            &Tense::Present,
+            &Form::Participle
+        ),
         English::noun("child", &subject_number)
     ); // running children
     let verb = English::verb(
@@ -45,37 +51,79 @@ fn main() {
         &Tense::Past,
         &Form::Finite,
     ); //stole
-    let object = Noun::new("potato").count_with_number(7); //7 potatoes
+    let object = count_with_number("potato", 7); //7 potatoes
 
     let sentence = format!("The {} {} {}.", subject, verb, object);
     assert_eq!(sentence, "The running children stole 7 potatoes.");
 
-    // For higher-level phrase builders, use the `english-phrase` crate.
-
     // --- Nouns ---
     assert_eq!(
-        format!("{} of jeans", Noun::new("pair").count_with_number(3)),
+        format!("{} of jeans", count_with_number("pair", 3)),
         "3 pairs of jeans"
     );
     // Regular plurals
     assert_eq!(English::noun("cat", &Number::Plural), "cats");
     // Add a number 2-9 to the end of the word to try different forms.
-    assert_eq!(Noun::new("die2").plural(), "dice");
+    assert_eq!(English::noun("die2", &Number::Plural), "dice");
     // Use count function for better ergonomics if needed
-    assert_eq!(Noun::new("man").count(2), "men");
+    assert_eq!(count("man", 2), "men");
     // Use count_with_number function to preserve the number
-    assert_eq!(Noun::new("nickel").count_with_number(3), "3 nickels");
+    assert_eq!(count_with_number("nickel", 3), "3 nickels");
     // Invariant nouns
     assert_eq!(English::noun("sheep", &Number::Plural), "sheep");
 
     // --- Verbs ---
-    // Verb helper methods operate on the base lemma only.
-    assert_eq!(Verb::new("pick").past(), "picked");
-    assert_eq!(Verb::new("walk").present_participle(), "walking");
-    assert_eq!(Verb::new("go").past_participle(), "gone");
+    assert_eq!(
+        English::verb(
+            "pick",
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Past,
+            &Form::Finite
+        ),
+        "picked"
+    );
+    assert_eq!(
+        English::verb(
+            "walk",
+            &Person::First,
+            &Number::Singular,
+            &Tense::Present,
+            &Form::Participle
+        ),
+        "walking"
+    );
+    assert_eq!(
+        English::verb(
+            "go",
+            &Person::First,
+            &Number::Singular,
+            &Tense::Past,
+            &Form::Participle
+        ),
+        "gone"
+    );
     // Add a number 2-9 to the end of the word to try different forms.
-    assert_eq!(Verb::new("lie").past(), "lay");
-    assert_eq!(Verb::new("lie2").past(), "lied");
+    assert_eq!(
+        English::verb(
+            "lie",
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Past,
+            &Form::Finite
+        ),
+        "lay"
+    );
+    assert_eq!(
+        English::verb(
+            "lie2",
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Past,
+            &Form::Finite
+        ),
+        "lied"
+    );
     // "to be" has the most verb forms in english and requires using verb()
     assert_eq!(
         English::verb(
@@ -92,11 +140,11 @@ fn main() {
     // Add a number 2-9 to the end of the word to try different forms. (Bad has the most forms at 3)
     assert_eq!(English::adj("bad", &Degree::Comparative), "more bad");
     assert_eq!(English::adj("bad", &Degree::Superlative), "most bad");
-    assert_eq!(Adj::new("bad2").comparative(), "badder");
-    assert_eq!(Adj::new("bad2").superlative(), "baddest");
-    assert_eq!(Adj::new("bad3").comparative(), "worse");
-    assert_eq!(Adj::new("bad3").superlative(), "worst");
-    assert_eq!(Adj::new("bad3").positive(), "bad");
+    assert_eq!(English::adj("bad2", &Degree::Comparative), "badder");
+    assert_eq!(English::adj("bad2", &Degree::Superlative), "baddest");
+    assert_eq!(English::adj("bad3", &Degree::Comparative), "worse");
+    assert_eq!(English::adj("bad3", &Degree::Superlative), "worst");
+    assert_eq!(English::adj("bad3", &Degree::Positive), "bad");
 
     // --- Pronouns ---
     assert_eq!(
@@ -125,6 +173,14 @@ fn main() {
 ```
 
 ---
+
+For a more involved but still minimal example of building a small domain layer on top of `english`, see `crates/english/examples/semantic_triples.rs`:
+
+```bash
+cargo run -p english --example semantic_triples
+```
+
+It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive rendering, modifiers, complements, adjuncts, and agreement-driven pronoun and tense shifts.
 
 ## 🔧 Crate Overview
 

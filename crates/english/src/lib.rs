@@ -76,7 +76,7 @@ impl English {
     /// ```rust
     /// use english::{Degree, English};
     ///
-    /// assert_eq!(English::adj("fast", &Degree::Comparative), "faster");
+    /// assert_eq!(English::adj("fast", &Degree::Comparative), "more fast");
     /// assert_eq!(English::adj("good2", &Degree::Superlative), "best");
     /// assert_eq!(English::adj("fun", &Degree::Comparative), "more fun");
     /// ```

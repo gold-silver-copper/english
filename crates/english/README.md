@@ -56,8 +56,6 @@ fn main() {
     let sentence = format!("The {} {} {}.", subject, verb, object);
     assert_eq!(sentence, "The running children stole 7 potatoes.");
 
-    // For higher-level phrase builders, use the `english-phrase` crate.
-
     // --- Nouns ---
     assert_eq!(
         format!("{} of jeans", count_with_number("pair", 3)),
@@ -175,6 +173,14 @@ fn main() {
 ```
 
 ---
+
+For a more involved but still minimal example of building a small domain layer on top of `english`, see `examples/semantic_triples.rs`:
+
+```bash
+cargo run -p english --example semantic_triples
+```
+
+It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive rendering, modifiers, complements, adjuncts, and agreement-driven pronoun and tense shifts.
 
 ## 🔧 Crate Overview
 
