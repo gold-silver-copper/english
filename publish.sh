@@ -9,6 +9,32 @@ if [[ $# -ne 0 ]]; then
     exit 1
 fi
 
+publish_crate() {
+    local crate="$1"
+    local output
+    local status
+
+    echo "==> Publishing $crate"
+
+    set +e
+    output="$(cargo publish -p "$crate" --locked 2>&1)"
+    status=$?
+    set -e
+
+    printf '%s\n' "$output"
+
+    if [[ $status -eq 0 ]]; then
+        return 0
+    fi
+
+    if [[ "$output" == *"already exists on crates.io index"* ]]; then
+        echo "==> Skipping $crate: version already published"
+        return 0
+    fi
+
+    return "$status"
+}
+
 echo "==> Running tests"
 cargo test --quiet
 
@@ -22,8 +48,5 @@ echo "==> Checking english package contents"
 # unpublished dependency version to exist remotely.
 cargo package --list -p english --locked --allow-dirty
 
-echo "==> Publishing english-core"
-cargo publish -p english-core --locked
-
-echo "==> Publishing english"
-cargo publish -p english --locked
+publish_crate english-core
+publish_crate english
