@@ -28,6 +28,13 @@ mod variants_phf {
 }
 #[cfg(feature = "senses")]
 use variants_phf::*;
+#[cfg(feature = "dictionary")]
+mod dictionary_phf {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/generated/dictionary_phf.rs"
+    ));
+}
 
 /// Strips the sense-disambiguation suffix from a key. Assignment suffixes are
 /// allocated append-only and may grow past a single digit, so we strip *all*
@@ -239,6 +246,39 @@ impl English {
     #[cfg(feature = "senses")]
     pub fn adj_senses(lemma: &str) -> &'static [&'static str] {
         adj_variants(strip_trailing_number(lemma)).unwrap_or(&[])
+    }
+
+    /// Returns the Wiktionary definitions for a noun **sense key**.
+    ///
+    /// The key is the exact, sense-disambiguated key (e.g. `"die2"`), so distinct
+    /// homographs return distinct definitions. Returns an empty slice for keys not
+    /// in the tables (most fully-regular words). Requires the `dictionary` feature.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # #[cfg(feature = "dictionary")] {
+    /// use english::English;
+    /// assert!(English::noun_meanings("die2")[0].to_lowercase().contains("cube"));
+    /// assert!(English::noun_meanings("cat").is_empty());
+    /// # }
+    /// ```
+    #[cfg(feature = "dictionary")]
+    pub fn noun_meanings(key: &str) -> &'static [&'static str] {
+        dictionary_phf::noun_meanings(key).unwrap_or(&[])
+    }
+
+    /// Returns the Wiktionary definitions for a verb **sense key** (e.g. `"lie2"`).
+    /// Requires the `dictionary` feature.
+    #[cfg(feature = "dictionary")]
+    pub fn verb_meanings(key: &str) -> &'static [&'static str] {
+        dictionary_phf::verb_meanings(key).unwrap_or(&[])
+    }
+
+    /// Returns the Wiktionary definitions for an adjective **sense key** (e.g. `"bad3"`).
+    /// Requires the `dictionary` feature.
+    #[cfg(feature = "dictionary")]
+    pub fn adj_meanings(key: &str) -> &'static [&'static str] {
+        dictionary_phf::adj_meanings(key).unwrap_or(&[])
     }
 
     /// Capitalizes the first letter of a string.

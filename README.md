@@ -267,6 +267,32 @@ assert!(English::noun_senses("cat").is_empty());
 The lockfiles were originally seeded from the shipped tables with `cargo xtask seed-assignments`
 (a one-time bootstrap); you should not need to run it again.
 
+## 📖 Dictionary (optional)
+
+Because the extractor already reads each sense's Wiktionary gloss, the `dictionary`
+feature ships those definitions keyed by the same stable sense keys. Enable it (it
+adds ~3 MB of generated definition tables, so it is off by default):
+
+```toml
+english = { version = "0.2", features = ["dictionary"] }
+```
+
+```rust
+use english::English;
+
+// Definitions are keyed by the exact sense key, so homographs stay distinct:
+English::verb_meanings("lie");   // ["To rest in a horizontal position on a surface.", ...]
+English::verb_meanings("lie2");  // ["To give false information intentionally...", ...]
+English::noun_meanings("die2");  // ["An isohedral polyhedron, usually a cube, ...", ...]
+English::adj_meanings("bad3");   // ["Of low quality.", "Inaccurate; incorrect", ...]
+
+// Returns &'static [&'static str] (empty for keys not in the tables, e.g. fully-regular words).
+```
+
+`*_meanings` covers the keys present in the inflection tables (irregulars and their
+numbered variants); fully-regular words return an empty slice. `senses` and
+`dictionary` are independent and can be enabled together.
+
 ## Benchmarks
 Performance benchmarks were run on my M2 Macbook.
 

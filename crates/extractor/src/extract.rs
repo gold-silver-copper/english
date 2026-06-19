@@ -1,7 +1,26 @@
 use crate::helpers::{
     Entry, Pos, contains_bad_tag, entry_is_proper, suffix_rule, word_is_proper,
 };
-use crate::registry::{Candidate, Lock};
+use crate::registry::{Assignment, Candidate, Lock};
+
+/// Accumulated `key -> Wiktionary definitions` for one part of speech.
+pub type Definitions = BTreeMap<String, Vec<String>>;
+
+/// Attribute each resolved key's definitions (looked up by form signature, since
+/// that is what survives `resolve`) into the per-POS dictionary accumulator.
+fn record_definitions(
+    dict: &mut Definitions,
+    gloss_by_sig: &HashMap<String, Vec<String>>,
+    assignments: &[Assignment],
+) {
+    for a in assignments {
+        if let Some(g) = gloss_by_sig.get(&a.forms.join("|"))
+            && !g.is_empty()
+        {
+            dict.entry(a.key.clone()).or_default().extend(g.iter().cloned());
+        }
+    }
+}
 use csv::{ReaderBuilder, WriterBuilder};
 use english_core::*;
 use std::collections::{BTreeMap, HashMap};
@@ -41,6 +60,7 @@ impl LemmaAcc {
         if c.gloss.is_none() {
             c.gloss = entry.first_gloss();
         }
+        c.glosses.extend(entry.all_glosses());
     }
 
     /// Drop the pattern that exactly equals the regular prediction; it is produced
@@ -64,6 +84,7 @@ fn open_reader(path: &Path) -> BufReader<File> {
 pub fn extract_irregular_nouns(
     input_path: impl AsRef<Path>,
     lock: &mut Lock,
+    dict: &mut Definitions,
     date: &str,
 ) -> Result<(), Box<dyn Error>> {
     let input_path = input_path.as_ref();
@@ -109,7 +130,12 @@ pub fn extract_irregular_nouns(
         if candidates.is_empty() {
             continue;
         }
-        lock.resolve(&lemma, Pos::Noun, candidates, had_regular, date);
+        let gloss_by_sig: HashMap<String, Vec<String>> = candidates
+            .iter()
+            .map(|c| (c.forms.join("|"), c.glosses.clone()))
+            .collect();
+        let assignments = lock.resolve(&lemma, Pos::Noun, candidates, had_regular, date);
+        record_definitions(dict, &gloss_by_sig, &assignments);
     }
 
     println!("Resolved irregular nouns into the lock.");
@@ -119,6 +145,7 @@ pub fn extract_irregular_nouns(
 pub fn extract_irregular_adjectives(
     input_path: impl AsRef<Path>,
     lock: &mut Lock,
+    dict: &mut Definitions,
     date: &str,
 ) -> Result<(), Box<dyn Error>> {
     let input_path = input_path.as_ref();
@@ -183,7 +210,12 @@ pub fn extract_irregular_adjectives(
         if candidates.is_empty() {
             continue;
         }
-        lock.resolve(&lemma, Pos::Adj, candidates, had_regular, date);
+        let gloss_by_sig: HashMap<String, Vec<String>> = candidates
+            .iter()
+            .map(|c| (c.forms.join("|"), c.glosses.clone()))
+            .collect();
+        let assignments = lock.resolve(&lemma, Pos::Adj, candidates, had_regular, date);
+        record_definitions(dict, &gloss_by_sig, &assignments);
     }
 
     println!("Resolved irregular adjectives into the lock.");
@@ -193,6 +225,7 @@ pub fn extract_irregular_adjectives(
 pub fn extract_verb_conjugations(
     input_path: impl AsRef<Path>,
     lock: &mut Lock,
+    dict: &mut Definitions,
     date: &str,
 ) -> Result<(), Box<dyn Error>> {
     let input_path = input_path.as_ref();
@@ -331,7 +364,12 @@ pub fn extract_verb_conjugations(
         if candidates.is_empty() {
             continue;
         }
-        lock.resolve(&lemma, Pos::Verb, candidates, had_regular, date);
+        let gloss_by_sig: HashMap<String, Vec<String>> = candidates
+            .iter()
+            .map(|c| (c.forms.join("|"), c.glosses.clone()))
+            .collect();
+        let assignments = lock.resolve(&lemma, Pos::Verb, candidates, had_regular, date);
+        record_definitions(dict, &gloss_by_sig, &assignments);
     }
 
     println!("Resolved verb conjugations into the lock.");

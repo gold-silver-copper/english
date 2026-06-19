@@ -156,6 +156,17 @@ impl Entry {
             .find(|g| !g.is_empty())
             .cloned()
     }
+
+    /// Every non-empty gloss across this entry's senses, in order — the raw
+    /// material for the optional dictionary tables.
+    pub fn all_glosses(&self) -> Vec<String> {
+        self.senses
+            .iter()
+            .flat_map(|s| s.glosses.iter())
+            .filter(|g| !g.is_empty())
+            .cloned()
+            .collect()
+    }
 }
 
 #[derive(Debug, Default, Eq, Hash, PartialEq, Clone, Ord, PartialOrd)]

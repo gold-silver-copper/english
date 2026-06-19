@@ -2,9 +2,10 @@ use crate::args::Config;
 use crate::bootstrap::{generate_tables, load_locks, save_locks};
 use crate::checks::run_checks;
 use crate::extract::{
-    extract_irregular_adjectives, extract_irregular_nouns, extract_verb_conjugations,
+    Definitions, extract_irregular_adjectives, extract_irregular_nouns, extract_verb_conjugations,
     filter_english_entries,
 };
+use crate::file_generation::write_dictionary_phf;
 use crate::registry::check_immutability;
 use std::error::Error;
 use std::fs;
@@ -34,9 +35,14 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
     let (before_noun, before_verb, before_adj) = load_locks(&config.assignments_dir)?;
     let (mut noun_lock, mut verb_lock, mut adj_lock) = load_locks(&config.assignments_dir)?;
 
-    extract_verb_conjugations(&filtered_json_path, &mut verb_lock, &config.data_date)?;
-    extract_irregular_nouns(&filtered_json_path, &mut noun_lock, &config.data_date)?;
-    extract_irregular_adjectives(&filtered_json_path, &mut adj_lock, &config.data_date)?;
+    // Definitions accumulated alongside resolution, for the optional dictionary tables.
+    let mut noun_defs = Definitions::new();
+    let mut verb_defs = Definitions::new();
+    let mut adj_defs = Definitions::new();
+
+    extract_verb_conjugations(&filtered_json_path, &mut verb_lock, &mut verb_defs, &config.data_date)?;
+    extract_irregular_nouns(&filtered_json_path, &mut noun_lock, &mut noun_defs, &config.data_date)?;
+    extract_irregular_adjectives(&filtered_json_path, &mut adj_lock, &mut adj_defs, &config.data_date)?;
 
     // Surface resolution notes (drift re-matches, tombstones, ambiguities).
     for note in noun_lock
@@ -69,6 +75,12 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
 
     save_locks(&config.assignments_dir, &noun_lock, &verb_lock, &adj_lock)?;
     generate_tables(&noun_lock, &verb_lock, &adj_lock, &config.generated_dir)?;
+    write_dictionary_phf(
+        noun_defs,
+        verb_defs,
+        adj_defs,
+        config.generated_dir.join("dictionary_phf.rs"),
+    )?;
 
     println!(
         "Refresh complete. Lockfiles updated in {}, tables in {}.",

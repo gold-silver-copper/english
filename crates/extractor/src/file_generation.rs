@@ -200,6 +200,87 @@ fn strip_trailing_digits(word: &str) -> &str {
     word.trim_end_matches(|c: char| c.is_ascii_digit())
 }
 
+/// Emit the optional dictionary tables: sense key -> every Wiktionary definition
+/// for that homograph. Each map mirrors the `*_meanings` accessor naming.
+pub fn write_dictionary_phf(
+    noun: std::collections::BTreeMap<String, Vec<String>>,
+    verb: std::collections::BTreeMap<String, Vec<String>>,
+    adj: std::collections::BTreeMap<String, Vec<String>>,
+    outputik: impl AsRef<Path>,
+) -> std::io::Result<()> {
+    let mut output = File::create(outputik)?;
+    writeln!(output, "use phf::phf_map;")?;
+    writeln!(output)?;
+    writeln!(
+        output,
+        "// Sense key (e.g. \"lie2\") -> Wiktionary definitions for that homograph."
+    )?;
+    writeln!(
+        output,
+        "// Covers the keys present in the inflection tables; empty for fully-regular words."
+    )?;
+    write_one_meanings_map(&mut output, "NOUN_MEANINGS", "noun_meanings", noun)?;
+    write_one_meanings_map(&mut output, "VERB_MEANINGS", "verb_meanings", verb)?;
+    write_one_meanings_map(&mut output, "ADJ_MEANINGS", "adj_meanings", adj)?;
+    Ok(())
+}
+
+fn write_one_meanings_map(
+    output: &mut File,
+    static_name: &str,
+    fn_name: &str,
+    dict: std::collections::BTreeMap<String, Vec<String>>,
+) -> std::io::Result<()> {
+    writeln!(output)?;
+    writeln!(
+        output,
+        "pub static {static_name}: phf::Map<&'static str, &'static [&'static str]> = phf_map! {{"
+    )?;
+    for (key, defs) in &dict {
+        let defs = dedup_preserve_order(defs);
+        if defs.is_empty() {
+            continue;
+        }
+        let list = defs
+            .iter()
+            .map(|d| format!("\"{}\"", escape_rust_string(d)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        writeln!(output, "    \"{key}\" => &[{list}],")?;
+    }
+    writeln!(output, "}};")?;
+    writeln!(output)?;
+    writeln!(
+        output,
+        "pub fn {fn_name}(key: &str) -> Option<&'static [&'static str]> {{ {static_name}.get(key).copied() }}"
+    )?;
+    Ok(())
+}
+
+fn dedup_preserve_order(defs: &[String]) -> Vec<String> {
+    let mut seen = std::collections::HashSet::new();
+    defs.iter()
+        .filter(|d| !d.is_empty())
+        .filter(|d| seen.insert((*d).clone()))
+        .cloned()
+        .collect()
+}
+
+/// Escape a gloss into valid Rust string-literal content (UTF-8 preserved).
+fn escape_rust_string(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 8);
+    for c in s.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\n' | '\r' | '\t' => out.push(' '),
+            c if c.is_control() => {}
+            c => out.push(c),
+        }
+    }
+    out
+}
+
 // ---------------------------------------------------------------------------
 // CSV entry points (legacy path; the extractor still writes intermediate CSVs).
 // ---------------------------------------------------------------------------
