@@ -216,7 +216,7 @@ It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive
 
 ## 📦 Obtaining Wiktionary Data & Running the Extractor
 
-This project relies on raw data extracted from Wiktionary. Current version built with data from 8/17/2025.
+This project relies on raw data extracted from Wiktionary. Current version built with data from 2026-06-19.
 
 - [Wiktextract (GitHub)](https://github.com/tatuylonen/wiktextract)
 - [Kaikki.org raw data](https://kaikki.org/dictionary/rawdata.html)
@@ -225,7 +225,7 @@ This project relies on raw data extracted from Wiktionary. Current version built
 
 1. Download the **raw Wiktextract JSONL dump** (~20 GB) from [Kaikki.org](https://kaikki.org/dictionary/rawdata.html).
 2. Place the file somewhere accessible (e.g. `../rawwiki.jsonl`).
-3. From the repository root, run: `cargo xtask refresh-data --dump ../rawwiki.jsonl --data-date 2025-08-17`
+3. From the repository root, run: `cargo xtask refresh-data --dump ../rawwiki.jsonl --data-date YYYY-MM-DD` (use the dump's date)
 4. The generated Rust tables are written to `/crates/english/generated`, the assignment lockfiles to `/data/assignments`, and intermediate CSV/JSONL artifacts to `/data/intermediate`.
 5. Review `git diff data/assignments/` like a `Cargo.lock` diff, then run `cargo xtask check-registry` before committing.
 
@@ -249,7 +249,13 @@ the data equivalent of `Cargo.lock`:
 * `cargo xtask check-registry` fails the build if any previously-committed key changed meaning.
 * `cargo xtask report-coverage` shows how much of each lockfile rests on strong vs. weak anchors.
 
-Discover which numbered senses exist for a lemma instead of hard-coding suffixes:
+Discover which numbered senses exist for a lemma instead of hard-coding suffixes
+(enable the optional `senses` feature, which bundles the variant tables — kept off
+by default so the shipped data stays under 1 MB):
+
+```toml
+english = { version = "0.2", features = ["senses"] }
+```
 
 ```rust
 use english::English;

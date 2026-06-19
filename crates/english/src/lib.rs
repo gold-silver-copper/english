@@ -19,12 +19,14 @@ mod verb_phf {
     ));
 }
 use verb_phf::*;
+#[cfg(feature = "senses")]
 mod variants_phf {
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/generated/variants_phf.rs"
     ));
 }
+#[cfg(feature = "senses")]
 use variants_phf::*;
 
 /// Strips the sense-disambiguation suffix from a key. Assignment suffixes are
@@ -208,6 +210,7 @@ impl English {
     /// assert_eq!(English::noun_senses("die"), &["die2"]);
     /// assert!(English::noun_senses("cat").is_empty());
     /// ```
+    #[cfg(feature = "senses")]
     pub fn noun_senses(lemma: &str) -> &'static [&'static str] {
         noun_variants(strip_trailing_number(lemma)).unwrap_or(&[])
     }
@@ -220,6 +223,7 @@ impl English {
     ///
     /// assert_eq!(English::verb_senses("lie"), &["lie", "lie2"]);
     /// ```
+    #[cfg(feature = "senses")]
     pub fn verb_senses(lemma: &str) -> &'static [&'static str] {
         verb_variants(strip_trailing_number(lemma)).unwrap_or(&[])
     }
@@ -232,6 +236,7 @@ impl English {
     ///
     /// assert_eq!(English::adj_senses("bad"), &["bad2", "bad3"]);
     /// ```
+    #[cfg(feature = "senses")]
     pub fn adj_senses(lemma: &str) -> &'static [&'static str] {
         adj_variants(strip_trailing_number(lemma)).unwrap_or(&[])
     }

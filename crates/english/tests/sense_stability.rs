@@ -37,6 +37,7 @@ fn adjective_bad_homographs_are_pinned() {
     assert_eq!(English::adj("bad3", &Degree::Superlative), "worst");
 }
 
+#[cfg(feature = "senses")]
 #[test]
 fn self_describing_sense_lists_match_published_keys() {
     assert_eq!(English::noun_senses("die"), &["die2"]);

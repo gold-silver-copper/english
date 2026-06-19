@@ -212,7 +212,7 @@ impl Lock {
 
         // etymology_number is only a safe stand-alone anchor when distinct across
         // the batch; otherwise colliding senses need the form signature as a tiebreak.
-        let etym_unique = etym_is_unique(&candidates);
+        let uniq = BatchUniq::of(&candidates);
 
         let assignments = {
             let rows = self.map.entry(key).or_default();
@@ -229,7 +229,7 @@ impl Lock {
                 }
                 if let Some(ci) = remaining
                     .iter()
-                    .position(|c| anchor_exact_match(&rows[ri], c, etym_unique))
+                    .position(|c| anchor_exact_match(&rows[ri], c, &uniq))
                 {
                     let c = remaining.remove(ci);
                     rows[ri].apply_match(&c, date);
@@ -316,7 +316,7 @@ impl Lock {
             remaining.sort_by_key(|c| c.order_key());
             for (offset, c) in remaining.into_iter().enumerate() {
                 let suffix = base + offset as u32;
-                let anchor = primary_anchor_token(&c, etym_unique);
+                let anchor = primary_anchor_token(&c, &uniq);
                 let mut row = LockRow {
                     lemma: lemma.to_string(),
                     pos,
@@ -460,15 +460,25 @@ pub fn check_immutability(old: &Lock, new: &Lock) -> Vec<String> {
     // Index new rows by frozen identity and by (lemma,pos,suffix).
     let mut new_by_anchor: BTreeMap<(String, String, String), &LockRow> = BTreeMap::new();
     let mut new_by_suffix: BTreeMap<(String, String, u32), Vec<&LockRow>> = BTreeMap::new();
+    let mut anchor_counts: BTreeMap<(String, String, String), usize> = BTreeMap::new();
     for r in new.rows() {
-        new_by_anchor.insert(
-            (r.lemma.clone(), r.pos.as_str().to_string(), r.anchor.clone()),
-            r,
-        );
+        let akey = (r.lemma.clone(), r.pos.as_str().to_string(), r.anchor.clone());
+        *anchor_counts.entry(akey.clone()).or_default() += 1;
+        new_by_anchor.insert(akey, r);
         new_by_suffix
             .entry((r.lemma.clone(), r.pos.as_str().to_string(), r.suffix))
             .or_default()
             .push(r);
+    }
+
+    // Every frozen anchor must identify exactly one row within a (lemma,pos);
+    // a duplicate means two keys share an identity (and the guard can't track them).
+    for ((lemma, pos, anchor), n) in &anchor_counts {
+        if *n > 1 {
+            violations.push(format!(
+                "{lemma} [{pos}] anchor `{anchor}` is shared by {n} rows (anchors must be unique per lemma)"
+            ));
+        }
     }
 
     for r in old.rows() {
@@ -570,47 +580,99 @@ fn split_forms(s: &str) -> Vec<String> {
     }
 }
 
-fn etym_is_unique(candidates: &[Candidate]) -> bool {
-    let mut seen = std::collections::HashSet::new();
-    for c in candidates {
-        if let Some(e) = c.etym
-            && !seen.insert(e)
-        {
-            return false;
-        }
-    }
-    true
+/// Anchor values (per tier) that are shared by more than one candidate in a batch.
+/// A strong anchor (qid/sid/etym) is only safe to use bare when it is unique among
+/// the lemma's candidates; otherwise the form signature must disambiguate it. This
+/// matters most for nouns, where one entry can list several plural forms that all
+/// inherit the entry's single qid/sid/etymology.
+#[derive(Default)]
+struct BatchUniq {
+    qid_dup: std::collections::HashSet<String>,
+    sid_dup: std::collections::HashSet<String>,
+    etym_dup: std::collections::HashSet<u32>,
 }
 
-fn anchor_exact_match(row: &LockRow, c: &Candidate, etym_unique: bool) -> bool {
+impl BatchUniq {
+    fn of(candidates: &[Candidate]) -> Self {
+        use std::collections::HashMap;
+        let mut qid: HashMap<&str, u32> = HashMap::new();
+        let mut sid: HashMap<&str, u32> = HashMap::new();
+        let mut etym: HashMap<u32, u32> = HashMap::new();
+        for c in candidates {
+            if let Some(q) = &c.qid {
+                *qid.entry(q).or_default() += 1;
+            }
+            if let Some(s) = &c.sid {
+                *sid.entry(s).or_default() += 1;
+            }
+            if let Some(e) = c.etym {
+                *etym.entry(e).or_default() += 1;
+            }
+        }
+        BatchUniq {
+            qid_dup: qid.into_iter().filter(|(_, n)| *n > 1).map(|(k, _)| k.to_string()).collect(),
+            sid_dup: sid.into_iter().filter(|(_, n)| *n > 1).map(|(k, _)| k.to_string()).collect(),
+            etym_dup: etym.into_iter().filter(|(_, n)| *n > 1).map(|(k, _)| k).collect(),
+        }
+    }
+
+    fn qid_unique(&self, q: &str) -> bool {
+        !self.qid_dup.contains(q)
+    }
+    fn sid_unique(&self, s: &str) -> bool {
+        !self.sid_dup.contains(s)
+    }
+    fn etym_unique(&self, e: u32) -> bool {
+        !self.etym_dup.contains(&e)
+    }
+}
+
+/// A candidate matches a row when their strongest shared anchor agrees — and, when
+/// that anchor value is shared by multiple candidates this batch, when the form
+/// signatures also agree (so the right plural-variant pairs with the right row).
+fn anchor_exact_match(row: &LockRow, c: &Candidate, uniq: &BatchUniq) -> bool {
     if let (Some(rq), Some(cq)) = (&row.qid, &c.qid)
         && rq == cq
+        && (uniq.qid_unique(cq) || row.sig() == c.sig())
     {
         return true;
     }
     if let (Some(rs), Some(cs)) = (&row.sid, &c.sid)
         && rs == cs
+        && (uniq.sid_unique(cs) || row.sig() == c.sig())
     {
         return true;
     }
     if let (Some(re), Some(ce)) = (row.etym, c.etym)
         && re == ce
-        && (etym_unique || row.sig() == c.sig())
+        && (uniq.etym_unique(ce) || row.sig() == c.sig())
     {
         return true;
     }
     row.sig() == c.sig()
 }
 
-fn primary_anchor_token(c: &Candidate, etym_unique: bool) -> String {
+/// The frozen primary identity for a new row. Always unique within `(lemma, pos)`:
+/// the strongest available anchor, plus a `#sig:` tiebreaker whenever that anchor
+/// value is shared by another candidate (candidates are deduped by signature, so
+/// the signature is always a unique disambiguator).
+fn primary_anchor_token(c: &Candidate, uniq: &BatchUniq) -> String {
     if let Some(q) = &c.qid {
-        return format!("qid:{q}");
+        return if uniq.qid_unique(q) {
+            format!("qid:{q}")
+        } else {
+            format!("qid:{q}#sig:{}", c.sig())
+        };
     }
     if let Some(s) = &c.sid {
-        return format!("sid:{s}");
+        return if uniq.sid_unique(s) {
+            format!("sid:{s}")
+        } else {
+            format!("sid:{s}#sig:{}", c.sig())
+        };
     }
     if let Some(e) = c.etym {
-        return if etym_unique {
+        return if uniq.etym_unique(e) {
             format!("etym:{e}")
         } else {
             format!("etym:{e}#sig:{}", c.sig())
@@ -801,6 +863,42 @@ mod tests {
         // forms update in place + append a new sense: both legal.
         new.resolve("die", Pos::Noun, vec![cand(&["dice"]), cand(&["dies_alt"])], true, "d2");
         assert!(check_immutability(&old, &new).is_empty());
+    }
+
+    #[test]
+    fn shared_strong_anchor_gets_sig_tiebreak() {
+        // One noun entry with several plural forms shares its qid across candidates;
+        // each emitted key must still get a UNIQUE anchor (qid + sig tiebreak), or
+        // the immutability guard can't tell the rows apart.
+        let mut lock = Lock::new();
+        let mut c1 = cand(&["walrii"]);
+        c1.qid = Some("Q40994".into());
+        let mut c2 = cand(&["walrus"]);
+        c2.qid = Some("Q40994".into());
+        let mut c3 = cand(&["walrusses"]);
+        c3.qid = Some("Q40994".into());
+        lock.resolve("walrus", Pos::Noun, vec![c1, c2, c3], true, "d1");
+
+        let anchors: Vec<String> = lock.rows().map(|r| r.anchor.clone()).collect();
+        let distinct: std::collections::HashSet<_> = anchors.iter().collect();
+        assert_eq!(anchors.len(), distinct.len(), "anchors must be unique: {anchors:?}");
+        assert!(
+            anchors.iter().all(|a| a.starts_with("qid:Q40994#sig:")),
+            "{anchors:?}"
+        );
+        // A freshly-resolved lock must pass the guard against itself.
+        assert!(check_immutability(&lock, &lock).is_empty());
+
+        // And re-resolving the same dump is idempotent (keys hold).
+        let mut c1 = cand(&["walrii"]);
+        c1.qid = Some("Q40994".into());
+        let mut c2 = cand(&["walrus"]);
+        c2.qid = Some("Q40994".into());
+        let mut c3 = cand(&["walrusses"]);
+        c3.qid = Some("Q40994".into());
+        let again = lock.resolve("walrus", Pos::Noun, vec![c1, c2, c3], true, "d2");
+        assert_eq!(keys(&again), vec!["walrus2", "walrus3", "walrus4"]);
+        assert!(check_immutability(&lock, &lock).is_empty());
     }
 
     #[test]
