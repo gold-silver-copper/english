@@ -4,12 +4,18 @@ use std::path::PathBuf;
 
 const DEFAULT_GENERATED_DIR: &str = "crates/english/generated";
 const DEFAULT_ARTIFACTS_DIR: &str = "data/intermediate";
+const DEFAULT_ASSIGNMENTS_DIR: &str = "data/assignments";
 
 #[derive(Debug, Clone)]
 pub struct Config {
     pub dump_path: PathBuf,
     pub generated_dir: PathBuf,
     pub artifacts_dir: PathBuf,
+    /// Directory holding the checked-in assignment lockfiles (`*.lock.csv`).
+    pub assignments_dir: PathBuf,
+    /// Date stamp recorded as first_seen/last_seen for this dump (review metadata
+    /// only; never affects key assignment).
+    pub data_date: String,
     pub run_checks: bool,
 }
 
@@ -27,6 +33,8 @@ where
     let mut dump_path = None;
     let mut generated_dir = repo_root.join(DEFAULT_GENERATED_DIR);
     let mut artifacts_dir = repo_root.join(DEFAULT_ARTIFACTS_DIR);
+    let mut assignments_dir = repo_root.join(DEFAULT_ASSIGNMENTS_DIR);
+    let mut data_date = "unknown".to_string();
     let mut run_checks = false;
 
     let mut args = args.into_iter();
@@ -47,6 +55,15 @@ where
                     .next()
                     .ok_or("expected a path after `--artifacts-dir`")?;
                 artifacts_dir = PathBuf::from(value);
+            }
+            "--assignments-dir" => {
+                let value = args
+                    .next()
+                    .ok_or("expected a path after `--assignments-dir`")?;
+                assignments_dir = PathBuf::from(value);
+            }
+            "--data-date" => {
+                data_date = args.next().ok_or("expected a value after `--data-date`")?;
             }
             "--run-checks" => {
                 run_checks = true;
@@ -74,13 +91,15 @@ where
         dump_path,
         generated_dir,
         artifacts_dir,
+        assignments_dir,
+        data_date,
         run_checks,
     })
 }
 
 pub fn print_usage() {
     eprintln!(
-        "Usage: cargo run -p extractor --release -- --dump /path/to/rawwiki.jsonl [--generated-dir generated] [--artifacts-dir data/intermediate] [--run-checks]"
+        "Usage: cargo run -p extractor --release -- --dump /path/to/rawwiki.jsonl [--generated-dir DIR] [--artifacts-dir DIR] [--assignments-dir DIR] [--data-date YYYY-MM-DD] [--run-checks]"
     );
     eprintln!("       cargo run -p extractor --release -- /path/to/rawwiki.jsonl");
 }

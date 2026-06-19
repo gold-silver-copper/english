@@ -209,6 +209,7 @@ It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive
 * Parses large English Wiktionary dumps
 * Extracts all verb, noun, and adjective forms
 * Uses `english-core` to filter out regular forms, preserving only irregulars
+* Resolves homograph sense numbers against the checked-in assignment lockfiles so keys stay stable across releases
 * Generates the static PHF tables used in `english`
 
 ---
@@ -224,10 +225,41 @@ This project relies on raw data extracted from Wiktionary. Current version built
 
 1. Download the **raw Wiktextract JSONL dump** (~20 GB) from [Kaikki.org](https://kaikki.org/dictionary/rawdata.html).
 2. Place the file somewhere accessible (e.g. `../rawwiki.jsonl`).
-3. From the repository root, run: `cargo xtask refresh-data --dump ../rawwiki.jsonl`
-4. The generated Rust tables are written to `/crates/english/generated`, and intermediate CSV/JSONL artifacts are written to `/data/intermediate`
+3. From the repository root, run: `cargo xtask refresh-data --dump ../rawwiki.jsonl --data-date 2025-08-17`
+4. The generated Rust tables are written to `/crates/english/generated`, the assignment lockfiles to `/data/assignments`, and intermediate CSV/JSONL artifacts to `/data/intermediate`.
+5. Review `git diff data/assignments/` like a `Cargo.lock` diff, then run `cargo xtask check-registry` before committing.
 
 To also run the extractor evaluation reports against the current library data, add `--with-checks`.
+
+## 🔒 Deterministic sense numbering
+
+Homographs that inflect differently share a lemma and are disambiguated by a numeric suffix
+(`lie` → *lay*, `lie2` → *lied*; `die2` → *dice*). Historically that suffix was **positional** —
+assigned by alphabetically sorting whatever forms survived filtering in a given dump — so any
+upstream change could renumber a lemma and silently swap the meaning of a published key.
+
+The suffix is now pinned in checked-in **assignment lockfiles** (`data/assignments/{noun,verb,adj}.lock.csv`),
+the data equivalent of `Cargo.lock`:
+
+* Each emitted key is anchored to a stable identity (Wikidata QID → senseid → `etymology_number` →,
+  as a last resort, the form signature) and a **frozen** suffix.
+* On every refresh, senses are matched to existing lock rows by anchor and **reuse** their pinned
+  suffix (forms may update in place); genuinely new senses get **append-only** higher suffixes;
+  vanished senses are **tombstoned** and their suffix is retired forever.
+* `cargo xtask check-registry` fails the build if any previously-committed key changed meaning.
+* `cargo xtask report-coverage` shows how much of each lockfile rests on strong vs. weak anchors.
+
+Discover which numbered senses exist for a lemma instead of hard-coding suffixes:
+
+```rust
+use english::English;
+assert_eq!(English::verb_senses("lie"), &["lie", "lie2"]);
+assert_eq!(English::noun_senses("die"), &["die2"]);
+assert!(English::noun_senses("cat").is_empty());
+```
+
+The lockfiles were originally seeded from the shipped tables with `cargo xtask seed-assignments`
+(a one-time bootstrap); you should not need to run it again.
 
 ## Benchmarks
 Performance benchmarks were run on my M2 Macbook.
@@ -235,7 +267,7 @@ Performance benchmarks were run on my M2 Macbook.
 Writing benchmarks and tests for such a project is rather difficult and requires opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of words may be inconsistent. This library includes a few uncountable words in its dataset, but not all. Uncountable words require special handling anyway. Take all benchmarks with a pound of salt, write your own tests for your own usecases. Any suggestions to improve the benchmarking are highly appreciated.
 
 ## Disclaimer
-Wiktionary data is often unstable and subject to weird changes. This means that the provided inflections may change unexpectedly. The generated lookup tables in `crates/english/generated/*_phf.rs` are the source of truth for a given revision.
+Wiktionary data is often unstable and subject to weird changes. This means that the provided inflections may change unexpectedly. The generated lookup tables in `crates/english/generated/*_phf.rs` are the source of truth for a given revision, and the assignment lockfiles in `data/assignments/*.lock.csv` keep each sense-numbered key (`lie2`, `die2`, …) pointing at the same inflection across revisions — see [Deterministic sense numbering](#-deterministic-sense-numbering).
 
 ## Inspirations and Thanks
 - Ole in the bevy discord suggested I use ```phf``` instead of sorted arrays, this resulted in up to 40% speedups

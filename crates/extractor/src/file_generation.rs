@@ -2,26 +2,16 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 
-pub fn generate_nouns_phf(
-    inputik: impl AsRef<Path>,
+// ---------------------------------------------------------------------------
+// Pair-based cores. These hold the exact byte formatting of the generated
+// tables; both the CSV entry points and the lock-driven generation funnel
+// through them so output is identical regardless of source.
+// ---------------------------------------------------------------------------
+
+pub fn write_nouns_phf(
+    mut pairs: Vec<(String, String)>,
     outputik: impl AsRef<Path>,
 ) -> std::io::Result<()> {
-    let input = File::open(inputik)?;
-    let reader = BufReader::new(input);
-
-    let mut pairs: Vec<(String, String)> = reader
-        .lines()
-        .skip(1) // Skip header
-        .filter_map(|line| {
-            let line = line.ok()?;
-            let mut parts = line.split(',');
-            Some((
-                parts.next()?.trim().to_string(),
-                parts.next()?.trim().to_string(),
-            ))
-        })
-        .collect();
-
     // Sort by word for determinism (not required by phf, but helps reproducibility)
     pairs.sort_by_key(|(word, _)| word.clone());
 
@@ -49,31 +39,10 @@ pub fn generate_nouns_phf(
     Ok(())
 }
 
-pub fn generate_verbs_phf(
-    inputik: impl AsRef<Path>,
+pub fn write_verbs_phf(
+    mut entries: Vec<(String, (String, String, String, String))>,
     outputik: impl AsRef<Path>,
 ) -> std::io::Result<()> {
-    let input = File::open(inputik)?;
-    let reader = BufReader::new(input);
-
-    let mut entries: Vec<(String, (String, String, String, String))> = reader
-        .lines()
-        .skip(1) // Skip header
-        .filter_map(|line| {
-            let line = line.ok()?;
-            let mut parts = line.split(',');
-            Some((
-                parts.next()?.trim().to_string(), // infinitive
-                (
-                    parts.next()?.trim().to_string(), // 3rd person singular
-                    parts.next()?.trim().to_string(), // past
-                    parts.next()?.trim().to_string(), // present participle
-                    parts.next()?.trim().to_string(), // past participle
-                ),
-            ))
-        })
-        .collect();
-
     // Sort for determinism
     entries.sort_by_key(|(inf, _)| inf.clone());
 
@@ -110,29 +79,10 @@ pub fn generate_verbs_phf(
     Ok(())
 }
 
-pub fn generate_adjectives_phf(
-    inputik: impl AsRef<Path>,
+pub fn write_adjectives_phf(
+    mut entries: Vec<(String, (String, String))>,
     outputik: impl AsRef<Path>,
 ) -> std::io::Result<()> {
-    let input = File::open(inputik)?;
-    let reader = BufReader::new(input);
-
-    let mut entries: Vec<(String, (String, String))> = reader
-        .lines()
-        .skip(1) // Skip header
-        .filter_map(|line| {
-            let line = line.ok()?;
-            let mut parts = line.split(',');
-            Some((
-                parts.next()?.trim().to_string(), // positive
-                (
-                    parts.next()?.trim().to_string(), // comparative
-                    parts.next()?.trim().to_string(), // superlative
-                ),
-            ))
-        })
-        .collect();
-
     // Sort for determinism
     entries.sort_by_key(|(pos, _)| pos.clone());
 
@@ -164,4 +114,169 @@ pub fn generate_adjectives_phf(
     writeln!(output, "}}")?;
 
     Ok(())
+}
+
+/// Emit the self-describing "which numbered senses exist for this lemma" tables.
+/// Each map only contains base lemmas that actually have a disambiguated sibling
+/// (a `lemma2`/`lemma3`/... key), mapping the base to the full sorted key list.
+pub fn write_variants_phf(
+    noun_keys: Vec<String>,
+    verb_keys: Vec<String>,
+    adj_keys: Vec<String>,
+    outputik: impl AsRef<Path>,
+) -> std::io::Result<()> {
+    let mut output = File::create(outputik)?;
+    writeln!(output, "use phf::phf_map;")?;
+    writeln!(output)?;
+    writeln!(
+        output,
+        "// Base lemma -> every explicit (numbered or bare) key the table holds for it,"
+    )?;
+    writeln!(
+        output,
+        "// listed only for lemmas with more than one sense. Lets callers discover"
+    )?;
+    writeln!(
+        output,
+        "// disambiguation suffixes instead of hard-coding magic integers."
+    )?;
+    write_one_variants_map(&mut output, "NOUN_VARIANTS", "noun_variants", noun_keys)?;
+    write_one_variants_map(&mut output, "VERB_VARIANTS", "verb_variants", verb_keys)?;
+    write_one_variants_map(&mut output, "ADJ_VARIANTS", "adj_variants", adj_keys)?;
+    Ok(())
+}
+
+fn write_one_variants_map(
+    output: &mut File,
+    static_name: &str,
+    fn_name: &str,
+    keys: Vec<String>,
+) -> std::io::Result<()> {
+    use std::collections::BTreeMap;
+    let mut by_base: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for k in keys {
+        let base = strip_trailing_digits(&k).to_string();
+        by_base.entry(base).or_default().push(k);
+    }
+    // Keep only multi-sense bases; sort their key lists.
+    let multi: BTreeMap<String, Vec<String>> = by_base
+        .into_iter()
+        .filter_map(|(base, mut ks)| {
+            // a base is "multi-sense" if it has a numbered key (suffix >= 2)
+            let has_numbered = ks.iter().any(|k| k != &base);
+            if has_numbered {
+                ks.sort();
+                ks.dedup();
+                Some((base, ks))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    writeln!(output)?;
+    writeln!(
+        output,
+        "pub static {static_name}: phf::Map<&'static str, &'static [&'static str]> = phf_map! {{"
+    )?;
+    for (base, ks) in &multi {
+        let list = ks
+            .iter()
+            .map(|k| format!("\"{k}\""))
+            .collect::<Vec<_>>()
+            .join(", ");
+        writeln!(output, "    \"{base}\" => &[{list}],")?;
+    }
+    writeln!(output, "}};")?;
+    writeln!(output)?;
+    writeln!(
+        output,
+        "pub fn {fn_name}(base: &str) -> Option<&'static [&'static str]> {{ {static_name}.get(base).copied() }}"
+    )?;
+    Ok(())
+}
+
+fn strip_trailing_digits(word: &str) -> &str {
+    word.trim_end_matches(|c: char| c.is_ascii_digit())
+}
+
+// ---------------------------------------------------------------------------
+// CSV entry points (legacy path; the extractor still writes intermediate CSVs).
+// ---------------------------------------------------------------------------
+
+pub fn generate_nouns_phf(
+    inputik: impl AsRef<Path>,
+    outputik: impl AsRef<Path>,
+) -> std::io::Result<()> {
+    let input = File::open(inputik)?;
+    let reader = BufReader::new(input);
+
+    let pairs: Vec<(String, String)> = reader
+        .lines()
+        .skip(1) // Skip header
+        .filter_map(|line| {
+            let line = line.ok()?;
+            let mut parts = line.split(',');
+            Some((
+                parts.next()?.trim().to_string(),
+                parts.next()?.trim().to_string(),
+            ))
+        })
+        .collect();
+
+    write_nouns_phf(pairs, outputik)
+}
+
+pub fn generate_verbs_phf(
+    inputik: impl AsRef<Path>,
+    outputik: impl AsRef<Path>,
+) -> std::io::Result<()> {
+    let input = File::open(inputik)?;
+    let reader = BufReader::new(input);
+
+    let entries: Vec<(String, (String, String, String, String))> = reader
+        .lines()
+        .skip(1) // Skip header
+        .filter_map(|line| {
+            let line = line.ok()?;
+            let mut parts = line.split(',');
+            Some((
+                parts.next()?.trim().to_string(), // infinitive
+                (
+                    parts.next()?.trim().to_string(), // 3rd person singular
+                    parts.next()?.trim().to_string(), // past
+                    parts.next()?.trim().to_string(), // present participle
+                    parts.next()?.trim().to_string(), // past participle
+                ),
+            ))
+        })
+        .collect();
+
+    write_verbs_phf(entries, outputik)
+}
+
+pub fn generate_adjectives_phf(
+    inputik: impl AsRef<Path>,
+    outputik: impl AsRef<Path>,
+) -> std::io::Result<()> {
+    let input = File::open(inputik)?;
+    let reader = BufReader::new(input);
+
+    let entries: Vec<(String, (String, String))> = reader
+        .lines()
+        .skip(1) // Skip header
+        .filter_map(|line| {
+            let line = line.ok()?;
+            let mut parts = line.split(',');
+            Some((
+                parts.next()?.trim().to_string(), // positive
+                (
+                    parts.next()?.trim().to_string(), // comparative
+                    parts.next()?.trim().to_string(), // superlative
+                ),
+            ))
+        })
+        .collect();
+
+    write_adjectives_phf(entries, outputik)
 }

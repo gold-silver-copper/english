@@ -1,45 +1,91 @@
 use crate::helpers::{
-    AdjParts, Entry, VerbParts, base_setup, contains_bad_tag, entry_is_proper, suffix_rule,
-    word_is_proper,
+    Entry, Pos, contains_bad_tag, entry_is_proper, suffix_rule, word_is_proper,
 };
+use crate::registry::{Candidate, Lock};
 use csv::{ReaderBuilder, WriterBuilder};
 use english_core::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 
+/// Per-lemma accumulator while scanning the dump: distinct inflection patterns
+/// (keyed by their form signature so duplicates merge) plus whether a
+/// regular-prediction-equal pattern was seen (and dropped as a runtime fall-through).
+#[derive(Default)]
+struct LemmaAcc {
+    /// signature -> candidate (anchors enriched across the entries that share it)
+    by_sig: BTreeMap<String, Candidate>,
+    had_regular: bool,
+}
+
+impl LemmaAcc {
+    /// Record one observed inflection pattern for this lemma, attaching the
+    /// entry's stable anchors.
+    fn observe(&mut self, forms: Vec<String>, entry: &Entry) {
+        let sig = forms.join("|");
+        let c = self
+            .by_sig
+            .entry(sig)
+            .or_insert_with(|| Candidate::new(forms));
+        if c.qid.is_none() {
+            c.qid = entry.lowest_qid();
+        }
+        if c.sid.is_none() {
+            c.sid = entry.lowest_senseid();
+        }
+        if c.etym.is_none() {
+            c.etym = entry.etymology_number;
+        }
+        if c.gloss.is_none() {
+            c.gloss = entry.first_gloss();
+        }
+    }
+
+    /// Drop the pattern that exactly equals the regular prediction; it is produced
+    /// at runtime by the rule engine, so we never emit a table row for it.
+    fn drop_regular(&mut self, predicted: &[String]) {
+        let sig = predicted.join("|");
+        if self.by_sig.remove(&sig).is_some() {
+            self.had_regular = true;
+        }
+    }
+
+    fn into_candidates(self) -> (Vec<Candidate>, bool) {
+        (self.by_sig.into_values().collect(), self.had_regular)
+    }
+}
+
+fn open_reader(path: &Path) -> BufReader<File> {
+    BufReader::new(File::open(path).unwrap())
+}
+
 pub fn extract_irregular_nouns(
     input_path: impl AsRef<Path>,
-    output_path: impl AsRef<Path>,
+    lock: &mut Lock,
+    date: &str,
 ) -> Result<(), Box<dyn Error>> {
     let input_path = input_path.as_ref();
-    let output_path = output_path.as_ref();
-    let mut forms_map: HashMap<String, HashSet<String>> = HashMap::new();
+    let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
 
-    let (reader, mut writer) = base_setup(input_path, output_path);
-    writer.write_record(&["word", "plural"])?;
-
+    let reader = open_reader(input_path);
     for line in reader.lines() {
         let line = line?;
         let entry: Entry = match serde_json::from_str(&line) {
             Ok(entry) => entry,
-            Err(error) => {
-                println!("{:#?}", error);
-                continue;
-            }
+            Err(_) => continue,
         };
 
         if !entry_is_proper(&entry, "noun") {
             continue;
         }
 
-        let infinitive = entry.word.to_lowercase();
-        forms_map.entry(infinitive.clone()).or_default();
+        let lemma = entry.word.to_lowercase();
+        let acc = by_lemma.entry(lemma).or_default();
 
-        if let Some(forms) = entry.forms {
-            for form in &forms {
+        if let Some(forms) = &entry.forms {
+            for form in forms {
                 let tags = &form.tags;
                 let entry_form = form.form.to_lowercase();
                 if entry_form == "dubious" {
@@ -50,79 +96,51 @@ pub fn extract_irregular_nouns(
                 }
 
                 if tags.contains(&"plural".into()) {
-                    forms_map
-                        .get_mut(&infinitive)
-                        .expect("noun entry should exist")
-                        .insert(entry_form.clone());
+                    acc.observe(vec![entry_form], &entry);
                 }
             }
         }
     }
 
-    for (infinitive, forms) in &mut forms_map {
-        let predicted_plural = EnglishCore::pluralize_noun(infinitive);
-        if forms.is_empty() {
+    for (lemma, mut acc) in by_lemma {
+        let predicted_plural = EnglishCore::pluralize_noun(&lemma);
+        acc.drop_regular(&[predicted_plural]);
+        let (candidates, had_regular) = acc.into_candidates();
+        if candidates.is_empty() {
             continue;
         }
-
-        let mut index = if forms.remove(&predicted_plural) {
-            2
-        } else {
-            1
-        };
-        let mut sorted_forms: Vec<String> = forms.clone().into_iter().collect();
-        sorted_forms.sort();
-
-        for form in &sorted_forms {
-            let word_key = if index == 1 {
-                infinitive.clone()
-            } else {
-                format!("{infinitive}{index}")
-            };
-            if index < 10 {
-                writer.write_record(&[word_key, form.clone()])?;
-            }
-            index += 1;
-        }
+        lock.resolve(&lemma, Pos::Noun, candidates, had_regular, date);
     }
 
-    writer.flush()?;
-    println!("Done! Output written to {}", output_path.display());
+    println!("Resolved irregular nouns into the lock.");
     Ok(())
 }
 
 pub fn extract_irregular_adjectives(
     input_path: impl AsRef<Path>,
-    output_path: impl AsRef<Path>,
+    lock: &mut Lock,
+    date: &str,
 ) -> Result<(), Box<dyn Error>> {
     let input_path = input_path.as_ref();
-    let output_path = output_path.as_ref();
-    let mut forms_map: HashMap<String, HashSet<AdjParts>> = HashMap::new();
-    let (reader, mut writer) = base_setup(input_path, output_path);
-    writer.write_record(&["positive", "comparative", "superlative"])?;
+    let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
+    let reader = open_reader(input_path);
 
     for line in reader.lines() {
         let line = line?;
         let entry: Entry = match serde_json::from_str(&line) {
             Ok(entry) => entry,
-            Err(error) => {
-                println!("{:#?}", error);
-                continue;
-            }
+            Err(_) => continue,
         };
         if !entry_is_proper(&entry, "adj") {
             continue;
         }
 
-        let infinitive = entry.word.to_lowercase();
-        forms_map.entry(infinitive.clone()).or_default();
-        let mut adjective = AdjParts {
-            positive: infinitive.clone(),
-            ..AdjParts::default()
-        };
+        let lemma = entry.word.to_lowercase();
+        let mut comparative = String::new();
+        let mut superlative = String::new();
 
-        if let Some(forms) = entry.forms {
-            for form in &forms {
+        if let Some(forms) = &entry.forms {
+            for form in forms {
                 let tags = &form.tags;
                 let entry_form = form.form.to_lowercase();
                 if entry_form == "dubious" {
@@ -132,105 +150,80 @@ pub fn extract_irregular_adjectives(
                     continue;
                 }
 
-                if tags.contains(&"comparative".into()) && adjective.comparative.is_empty() {
-                    adjective.comparative = entry_form.clone();
+                if tags.contains(&"comparative".into()) && comparative.is_empty() {
+                    comparative = entry_form.clone();
                 }
 
-                if tags.contains(&"superlative".into()) && adjective.superlative.is_empty() {
-                    adjective.superlative = entry_form.clone();
+                if tags.contains(&"superlative".into()) && superlative.is_empty() {
+                    superlative = entry_form.clone();
                 }
             }
         }
 
-        let predicted_comparative = EnglishCore::comparative(&infinitive);
-        let predicted_superlative = EnglishCore::superlative(&infinitive);
-        if adjective.comparative.is_empty() {
-            adjective.comparative = predicted_comparative.clone();
+        if comparative.is_empty() {
+            comparative = EnglishCore::comparative(&lemma);
         }
-        if adjective.superlative.is_empty() {
-            adjective.superlative = predicted_superlative.clone();
+        if superlative.is_empty() {
+            superlative = EnglishCore::superlative(&lemma);
         }
 
-        forms_map
-            .get_mut(&infinitive)
-            .expect("adjective entry should exist")
-            .insert(adjective);
+        by_lemma
+            .entry(lemma)
+            .or_default()
+            .observe(vec![comparative, superlative], &entry);
     }
 
-    for (infinitive, forms) in &mut forms_map {
-        let predicted = AdjParts {
-            positive: infinitive.clone(),
-            comparative: EnglishCore::comparative(infinitive),
-            superlative: EnglishCore::superlative(infinitive),
-        };
-        if forms.is_empty() {
+    for (lemma, mut acc) in by_lemma {
+        let predicted = [
+            EnglishCore::comparative(&lemma),
+            EnglishCore::superlative(&lemma),
+        ];
+        acc.drop_regular(&predicted);
+        let (candidates, had_regular) = acc.into_candidates();
+        if candidates.is_empty() {
             continue;
         }
-
-        let mut index = if forms.remove(&predicted) { 2 } else { 1 };
-        let mut sorted_forms: Vec<AdjParts> = forms.clone().into_iter().collect();
-        sorted_forms.sort();
-
-        for form in &sorted_forms {
-            let word_key = if index == 1 {
-                infinitive.clone()
-            } else {
-                format!("{infinitive}{index}")
-            };
-            writer.write_record(&[word_key, form.comparative.clone(), form.superlative.clone()])?;
-            index += 1;
-        }
+        lock.resolve(&lemma, Pos::Adj, candidates, had_regular, date);
     }
 
-    writer.flush()?;
-    println!("Done! Output written to {}", output_path.display());
+    println!("Resolved irregular adjectives into the lock.");
     Ok(())
 }
 
 pub fn extract_verb_conjugations(
     input_path: impl AsRef<Path>,
-    output_path: impl AsRef<Path>,
+    lock: &mut Lock,
+    date: &str,
 ) -> Result<(), Box<dyn Error>> {
     let input_path = input_path.as_ref();
-    let output_path = output_path.as_ref();
-    let mut forms_map: HashMap<String, HashSet<VerbParts>> = HashMap::new();
-    let (reader, mut writer) = base_setup(input_path, output_path);
-    writer.write_record(&[
-        "infinitive",
-        "third_person_singular",
-        "past",
-        "present_participle",
-        "past_participle",
-    ])?;
+    let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
+    let reader = open_reader(input_path);
 
     for line in reader.lines() {
         let line = line?;
         let entry: Entry = match serde_json::from_str(&line) {
             Ok(entry) => entry,
-            Err(error) => {
-                println!("{:#?}", error);
-                continue;
-            }
+            Err(_) => continue,
         };
         if !entry_is_proper(&entry, "verb") {
             continue;
         }
 
-        let infinitive = entry.word.to_lowercase();
-        forms_map.entry(infinitive.clone()).or_default();
-
-        let mut has_third_person = false;
-        let mut verb = VerbParts {
-            inf: infinitive.clone(),
-            ..VerbParts::default()
-        };
-
-        if verb.inf == "be" {
+        let lemma = entry.word.to_lowercase();
+        // "to be" has too many forms for the (3sg, past, pres-part, past-part)
+        // shape and is handled directly by english-core.
+        if lemma == "be" {
             continue;
         }
 
-        if let Some(forms) = entry.forms {
-            for form in &forms {
+        let mut has_third_person = false;
+        let mut third = String::new();
+        let mut past = String::new();
+        let mut present_part = String::new();
+        let mut past_part = String::new();
+
+        if let Some(forms) = &entry.forms {
+            for form in forms {
                 let tags = &form.tags;
                 let entry_form = form.form.to_lowercase();
                 if !word_is_proper(&entry_form) || contains_bad_tag(tags.clone()) {
@@ -243,124 +236,105 @@ pub fn extract_verb_conjugations(
                     && !has_third_person
                 {
                     has_third_person = true;
-                    verb.third = entry_form.clone();
+                    third = entry_form.clone();
                 }
 
                 if tags.contains(&"past".into())
                     && !tags.contains(&"participle".into())
-                    && verb.past.is_empty()
+                    && past.is_empty()
                 {
-                    verb.past = entry_form.clone();
+                    past = entry_form.clone();
                 }
 
                 if tags.contains(&"participle".into())
                     && tags.contains(&"present".into())
-                    && verb.present_part.is_empty()
+                    && present_part.is_empty()
                 {
-                    verb.present_part = entry_form.clone();
+                    present_part = entry_form.clone();
                 }
 
                 if tags.contains(&"participle".into())
                     && tags.contains(&"past".into())
-                    && verb.past_part.is_empty()
+                    && past_part.is_empty()
                 {
-                    verb.past_part = entry_form.clone();
+                    past_part = entry_form.clone();
                 }
             }
         }
 
         let predicted_past = EnglishCore::verb(
-            &infinitive,
+            &lemma,
             &Person::Third,
             &Number::Singular,
             &Tense::Past,
             &Form::Finite,
         );
         let predicted_participle = EnglishCore::verb(
-            &infinitive,
+            &lemma,
             &Person::Third,
             &Number::Singular,
             &Tense::Present,
             &Form::Participle,
         );
 
-        if verb.past.is_empty() {
-            verb.past = predicted_past.clone();
+        if past.is_empty() {
+            past = predicted_past;
         }
-        if verb.past_part.is_empty() {
-            verb.past_part = verb.past.clone();
+        if past_part.is_empty() {
+            past_part = past.clone();
         }
-        if verb.present_part.is_empty() {
-            verb.present_part = predicted_participle.clone();
+        if present_part.is_empty() {
+            present_part = predicted_participle;
         }
 
         if has_third_person {
-            forms_map
-                .get_mut(&infinitive)
-                .expect("verb entry should exist")
-                .insert(verb);
+            by_lemma
+                .entry(lemma)
+                .or_default()
+                .observe(vec![third, past, present_part, past_part], &entry);
         }
     }
 
-    for (infinitive, forms) in &mut forms_map {
-        let predicted = VerbParts {
-            inf: infinitive.clone(),
-            third: EnglishCore::verb(
-                infinitive,
+    for (lemma, mut acc) in by_lemma {
+        let predicted = [
+            EnglishCore::verb(
+                &lemma,
                 &Person::Third,
                 &Number::Singular,
                 &Tense::Present,
                 &Form::Finite,
             ),
-            past: EnglishCore::verb(
-                infinitive,
+            EnglishCore::verb(
+                &lemma,
                 &Person::Third,
                 &Number::Singular,
                 &Tense::Past,
                 &Form::Finite,
             ),
-            present_part: EnglishCore::verb(
-                infinitive,
+            EnglishCore::verb(
+                &lemma,
                 &Person::Third,
                 &Number::Singular,
                 &Tense::Present,
                 &Form::Participle,
             ),
-            past_part: EnglishCore::verb(
-                infinitive,
+            EnglishCore::verb(
+                &lemma,
                 &Person::Third,
                 &Number::Singular,
                 &Tense::Past,
                 &Form::Finite,
             ),
-        };
-        if forms.is_empty() {
+        ];
+        acc.drop_regular(&predicted);
+        let (candidates, had_regular) = acc.into_candidates();
+        if candidates.is_empty() {
             continue;
         }
-
-        let mut index = if forms.remove(&predicted) { 2 } else { 1 };
-        let mut sorted_forms: Vec<VerbParts> = forms.clone().into_iter().collect();
-        sorted_forms.sort();
-
-        for form in &sorted_forms {
-            let word_key = if index == 1 {
-                infinitive.clone()
-            } else {
-                format!("{infinitive}{index}")
-            };
-            writer.write_record(&[
-                word_key,
-                form.third.clone(),
-                form.past.clone(),
-                form.present_part.clone(),
-                form.past_part.clone(),
-            ])?;
-            index += 1;
-        }
+        lock.resolve(&lemma, Pos::Verb, candidates, had_regular, date);
     }
 
-    writer.flush()?;
-    println!("Done! Output written to {}", output_path.display());
+    println!("Resolved verb conjugations into the lock.");
     Ok(())
 }
 

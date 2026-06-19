@@ -8,6 +8,7 @@ fn main() {
         "generated/noun_phf.rs",
         "generated/adj_phf.rs",
         "generated/verb_phf.rs",
+        "generated/variants_phf.rs",
     ] {
         let absolute_path = manifest_dir.join(relative_path);
         println!("cargo:rerun-if-changed={}", absolute_path.display());

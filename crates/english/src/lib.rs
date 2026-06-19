@@ -19,12 +19,19 @@ mod verb_phf {
     ));
 }
 use verb_phf::*;
+mod variants_phf {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/generated/variants_phf.rs"
+    ));
+}
+use variants_phf::*;
 
+/// Strips the sense-disambiguation suffix from a key. Assignment suffixes are
+/// allocated append-only and may grow past a single digit, so we strip *all*
+/// trailing ASCII digits (lemmas themselves never contain digits).
 fn strip_trailing_number(word: &str) -> &str {
-    match word.as_bytes().last() {
-        Some(b'0'..=b'9') => &word[..word.len() - 1],
-        _ => word,
-    }
+    word.trim_end_matches(|c: char| c.is_ascii_digit())
 }
 
 /// Entry point for English inflection and morphology.
@@ -184,6 +191,49 @@ impl English {
     /// ```
     pub fn add_possessive(word: &str) -> String {
         EnglishCore::add_possessive(word)
+    }
+
+    /// Lists the explicit disambiguation keys this crate stores for a noun lemma.
+    ///
+    /// Returns every key sharing the base lemma (e.g. `["die2"]`, or `["lie",
+    /// "lie2"]` for verbs) when the lemma is polysemous, and an empty slice when
+    /// it has a single sense. This lets callers discover which numbered variants
+    /// exist instead of hard-coding suffixes that could shift between releases —
+    /// the keys themselves are pinned by the assignment lockfiles and stable.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use english::English;
+    ///
+    /// assert_eq!(English::noun_senses("die"), &["die2"]);
+    /// assert!(English::noun_senses("cat").is_empty());
+    /// ```
+    pub fn noun_senses(lemma: &str) -> &'static [&'static str] {
+        noun_variants(strip_trailing_number(lemma)).unwrap_or(&[])
+    }
+
+    /// Lists the explicit disambiguation keys this crate stores for a verb lemma.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use english::English;
+    ///
+    /// assert_eq!(English::verb_senses("lie"), &["lie", "lie2"]);
+    /// ```
+    pub fn verb_senses(lemma: &str) -> &'static [&'static str] {
+        verb_variants(strip_trailing_number(lemma)).unwrap_or(&[])
+    }
+
+    /// Lists the explicit disambiguation keys this crate stores for an adjective lemma.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use english::English;
+    ///
+    /// assert_eq!(English::adj_senses("bad"), &["bad2", "bad3"]);
+    /// ```
+    pub fn adj_senses(lemma: &str) -> &'static [&'static str] {
+        adj_variants(strip_trailing_number(lemma)).unwrap_or(&[])
     }
 
     /// Capitalizes the first letter of a string.
