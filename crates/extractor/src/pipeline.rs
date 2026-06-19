@@ -1,16 +1,18 @@
 use crate::args::Config;
+use crate::bootstrap::{generate_tables, load_locks, save_locks};
 use crate::checks::run_checks;
 use crate::extract::{
     extract_irregular_adjectives, extract_irregular_nouns, extract_verb_conjugations,
     filter_english_entries,
 };
-use crate::file_generation::{generate_adjectives_phf, generate_nouns_phf, generate_verbs_phf};
+use crate::registry::check_immutability;
 use std::error::Error;
 use std::fs;
 
 pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
     fs::create_dir_all(&config.generated_dir)?;
     fs::create_dir_all(&config.artifacts_dir)?;
+    fs::create_dir_all(&config.assignments_dir)?;
 
     let filtered_json_path = config.artifacts_dir.join("english_filtered.jsonl");
     if config.dump_path != filtered_json_path {
@@ -26,17 +28,52 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
         run_checks(&filtered_json_path, &config.artifacts_dir)?;
     }
 
-    let verbs_csv = config.artifacts_dir.join("verb_conjugations.csv");
-    let nouns_csv = config.artifacts_dir.join("nouns_with_plurals.csv");
-    let adjectives_csv = config.artifacts_dir.join("adjectives.csv");
+    // Load the committed assignment lockfiles (empty on first run). We keep a
+    // pristine copy to diff against after resolution, so a refresh can report any
+    // previously-published key whose meaning would change.
+    let (before_noun, before_verb, before_adj) = load_locks(&config.assignments_dir)?;
+    let (mut noun_lock, mut verb_lock, mut adj_lock) = load_locks(&config.assignments_dir)?;
 
-    extract_verb_conjugations(&filtered_json_path, &verbs_csv)?;
-    extract_irregular_nouns(&filtered_json_path, &nouns_csv)?;
-    extract_irregular_adjectives(&filtered_json_path, &adjectives_csv)?;
+    extract_verb_conjugations(&filtered_json_path, &mut verb_lock, &config.data_date)?;
+    extract_irregular_nouns(&filtered_json_path, &mut noun_lock, &config.data_date)?;
+    extract_irregular_adjectives(&filtered_json_path, &mut adj_lock, &config.data_date)?;
 
-    generate_nouns_phf(&nouns_csv, config.generated_dir.join("noun_phf.rs"))?;
-    generate_adjectives_phf(&adjectives_csv, config.generated_dir.join("adj_phf.rs"))?;
-    generate_verbs_phf(&verbs_csv, config.generated_dir.join("verb_phf.rs"))?;
+    // Surface resolution notes (drift re-matches, tombstones, ambiguities).
+    for note in noun_lock
+        .notes
+        .iter()
+        .chain(verb_lock.notes.iter())
+        .chain(adj_lock.notes.iter())
+    {
+        println!("note: {note}");
+    }
 
+    // Report (do not abort) immutability violations vs. the committed lock; the
+    // `check-registry` xtask is the hard CI gate.
+    let mut violations = Vec::new();
+    violations.extend(check_immutability(&before_noun, &noun_lock));
+    violations.extend(check_immutability(&before_verb, &verb_lock));
+    violations.extend(check_immutability(&before_adj, &adj_lock));
+    if !violations.is_empty() {
+        eprintln!(
+            "\nWARNING: {} immutability violation(s) detected vs the committed lock:",
+            violations.len()
+        );
+        for v in &violations {
+            eprintln!("  - {v}");
+        }
+        eprintln!(
+            "Review the lock diff carefully; `cargo xtask check-registry` will fail CI on these.\n"
+        );
+    }
+
+    save_locks(&config.assignments_dir, &noun_lock, &verb_lock, &adj_lock)?;
+    generate_tables(&noun_lock, &verb_lock, &adj_lock, &config.generated_dir)?;
+
+    println!(
+        "Refresh complete. Lockfiles updated in {}, tables in {}.",
+        config.assignments_dir.display(),
+        config.generated_dir.display()
+    );
     Ok(())
 }

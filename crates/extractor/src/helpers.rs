@@ -1,5 +1,5 @@
 use csv::Writer;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
@@ -50,7 +50,22 @@ pub fn contains_number(s: &str) -> bool {
 #[derive(Debug, Deserialize)]
 pub struct Forms {
     pub form: String,
+    #[serde(default)]
     pub tags: Vec<String>,
+}
+
+/// A single Wiktionary sense as emitted by wiktextract. We only deserialize the
+/// fields that can anchor a *stable* identity for a homograph across dumps:
+/// author-authored `senseid`s (durable by Wiktionary convention), Wikidata QIDs,
+/// and the gloss text (kept only as a human review aid).
+#[derive(Debug, Deserialize, Default, Clone)]
+pub struct Sense {
+    #[serde(default)]
+    pub senseid: Vec<String>,
+    #[serde(default)]
+    pub wikidata: Vec<String>,
+    #[serde(default)]
+    pub glosses: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -59,6 +74,89 @@ pub struct Entry {
     pub pos: String,
     pub forms: Option<Vec<Forms>>,
     pub lang_code: String,
+    /// Ordinal of the numbered Etymology section this entry sits under. Distinct
+    /// numbered etymologies arrive as *separate* top-level entries, so this is the
+    /// single best per-entry signal of "which homograph" this is. wiktextract
+    /// serialized it as an int historically and as a string after ~2026, so we
+    /// accept either (or absent).
+    #[serde(default, deserialize_with = "de_etym_number")]
+    pub etymology_number: Option<u32>,
+    #[serde(default)]
+    pub senses: Vec<Sense>,
+}
+
+/// Accept `etymology_number` as a JSON integer, a JSON string, or absent/null.
+fn de_etym_number<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde_json::Value;
+    let value = Value::deserialize(deserializer)?;
+    Ok(match value {
+        Value::Number(n) => n.as_u64().and_then(|x| u32::try_from(x).ok()),
+        Value::String(s) => s.trim().parse::<u32>().ok(),
+        _ => None,
+    })
+}
+
+/// The three parts of speech this crate tracks. Used as a stable key component in
+/// the assignment lockfiles.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Pos {
+    Adj,
+    Noun,
+    Verb,
+}
+
+impl Pos {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Pos::Adj => "adj",
+            Pos::Noun => "noun",
+            Pos::Verb => "verb",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Pos> {
+        match s {
+            "adj" => Some(Pos::Adj),
+            "noun" => Some(Pos::Noun),
+            "verb" => Some(Pos::Verb),
+            _ => None,
+        }
+    }
+}
+
+impl Entry {
+    /// Deterministic, stablest QID an editor attached to any of this entry's senses.
+    pub fn lowest_qid(&self) -> Option<String> {
+        self.senses
+            .iter()
+            .flat_map(|s| s.wikidata.iter())
+            .filter(|q| !q.is_empty())
+            .min()
+            .cloned()
+    }
+
+    /// Deterministic, stablest author-authored senseid (e.g. `en:to_rest`).
+    pub fn lowest_senseid(&self) -> Option<String> {
+        self.senses
+            .iter()
+            .flat_map(|s| s.senseid.iter())
+            .filter(|s| !s.is_empty())
+            .min()
+            .cloned()
+    }
+
+    /// First non-empty gloss, kept purely as a review aid in the lockfile.
+    pub fn first_gloss(&self) -> Option<String> {
+        self.senses
+            .iter()
+            .flat_map(|s| s.glosses.iter())
+            .find(|g| !g.is_empty())
+            .cloned()
+    }
+
 }
 
 #[derive(Debug, Default, Eq, Hash, PartialEq, Clone, Ord, PartialOrd)]

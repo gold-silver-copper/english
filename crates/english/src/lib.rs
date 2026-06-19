@@ -20,11 +20,11 @@ mod verb_phf {
 }
 use verb_phf::*;
 
+/// Strips the sense-disambiguation suffix from a key. Assignment suffixes are
+/// allocated append-only and may grow past a single digit, so we strip *all*
+/// trailing ASCII digits (lemmas themselves never contain digits).
 fn strip_trailing_number(word: &str) -> &str {
-    match word.as_bytes().last() {
-        Some(b'0'..=b'9') => &word[..word.len() - 1],
-        _ => word,
-    }
+    word.trim_end_matches(|c: char| c.is_ascii_digit())
 }
 
 /// Entry point for English inflection and morphology.
