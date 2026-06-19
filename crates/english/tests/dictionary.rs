@@ -27,7 +27,22 @@ fn definitions_are_keyed_by_sense() {
 }
 
 #[test]
-fn unknown_or_regular_keys_return_empty() {
+fn common_regular_words_have_a_primary_definition() {
+    // Fully-regular common words carry a single primary definition.
+    assert!(!English::noun_meanings("cat").is_empty());
+    assert!(!English::verb_meanings("walk").is_empty());
+    assert!(!English::adj_meanings("happy").is_empty());
+    assert_eq!(English::noun_meanings("cat").len(), 1, "regular words get one def");
+    // The primary def is a real sense, not an abbreviation or a category label.
+    let dog = English::noun_meanings("dog")[0].to_lowercase();
+    assert!(
+        dog.contains("canis") || dog.contains("mammal") || dog.contains("domesticated"),
+        "dog primary def unexpected: {dog}"
+    );
+}
+
+#[test]
+fn unknown_keys_return_empty() {
     assert!(English::verb_meanings("definitelynotaword").is_empty());
     assert!(English::noun_meanings("definitelynotaword").is_empty());
     assert!(English::adj_meanings("definitelynotaword").is_empty());

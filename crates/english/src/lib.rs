@@ -248,18 +248,20 @@ impl English {
         adj_variants(strip_trailing_number(lemma)).unwrap_or(&[])
     }
 
-    /// Returns the Wiktionary definitions for a noun **sense key**.
+    /// Returns the Wiktionary definitions for a noun key.
     ///
-    /// The key is the exact, sense-disambiguated key (e.g. `"die2"`), so distinct
-    /// homographs return distinct definitions. Returns an empty slice for keys not
-    /// in the tables (most fully-regular words). Requires the `dictionary` feature.
+    /// Keyed by the exact, sense-disambiguated key (e.g. `"die2"`), so distinct
+    /// homographs return distinct definitions. Irregular/homograph keys carry their
+    /// full sense list; common regular words carry a single primary definition.
+    /// Returns an empty slice for unknown or uncommon words. Requires the
+    /// `dictionary` feature.
     ///
     /// # Examples
     /// ```rust
     /// # #[cfg(feature = "dictionary")] {
     /// use english::English;
     /// assert!(English::noun_meanings("die2")[0].to_lowercase().contains("cube"));
-    /// assert!(English::noun_meanings("cat").is_empty());
+    /// assert!(!English::noun_meanings("cat").is_empty()); // common regular word
     /// # }
     /// ```
     #[cfg(feature = "dictionary")]

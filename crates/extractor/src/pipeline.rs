@@ -2,8 +2,8 @@ use crate::args::Config;
 use crate::bootstrap::{generate_tables, load_locks, save_locks};
 use crate::checks::run_checks;
 use crate::extract::{
-    Definitions, extract_irregular_adjectives, extract_irregular_nouns, extract_verb_conjugations,
-    filter_english_entries,
+    Definitions, common_words, extract_irregular_adjectives, extract_irregular_nouns,
+    extract_verb_conjugations, filter_english_entries,
 };
 use crate::file_generation::write_dictionary_phf;
 use crate::registry::check_immutability;
@@ -39,10 +39,11 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
     let mut noun_defs = Definitions::new();
     let mut verb_defs = Definitions::new();
     let mut adj_defs = Definitions::new();
+    let common = common_words();
 
-    extract_verb_conjugations(&filtered_json_path, &mut verb_lock, &mut verb_defs, &config.data_date)?;
-    extract_irregular_nouns(&filtered_json_path, &mut noun_lock, &mut noun_defs, &config.data_date)?;
-    extract_irregular_adjectives(&filtered_json_path, &mut adj_lock, &mut adj_defs, &config.data_date)?;
+    extract_verb_conjugations(&filtered_json_path, &mut verb_lock, &mut verb_defs, &common, &config.data_date)?;
+    extract_irregular_nouns(&filtered_json_path, &mut noun_lock, &mut noun_defs, &common, &config.data_date)?;
+    extract_irregular_adjectives(&filtered_json_path, &mut adj_lock, &mut adj_defs, &common, &config.data_date)?;
 
     // Surface resolution notes (drift re-matches, tombstones, ambiguities).
     for note in noun_lock
