@@ -1,59 +1,10 @@
 use crate::helpers::{
     Entry, Pos, contains_bad_tag, entry_is_proper, suffix_rule, word_is_proper,
 };
-use crate::registry::{Assignment, Candidate, Lock};
-
-/// Accumulated `key -> Wiktionary definitions` for one part of speech.
-pub type Definitions = BTreeMap<String, Vec<String>>;
-
-/// Attribute each resolved key's definitions (looked up by form signature, since
-/// that is what survives `resolve`) into the per-POS dictionary accumulator.
-fn record_definitions(
-    dict: &mut Definitions,
-    gloss_by_sig: &HashMap<String, Vec<String>>,
-    assignments: &[Assignment],
-) {
-    for a in assignments {
-        if let Some(g) = gloss_by_sig.get(&a.forms.join("|"))
-            && !g.is_empty()
-        {
-            dict.entry(a.key.clone()).or_default().extend(g.iter().cloned());
-        }
-    }
-}
-
-/// Per-lemma tier-2 pick: (etymology rank, primary definition). Lower rank wins.
-type Tier2 = BTreeMap<String, (u32, String)>;
-
-/// Add tier-2 (regular common word) single definitions, without overwriting any
-/// tier-1 (irregular/homograph) entry already keyed under the same bare lemma.
-fn merge_tier2(dict: &mut Definitions, tier2: Tier2) {
-    for (lemma, (_rank, gloss)) in tier2 {
-        dict.entry(lemma).or_insert_with(|| vec![gloss]);
-    }
-}
-
-/// Record a single primary definition for a common-word lemma, preferring the
-/// entry with the lowest etymology number (etymology 1 is the primary sense; an
-/// abbreviation/initialism etymology usually has none and is deprioritized).
-fn capture_tier2(tier2: &mut Tier2, common: &HashSet<String>, lemma: &str, entry: &Entry) {
-    if !common.contains(lemma) {
-        return;
-    }
-    let Some(def) = entry.primary_definition() else {
-        return;
-    };
-    let rank = entry.etymology_number.unwrap_or(u32::MAX);
-    match tier2.get(lemma) {
-        Some((existing, _)) if *existing <= rank => {}
-        _ => {
-            tier2.insert(lemma.to_string(), (rank, def));
-        }
-    }
-}
+use crate::registry::{Candidate, Lock};
 use csv::{ReaderBuilder, WriterBuilder};
 use english_core::*;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
@@ -90,7 +41,6 @@ impl LemmaAcc {
         if c.gloss.is_none() {
             c.gloss = entry.first_gloss();
         }
-        c.glosses.extend(entry.all_glosses());
     }
 
     /// Drop the pattern that exactly equals the regular prediction; it is produced
@@ -111,27 +61,13 @@ fn open_reader(path: &Path) -> BufReader<File> {
     BufReader::new(File::open(path).unwrap())
 }
 
-/// The committed common-English word set that scopes tier-2 (regular-word)
-/// dictionary definitions. Bundled into the extractor binary for reproducibility.
-pub fn common_words() -> HashSet<String> {
-    const RAW: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/common_english.txt"));
-    RAW.lines()
-        .map(|l| l.trim())
-        .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        .map(|l| l.to_string())
-        .collect()
-}
-
 pub fn extract_irregular_nouns(
     input_path: impl AsRef<Path>,
     lock: &mut Lock,
-    dict: &mut Definitions,
-    common: &HashSet<String>,
     date: &str,
 ) -> Result<(), Box<dyn Error>> {
     let input_path = input_path.as_ref();
     let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
-    let mut tier2: Tier2 = Tier2::new();
 
     let reader = open_reader(input_path);
     for line in reader.lines() {
@@ -146,7 +82,6 @@ pub fn extract_irregular_nouns(
         }
 
         let lemma = entry.word.to_lowercase();
-        capture_tier2(&mut tier2, common, &lemma, &entry);
         let acc = by_lemma.entry(lemma).or_default();
 
         if let Some(forms) = &entry.forms {
@@ -174,14 +109,8 @@ pub fn extract_irregular_nouns(
         if candidates.is_empty() {
             continue;
         }
-        let gloss_by_sig: HashMap<String, Vec<String>> = candidates
-            .iter()
-            .map(|c| (c.forms.join("|"), c.glosses.clone()))
-            .collect();
-        let assignments = lock.resolve(&lemma, Pos::Noun, candidates, had_regular, date);
-        record_definitions(dict, &gloss_by_sig, &assignments);
+        lock.resolve(&lemma, Pos::Noun, candidates, had_regular, date);
     }
-    merge_tier2(dict, tier2);
 
     println!("Resolved irregular nouns into the lock.");
     Ok(())
@@ -190,13 +119,10 @@ pub fn extract_irregular_nouns(
 pub fn extract_irregular_adjectives(
     input_path: impl AsRef<Path>,
     lock: &mut Lock,
-    dict: &mut Definitions,
-    common: &HashSet<String>,
     date: &str,
 ) -> Result<(), Box<dyn Error>> {
     let input_path = input_path.as_ref();
     let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
-    let mut tier2: Tier2 = Tier2::new();
     let reader = open_reader(input_path);
 
     for line in reader.lines() {
@@ -210,7 +136,6 @@ pub fn extract_irregular_adjectives(
         }
 
         let lemma = entry.word.to_lowercase();
-        capture_tier2(&mut tier2, common, &lemma, &entry);
         let mut comparative = String::new();
         let mut superlative = String::new();
 
@@ -258,14 +183,8 @@ pub fn extract_irregular_adjectives(
         if candidates.is_empty() {
             continue;
         }
-        let gloss_by_sig: HashMap<String, Vec<String>> = candidates
-            .iter()
-            .map(|c| (c.forms.join("|"), c.glosses.clone()))
-            .collect();
-        let assignments = lock.resolve(&lemma, Pos::Adj, candidates, had_regular, date);
-        record_definitions(dict, &gloss_by_sig, &assignments);
+        lock.resolve(&lemma, Pos::Adj, candidates, had_regular, date);
     }
-    merge_tier2(dict, tier2);
 
     println!("Resolved irregular adjectives into the lock.");
     Ok(())
@@ -274,13 +193,10 @@ pub fn extract_irregular_adjectives(
 pub fn extract_verb_conjugations(
     input_path: impl AsRef<Path>,
     lock: &mut Lock,
-    dict: &mut Definitions,
-    common: &HashSet<String>,
     date: &str,
 ) -> Result<(), Box<dyn Error>> {
     let input_path = input_path.as_ref();
     let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
-    let mut tier2: Tier2 = Tier2::new();
     let reader = open_reader(input_path);
 
     for line in reader.lines() {
@@ -294,7 +210,6 @@ pub fn extract_verb_conjugations(
         }
 
         let lemma = entry.word.to_lowercase();
-        capture_tier2(&mut tier2, common, &lemma, &entry);
         // "to be" has too many forms for the (3sg, past, pres-part, past-part)
         // shape and is handled directly by english-core.
         if lemma == "be" {
@@ -416,14 +331,8 @@ pub fn extract_verb_conjugations(
         if candidates.is_empty() {
             continue;
         }
-        let gloss_by_sig: HashMap<String, Vec<String>> = candidates
-            .iter()
-            .map(|c| (c.forms.join("|"), c.glosses.clone()))
-            .collect();
-        let assignments = lock.resolve(&lemma, Pos::Verb, candidates, had_regular, date);
-        record_definitions(dict, &gloss_by_sig, &assignments);
+        lock.resolve(&lemma, Pos::Verb, candidates, had_regular, date);
     }
-    merge_tier2(dict, tier2);
 
     println!("Resolved verb conjugations into the lock.");
     Ok(())

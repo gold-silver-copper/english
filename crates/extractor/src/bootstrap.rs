@@ -12,7 +12,7 @@
 //! (round-trips the existing tables, proving losslessness) and the refresh
 //! pipeline (emits tables from freshly-resolved locks).
 
-use crate::file_generation::{write_adjectives_phf, write_nouns_phf, write_variants_phf, write_verbs_phf};
+use crate::file_generation::{write_adjectives_phf, write_nouns_phf, write_verbs_phf};
 use crate::helpers::Pos;
 use crate::registry::{Lock, LockRow, Status};
 use std::error::Error;
@@ -119,14 +119,6 @@ pub fn generate_tables(
         .map(|(k, f)| (k.clone(), (col(f, 0), col(f, 1))))
         .collect();
     write_adjectives_phf(adj_pairs, generated_dir.join("adj_phf.rs"))?;
-
-    // Self-describing variant tables.
-    write_variants_phf(
-        noun_emit.iter().map(|(k, _)| k.clone()).collect(),
-        verb_emit.iter().map(|(k, _)| k.clone()).collect(),
-        adj_emit.iter().map(|(k, _)| k.clone()).collect(),
-        generated_dir.join("variants_phf.rs"),
-    )?;
 
     Ok(())
 }

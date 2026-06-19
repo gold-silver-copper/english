@@ -66,46 +66,6 @@ pub struct Sense {
     pub wikidata: Vec<String>,
     #[serde(default)]
     pub glosses: Vec<String>,
-    #[serde(default)]
-    pub tags: Vec<String>,
-    /// Present (non-empty) for inflected-form pages ("plural of X"); such senses
-    /// are not lemma definitions.
-    #[serde(default)]
-    pub form_of: Vec<serde_json::Value>,
-}
-
-/// Sense tags that mark a definition as not part of current, standard English —
-/// skipped when choosing a single primary definition for a regular word.
-pub static NON_CURRENT_TAGS: &[&str] = &["obsolete", "archaic", "rare", "dated", "historical"];
-/// Tags marking a "pointer" sense (abbreviation/alt-form) rather than a real
-/// definition — a poor choice for a word's primary meaning.
-pub static POINTER_TAGS: &[&str] =
-    &["abbreviation", "acronym", "initialism", "alt-of", "clipping", "misspelling"];
-
-impl Sense {
-    /// The actual definition text: wiktextract `glosses` is a hierarchy from broad
-    /// to specific, so the last non-empty element is the definition (the earlier
-    /// ones are parent categories like "Terms relating to animals.").
-    pub fn definition(&self) -> Option<String> {
-        self.glosses.iter().rev().find(|g| !g.is_empty()).cloned()
-    }
-
-    fn has_tag(&self, set: &[&str]) -> bool {
-        self.tags
-            .iter()
-            .any(|t| set.contains(&t.to_lowercase().as_str()))
-    }
-
-    /// A real lemma definition: not an inflected-form pointer, and has gloss text.
-    pub fn is_lemma_sense(&self) -> bool {
-        self.form_of.is_empty() && self.definition().is_some()
-    }
-
-    /// A good candidate for a word's *primary* definition: a real lemma sense that
-    /// is current (not obsolete/rare) and not a mere abbreviation/alt-form pointer.
-    pub fn is_primary_candidate(&self) -> bool {
-        self.is_lemma_sense() && !self.has_tag(NON_CURRENT_TAGS) && !self.has_tag(POINTER_TAGS)
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -197,26 +157,6 @@ impl Entry {
             .cloned()
     }
 
-    /// One definition per real lemma sense (most-specific gloss each), excluding
-    /// inflected-form pointers — the raw material for the irregular (tier-1)
-    /// dictionary entries. Keeps every sense, including rare/abbreviation ones.
-    pub fn all_glosses(&self) -> Vec<String> {
-        self.senses
-            .iter()
-            .filter(|s| s.is_lemma_sense())
-            .filter_map(|s| s.definition())
-            .collect()
-    }
-
-    /// The single primary definition for a regular word: the most-specific gloss of
-    /// the first current, non-pointer lemma sense. `None` if the entry has only
-    /// inflected-form, obsolete, or abbreviation senses.
-    pub fn primary_definition(&self) -> Option<String> {
-        self.senses
-            .iter()
-            .filter(|s| s.is_primary_candidate())
-            .find_map(|s| s.definition())
-    }
 }
 
 #[derive(Debug, Default, Eq, Hash, PartialEq, Clone, Ord, PartialOrd)]

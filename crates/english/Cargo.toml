@@ -11,16 +11,6 @@ include = ["build.rs", "examples/**/*.rs", "generated/**/*.rs", "src/**/*.rs", "
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[features]
-default = []
-# Bundles the `*_variants` lookup tables (~300 KB) and enables the
-# `English::{noun,verb,adj}_senses` introspection API. Off by default to keep the
-# shipped data under 1 MB.
-senses = []
-# Bundles the `*_meanings` dictionary tables (Wiktionary definitions per sense key)
-# and enables the `English::{noun,verb,adj}_meanings` API. Larger data; off by default.
-dictionary = []
-
 [dependencies]
 english-core = { workspace = true }
 phf = { workspace = true }

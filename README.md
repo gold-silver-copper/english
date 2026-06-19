@@ -249,63 +249,8 @@ the data equivalent of `Cargo.lock`:
 * `cargo xtask check-registry` fails the build if any previously-committed key changed meaning.
 * `cargo xtask report-coverage` shows how much of each lockfile rests on strong vs. weak anchors.
 
-Discover which numbered senses exist for a lemma instead of hard-coding suffixes
-(enable the optional `senses` feature, which bundles the variant tables — kept off
-by default so the shipped data stays under 1 MB):
-
-```toml
-english = { version = "0.2", features = ["senses"] }
-```
-
-```rust
-use english::English;
-assert_eq!(English::verb_senses("lie"), &["lie", "lie2"]);
-assert_eq!(English::noun_senses("die"), &["die2"]);
-assert!(English::noun_senses("cat").is_empty());
-```
-
 The lockfiles were originally seeded from the shipped tables with `cargo xtask seed-assignments`
 (a one-time bootstrap); you should not need to run it again.
-
-## 📖 Dictionary (optional)
-
-Because the extractor already reads each sense's Wiktionary gloss, the `dictionary`
-feature ships those definitions keyed by the same stable sense keys. Enable it (it
-adds ~6 MB of generated definition tables, so it is off by default):
-
-```toml
-english = { version = "0.2", features = ["dictionary"] }
-```
-
-```rust
-use english::English;
-
-// Irregular/homograph keys carry their FULL sense list, kept distinct per key:
-English::verb_meanings("lie");   // ["To rest in a horizontal position on a surface.", ...]
-English::verb_meanings("lie2");  // ["To give false information intentionally...", ...]
-English::noun_meanings("die2");  // ["An isohedral polyhedron, usually a cube, ...", ...]
-English::adj_meanings("bad3");   // ["Of low quality.", "Inaccurate; incorrect", ...]
-
-// Common regular words carry a single primary definition each:
-English::noun_meanings("cat");   // ["A mammal of the family Felidae."]
-English::verb_meanings("walk");  // ["To move on the feet by alternately setting each foot ..."]
-English::adj_meanings("happy");  // ["Having a feeling arising from a consciousness of well-being ..."]
-
-// Returns &'static [&'static str] (empty for unknown / uncommon words).
-```
-
-**Coverage.** Definitions are scoped to single-word English **lemmas** (no phrases or
-inflected-form pages). The two tiers:
-
-* **Irregular & homograph keys** (the words in the inflection tables, e.g. `lie`,
-  `lie2`, `die2`) — their full list of current definitions, homograph-precise.
-* **Common regular words** — a single primary definition each, for lemmas in a
-  bundled common-English word list (`crates/extractor/common_english.txt`). This
-  keeps the table embeddable: the full English Wiktionary section is ~1.2M entries /
-  ~63 MB, far too large to ship, so the long obscure/foreign tail is pruned to the
-  common vocabulary people actually look up.
-
-`senses` and `dictionary` are independent and can be enabled together.
 
 ## Benchmarks
 Performance benchmarks were run on my M2 Macbook.

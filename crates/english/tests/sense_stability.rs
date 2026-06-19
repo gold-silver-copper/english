@@ -37,19 +37,6 @@ fn adjective_bad_homographs_are_pinned() {
     assert_eq!(English::adj("bad3", &Degree::Superlative), "worst");
 }
 
-#[cfg(feature = "senses")]
-#[test]
-fn self_describing_sense_lists_match_published_keys() {
-    assert_eq!(English::noun_senses("die"), &["die2"]);
-    assert_eq!(English::verb_senses("lie"), &["lie", "lie2"]);
-    assert_eq!(English::adj_senses("bad"), &["bad2", "bad3"]);
-    // Stripping a suffix off the query is fine — same lemma, same list.
-    assert_eq!(English::verb_senses("lie2"), &["lie", "lie2"]);
-    // Fully regular words have no explicit numbered senses.
-    assert!(English::noun_senses("cat").is_empty());
-    assert!(English::verb_senses("walk").is_empty());
-}
-
 #[test]
 fn unknown_suffixed_key_strips_all_digits_and_falls_back_to_rules() {
     // Keys not in the tables must strip their (possibly multi-digit) suffix and

@@ -78,9 +78,6 @@ pub struct Candidate {
     pub forms: Vec<String>,
     /// First gloss, stored in the lockfile as a human review aid.
     pub gloss: Option<String>,
-    /// All glosses for this sense, raw material for the optional dictionary tables
-    /// (never used for matching or determinism).
-    pub glosses: Vec<String>,
 }
 
 impl Candidate {
