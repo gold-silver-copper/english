@@ -32,6 +32,12 @@ jobs:
   registry:
     name: check-registry
     runs-on: ubuntu-latest
+    # Pre-release relock window: the sense keys are still being re-keyed freely, so
+    # cross-version immutability is intentionally relaxed. Internal consistency and
+    # lock<->table sync ARE still enforced. Delete this `env:` block when cutting the
+    # first gated release to arm cross-version immutability.
+    env:
+      ENGLISH_ALLOW_RELOCK: "1"
     steps:
       - uses: actions/checkout@v4
         with:

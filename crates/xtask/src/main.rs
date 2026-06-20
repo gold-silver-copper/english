@@ -91,18 +91,34 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
 
     let mut violations = Vec::new();
 
+    // During the pre-release window the sense keys are still being re-keyed freely,
+    // so cross-version immutability is intentionally relaxed via ENGLISH_ALLOW_RELOCK
+    // (set in CI). Internal consistency and lock<->table sync are ALWAYS enforced.
+    // Unset this (the default) when cutting the first gated release to arm the
+    // cross-version immutability guard.
+    let allow_relock = env::var("ENGLISH_ALLOW_RELOCK")
+        .map(|v| !v.is_empty() && v != "0")
+        .unwrap_or(false);
+
     // Baseline = the commit this branch diverged from on the target branch, so we
     // gate the change THIS branch/PR makes to the lockfiles. Comparing against HEAD
     // is useless under CI (the checked-out working tree IS HEAD), so a key swap that
     // arrives inside a PR would slip through. We use the merge-base with the PR base
     // ref (GITHUB_BASE_REF on GitHub, else origin/main), which needs full history
     // (actions/checkout with fetch-depth: 0).
-    let baseline = resolve_baseline(&root)?;
-    match &baseline {
-        Some(rev) => println!("check-registry: gating lock changes against baseline {rev}"),
-        None => println!(
-            "note: no baseline ref resolved (origin/main / GITHUB_BASE_REF); running internal + sync checks only."
-        ),
+    let baseline = if allow_relock { None } else { resolve_baseline(&root)? };
+    if allow_relock {
+        println!(
+            "check-registry: ENGLISH_ALLOW_RELOCK set — cross-version immutability SKIPPED \
+             (pre-release relock window); internal consistency + table sync still enforced."
+        );
+    } else {
+        match &baseline {
+            Some(rev) => println!("check-registry: gating lock changes against baseline {rev}"),
+            None => println!(
+                "note: no baseline ref resolved (origin/main / GITHUB_BASE_REF); running internal + sync checks only."
+            ),
+        }
     }
 
     for (pos, working) in [(Pos::Noun, &noun), (Pos::Verb, &verb), (Pos::Adj, &adj)] {
