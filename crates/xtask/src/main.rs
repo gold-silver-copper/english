@@ -149,18 +149,32 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
     // 3. Lock <-> table sync (dump-free): the committed PHF tables must be exactly
     //    what the lockfiles regenerate. Catches a hand-edited lock or table, or a
     //    forgotten regeneration, that would ship inflections the lock doesn't back.
-    let tmp = env::temp_dir().join("english_xtask_sync");
+    //    Use a process-unique temp dir so concurrent/stale runs can't cross-contaminate.
+    let tmp = env::temp_dir().join(format!("english_xtask_sync_{}", process::id()));
+    let _ = fs::remove_dir_all(&tmp);
     fs::create_dir_all(&tmp)?;
     generate_tables(&noun, &verb, &adj, &tmp)?;
     for name in ["noun_phf.rs", "verb_phf.rs", "adj_phf.rs"] {
-        let committed = fs::read(generated_dir.join(name)).unwrap_or_default();
-        let regenerated = fs::read(tmp.join(name)).unwrap_or_default();
+        // A missing committed table is a violation, not "in sync" — never treat an
+        // absent file as equal to the regenerated one.
+        let committed = match fs::read(generated_dir.join(name)) {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                violations.push(format!(
+                    "{name} is missing from {} (expected a committed PHF table)",
+                    generated_dir.display()
+                ));
+                continue;
+            }
+        };
+        let regenerated = fs::read(tmp.join(name))?; // just written by generate_tables
         if committed != regenerated {
             violations.push(format!(
                 "{name} is out of sync with the lockfiles (run `cargo xtask refresh-data` or reconcile the lock)"
             ));
         }
     }
+    let _ = fs::remove_dir_all(&tmp);
 
     if violations.is_empty() {
         println!("check-registry: OK — no published key changed meaning; tables match the lock.");
@@ -181,21 +195,37 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
 /// when no such ref exists (e.g. a fresh repo with no remote), in which case only the
 /// internal-consistency and sync checks run.
 fn resolve_baseline(root: &Path) -> Result<Option<String>, Box<dyn Error>> {
-    let mut candidates = Vec::new();
-    if let Ok(b) = env::var("GITHUB_BASE_REF") {
-        let b = b.trim();
-        if !b.is_empty() {
-            candidates.push(format!("origin/{b}"));
-            candidates.push(b.to_string());
-        }
-    }
-    candidates.push("origin/main".to_string());
-    candidates.push("main".to_string());
+    // When a PR base ref is given, gate against EXACTLY that branch — never silently
+    // fall back to main (which would compare against the wrong baseline). Without one
+    // (local runs / pushes), main is the natural baseline.
+    let base_ref = env::var("GITHUB_BASE_REF")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let candidates: Vec<String> = match &base_ref {
+        Some(b) => vec![format!("origin/{b}"), b.clone()],
+        None => vec!["origin/main".to_string(), "main".to_string()],
+    };
 
-    for base in candidates {
-        if let Some(mb) = git_merge_base(root, &base, "HEAD")? {
+    for base in &candidates {
+        if let Some(mb) = git_merge_base(root, base, "HEAD")? {
             return Ok(Some(mb));
         }
+    }
+
+    // No baseline resolved. Under CI this is fail-open and must NOT pass: a shallow
+    // checkout, a missing base fetch, or a renamed default branch would otherwise
+    // silently disable the headline cross-version immutability check while CI stays
+    // green. Locally (no CI) it's fine to skip the cross-version comparison.
+    let in_ci = base_ref.is_some() || env::var("CI").is_ok();
+    if in_ci {
+        return Err(format!(
+            "check-registry: could not resolve a baseline ref ({}) to gate against. \
+             Ensure full history (actions/checkout fetch-depth: 0) and that the base branch is \
+             fetched. Refusing to pass with the cross-version immutability check disabled.",
+            candidates.join(" or ")
+        )
+        .into());
     }
     Ok(None)
 }
@@ -245,11 +275,14 @@ fn git_show(root: &Path, target: &str) -> Result<Option<String>, Box<dyn Error>>
 
 /// Parse a lockfile from an in-memory CSV string (via a temp file, reusing Lock::load).
 fn load_lock_from_str(csv: &str) -> Result<Lock, Box<dyn Error>> {
-    let dir = env::temp_dir().join("english_xtask_headlock");
+    // Process-unique dir so concurrent/stale runs can't read each other's temp file.
+    let dir = env::temp_dir().join(format!("english_xtask_headlock_{}", process::id()));
     fs::create_dir_all(&dir)?;
     let path = dir.join("head.lock.csv");
     fs::write(&path, csv)?;
-    Lock::load(&path)
+    let lock = Lock::load(&path);
+    let _ = fs::remove_dir_all(&dir);
+    lock
 }
 
 fn req(iter: &mut impl Iterator<Item = String>, flag: &str) -> Result<String, Box<dyn Error>> {

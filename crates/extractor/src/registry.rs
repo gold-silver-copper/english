@@ -84,10 +84,15 @@ impl Candidate {
     fn sig(&self) -> String {
         self.forms.join("|")
     }
-    /// Deterministic sort key for ordering brand-new identities at cold start.
-    /// Strong, durable anchors come first (qid > sid > etym); the form signature is
-    /// the LAST resort, so a new homograph's bare-vs-`2` assignment is driven by
-    /// stable metadata when present, not by an alphabetical form artifact.
+    /// A *deterministic, reproducible* total order for assigning suffixes to the
+    /// brand-new identities that co-appear at cold start. It orders by the anchor
+    /// fields (qid, then sid, then etym) and only then the form signature, so the
+    /// assignment doesn't rest solely on an alphabetical-forms artifact when stronger
+    /// metadata is present. Note this is purely a tiebreak among co-appearing new
+    /// senses (the result is frozen immediately after) — NOT a claim about which
+    /// sense is "primary": a missing qid sorts as the empty string, so a
+    /// metadata-less sense can sort ahead of a metadata-bearing one. The bare-vs-`2`
+    /// choice among genuine homographs is intentionally arbitrary-but-stable.
     fn order_key(&self) -> (String, String, u32, String) {
         (
             self.qid.clone().unwrap_or_default(),
@@ -1284,6 +1289,77 @@ mod tests {
         ok.insert_row(row("good", 2, "qid:Q9", Some("Q9"), &["goods"]));
         assert!(ok.validate().is_empty(), "{:?}", ok.validate());
     }
+
+    #[test]
+    fn tombstone_reappear_gets_unique_anchor() {
+        // A sense that vanished (tombstoned) then reappears re-derives the same anchor;
+        // the new row must get a UNIQUE anchor (not collide with its own tombstone) and
+        // a strictly-higher suffix. Named guard for the bug the proptest first caught.
+        let mut lock = Lock::new();
+        let mut c = cand(&["alpha"]);
+        c.etym = Some(2);
+        lock.resolve("x", Pos::Noun, vec![c], false, "d1"); // x -> etym:2 @1
+        lock.resolve("x", Pos::Noun, vec![], false, "d2"); // vanishes -> tombstone @1
+        let mut c2 = cand(&["alpha"]);
+        c2.etym = Some(2);
+        let a = lock.resolve("x", Pos::Noun, vec![c2], false, "d3"); // reappears
+
+        assert_eq!(keys(&a), vec!["x2".to_string()], "reappearing sense gets a new suffix");
+        let anchors: Vec<String> = lock.rows().map(|r| r.anchor.clone()).collect();
+        let distinct: std::collections::HashSet<_> = anchors.iter().collect();
+        assert_eq!(anchors.len(), distinct.len(), "anchors must stay unique: {anchors:?}");
+        assert!(check_immutability(&lock, &lock).is_empty());
+    }
+
+    #[test]
+    fn reap_respects_max_fraction_boundary() {
+        let build = || {
+            let mut lock = Lock::new();
+            lock.resolve("a", Pos::Noun, vec![cand(&["air"])], false, "d1");
+            lock.resolve("b", Pos::Noun, vec![cand(&["bir"])], false, "d1");
+            lock.resolve("c", Pos::Noun, vec![cand(&["cir"])], false, "d1");
+            lock.resolve("d", Pos::Noun, vec![cand(&["dir"])], false, "d1");
+            lock
+        };
+        let mut resolved = std::collections::HashSet::new();
+        resolved.insert("a".to_string());
+        resolved.insert("b".to_string());
+        resolved.insert("c".to_string());
+
+        // 1 of 4 absent = 25%; with max_fraction 0.25 that is NOT > 0.25 -> reaps.
+        let mut at = build();
+        let rep = at.reap(Pos::Noun, &resolved, "d2", 0.25);
+        assert!(!rep.skipped, "25% at the 0.25 boundary should reap");
+        assert_eq!(rep.tombstoned, 1);
+
+        // 1 of 4 absent vs a 0.10 ceiling = 25% > 10% -> skipped.
+        let mut over = build();
+        let rep = over.reap(Pos::Noun, &resolved, "d2", 0.10);
+        assert!(rep.skipped, "25% over the 0.10 ceiling must be refused");
+        assert_eq!(rep.tombstoned, 0);
+    }
+
+    #[test]
+    fn etym_frozen_row_rematches_on_form_drift() {
+        // Complement to the sig-frozen no-swap test: an etym-FROZEN row whose forms
+        // drift (same etym) DOES carry its key forward, rather than tombstoning.
+        let mut lock = Lock::new();
+        let mut c1 = cand(&["aaa"]);
+        c1.etym = Some(1);
+        let mut c2 = cand(&["bbb"]);
+        c2.etym = Some(2);
+        lock.resolve("x", Pos::Noun, vec![c1, c2], false, "d1"); // etym:1 -> x, etym:2 -> x2
+
+        let mut e1 = cand(&["azz"]); // etym 1's form drifts aaa -> azz
+        e1.etym = Some(1);
+        let mut e2 = cand(&["bbb"]);
+        e2.etym = Some(2);
+        let a = lock.resolve("x", Pos::Noun, vec![e1, e2], false, "d2");
+        let by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
+        assert_eq!(by_key["x"], vec!["azz".to_string()], "etym-frozen row kept its key through drift");
+        assert_eq!(by_key["x2"], vec!["bbb".to_string()]);
+        assert!(check_immutability(&lock, &lock).is_empty());
+    }
 }
 
 #[cfg(test)]
@@ -1291,60 +1367,87 @@ mod proptests {
     use super::*;
     use proptest::prelude::*;
 
-    /// A sequence of dumps for one lemma; each dump is a set of senses, each sense a
-    /// (forms, optional-etym) pair. Small alphabet/sizes keep the search dense.
-    fn dumps() -> impl Strategy<Value = Vec<Vec<(Vec<String>, Option<u32>)>>> {
-        let sense = (
+    /// One observed sense: forms + the full set of anchor tiers (etym / qid / sid),
+    /// so the property test exercises qid/sid matching and the `#sig` tiebreaks, not
+    /// just sig/etym. Small alphabets keep the search dense (and force collisions).
+    type Sense = (Vec<String>, Option<u32>, Option<String>, Option<String>);
+    fn sense() -> impl Strategy<Value = Sense> {
+        (
             prop::collection::vec("[a-c]{1,3}", 1..3usize),
             prop::option::of(0u32..3),
+            prop::option::of("Q[1-3]"),
+            prop::option::of("s[1-3]"),
+        )
+    }
+
+    /// A stream of dumps. Each dump carries an independent `had_regular` flag (to
+    /// exercise the cold-start-at-2 branch) and senses for TWO lemmas (to confirm the
+    /// per-(lemma,pos) buckets stay independent).
+    fn dumps() -> impl Strategy<Value = Vec<(bool, Vec<Sense>, Vec<Sense>)>> {
+        let dump = (
+            any::<bool>(),
+            prop::collection::vec(sense(), 0..3usize),
+            prop::collection::vec(sense(), 0..3usize),
         );
-        let dump = prop::collection::vec(sense, 0..4usize);
         prop::collection::vec(dump, 1..6usize)
     }
 
+    fn to_candidates(senses: &[Sense]) -> Vec<Candidate> {
+        // Dedup by signature, as the extract layer does before calling resolve.
+        let mut by_sig: BTreeMap<String, Candidate> = BTreeMap::new();
+        for (forms, etym, qid, sid) in senses {
+            let mut c = Candidate::new(forms.clone());
+            c.etym = *etym;
+            c.qid = qid.clone();
+            c.sid = sid.clone();
+            by_sig.entry(c.sig()).or_insert(c);
+        }
+        by_sig.into_values().collect()
+    }
+
     proptest! {
-        /// Across an arbitrary stream of refreshes, no published (active) anchor ever
-        /// changes its suffix, and no tombstoned suffix is revived/reused — verified
-        /// both by check_immutability between consecutive on-disk states and by an
-        /// independent anchor->suffix monotonicity ledger. Exercises the real
-        /// resolve -> save -> load cycle.
+        #![proptest_config(ProptestConfig::with_cases(1024))]
+
+        /// Across an arbitrary stream of refreshes — over qid/sid/etym/sig anchors,
+        /// both had_regular branches, and two independent lemmas — no published
+        /// (active) anchor ever changes its suffix and no tombstoned suffix is
+        /// revived/reused. Verified by check_immutability between consecutive on-disk
+        /// states and by an independent (lemma, anchor) -> suffix monotonicity ledger.
+        /// Exercises the real resolve -> save -> load cycle.
         #[test]
         fn published_keys_never_move_or_revive(dumps in dumps()) {
-            let dir = std::env::temp_dir().join("english_proptest_lock");
+            let dir = std::env::temp_dir().join(format!("english_proptest_lock_{}", std::process::id()));
             let _ = std::fs::create_dir_all(&dir);
             let path = dir.join("noun.lock.csv");
 
             let mut lock = Lock::new();
-            let mut seen: std::collections::HashMap<String, u32> = Default::default();
+            let mut seen: std::collections::HashMap<(String, String), u32> = Default::default();
 
-            for (i, dump) in dumps.iter().enumerate() {
-                // Dedup by identity, as the extract layer does before calling resolve.
-                let mut by_ident: BTreeMap<String, Candidate> = BTreeMap::new();
-                for (forms, etym) in dump {
-                    let mut c = Candidate::new(forms.clone());
-                    c.etym = *etym;
-                    by_ident.entry(c.sig()).or_insert(c);
-                }
-                let candidates: Vec<Candidate> = by_ident.into_values().collect();
+            for (i, (had_regular, sa, sb)) in dumps.iter().enumerate() {
+                for (lemma, senses) in [("w", sa), ("x", sb)] {
+                    let candidates = to_candidates(senses);
 
-                lock.save(&path).unwrap();
-                let before = Lock::load(&path).unwrap();
-                lock.resolve("w", Pos::Noun, candidates, false, &format!("d{i}"));
+                    lock.save(&path).unwrap();
+                    let before = Lock::load(&path).unwrap();
+                    lock.resolve(lemma, Pos::Noun, candidates, *had_regular, &format!("d{i}"));
 
-                // No published key changed meaning between the two on-disk states.
-                prop_assert!(check_immutability(&before, &lock).is_empty());
-                // The lock is always internally valid.
-                prop_assert!(lock.validate().is_empty());
+                    // No published key changed meaning between the two on-disk states.
+                    prop_assert!(check_immutability(&before, &lock).is_empty());
+                    // The lock is always internally valid.
+                    prop_assert!(lock.validate().is_empty());
 
-                // Anchor -> suffix is monotone for the whole stream.
-                for r in lock.rows() {
-                    if let Some(&s) = seen.get(&r.anchor) {
-                        prop_assert_eq!(s, r.suffix);
-                    } else {
-                        seen.insert(r.anchor.clone(), r.suffix);
+                    // (lemma, anchor) -> suffix is monotone for the whole stream.
+                    for r in lock.rows() {
+                        let key = (r.lemma.clone(), r.anchor.clone());
+                        if let Some(&s) = seen.get(&key) {
+                            prop_assert_eq!(s, r.suffix);
+                        } else {
+                            seen.insert(key, r.suffix);
+                        }
                     }
                 }
             }
+            let _ = std::fs::remove_dir_all(&dir);
         }
     }
 }

@@ -134,6 +134,12 @@ pub fn extract_irregular_nouns(
         // had_regular is tag-invariant: a regular plural counts whether or not it
         // carries a soft tag, so toggling such a tag never flips the bare-key reservation.
         let has_regular = plurals.iter().any(|(f, _rank)| *f == predicted);
+        // Conscious narrowing: a single entry emits ONE plural. If the entry lists
+        // several distinct irregular plurals for the same sense (e.g. cacti AND
+        // cactusses), only the chosen primary is emitted; the alternates are dropped
+        // and not recoverable from the table. This is the point of the per-entry
+        // collapse (it kills the cactus2/3/4 fan-out); genuine homographs are
+        // separate entries and keep their own keys.
         let irregular = choose_form(&plurals, &predicted, false).filter(|f| *f != predicted);
         let acc = by_lemma.entry(lemma).or_default();
         if has_regular {

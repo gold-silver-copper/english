@@ -302,6 +302,20 @@ mod tests {
     }
 
     #[test]
+    fn exclude_plus_soft_equals_legacy_bad_tags() {
+        use std::collections::HashSet;
+        let union: HashSet<&str> = EXCLUDE_TAGS.iter().chain(SOFT_TAGS.iter()).copied().collect();
+        let legacy: HashSet<&str> = BAD_TAGS.iter().copied().collect();
+        assert_eq!(
+            union, legacy,
+            "EXCLUDE_TAGS ∪ SOFT_TAGS must equal the legacy BAD_TAGS set (kept in sync by hand)"
+        );
+        let excl: HashSet<&str> = EXCLUDE_TAGS.iter().copied().collect();
+        let soft: HashSet<&str> = SOFT_TAGS.iter().copied().collect();
+        assert!(excl.is_disjoint(&soft), "EXCLUDE_TAGS and SOFT_TAGS must be disjoint");
+    }
+
+    #[test]
     fn emit_is_plain_only() {
         // "beta" plain (rank 0), "alpha" soft (rank 1): only the plain form is
         // eligible to be emitted — a nonstandard variant never becomes canonical.
