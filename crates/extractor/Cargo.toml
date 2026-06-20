@@ -16,3 +16,6 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 english-core = { workspace = true }
 english = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest = "1"

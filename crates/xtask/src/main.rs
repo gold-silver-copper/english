@@ -1,4 +1,4 @@
-use extractor::bootstrap::{load_locks, seed};
+use extractor::bootstrap::{generate_tables, load_locks, seed};
 use extractor::helpers::Pos;
 use extractor::registry::{Lock, check_immutability};
 use std::env;
@@ -86,29 +86,98 @@ fn seed_assignments(args: Vec<String>) -> Result<(), Box<dyn Error>> {
 fn check_registry() -> Result<(), Box<dyn Error>> {
     let root = workspace_root()?;
     let assignments_dir = default_assignments_dir()?;
+    let generated_dir = default_generated_dir()?;
     let (noun, verb, adj) = load_locks(&assignments_dir)?;
 
     let mut violations = Vec::new();
 
-    for (pos, working) in [(Pos::Noun, &noun), (Pos::Verb, &verb), (Pos::Adj, &adj)] {
-        // 1. Internal consistency (no two identities share a suffix).
-        violations.extend(check_immutability(working, working));
+    // During the pre-release window the sense keys are still being re-keyed freely,
+    // so cross-version immutability is intentionally relaxed via ENGLISH_ALLOW_RELOCK
+    // (set in CI). Internal consistency and lock<->table sync are ALWAYS enforced.
+    // Unset this (the default) when cutting the first gated release to arm the
+    // cross-version immutability guard.
+    let allow_relock = env::var("ENGLISH_ALLOW_RELOCK")
+        .map(|v| !v.is_empty() && v != "0")
+        .unwrap_or(false);
 
-        // 2. Immutability vs. the committed (HEAD) lock, if present.
-        let rel = format!("data/assignments/{}.lock.csv", pos.as_str());
-        match git_show(&root, &format!("HEAD:{rel}"))? {
-            Some(head_csv) => {
-                let head_lock = load_lock_from_str(&head_csv)?;
-                violations.extend(check_immutability(&head_lock, working));
-            }
-            None => {
-                println!("note: {rel} not found at HEAD (new file); skipping HEAD comparison.");
+    // Baseline = the commit this branch diverged from on the target branch, so we
+    // gate the change THIS branch/PR makes to the lockfiles. Comparing against HEAD
+    // is useless under CI (the checked-out working tree IS HEAD), so a key swap that
+    // arrives inside a PR would slip through. We use the merge-base with the PR base
+    // ref (GITHUB_BASE_REF on GitHub, else origin/main), which needs full history
+    // (actions/checkout with fetch-depth: 0).
+    let baseline = if allow_relock { None } else { resolve_baseline(&root)? };
+    if allow_relock {
+        println!(
+            "check-registry: ENGLISH_ALLOW_RELOCK set — cross-version immutability SKIPPED \
+             (pre-release relock window); internal consistency + table sync still enforced."
+        );
+    } else {
+        match &baseline {
+            Some(rev) => println!("check-registry: gating lock changes against baseline {rev}"),
+            None => println!(
+                "note: no baseline ref resolved (origin/main / GITHUB_BASE_REF); running internal + sync checks only."
+            ),
+        }
+    }
+
+    for (pos, working) in [(Pos::Noun, &noun), (Pos::Verb, &verb), (Pos::Adj, &adj)] {
+        // 1. Internal consistency (unique anchors, no two identities share a suffix)
+        //    plus strict structural validation (suffix>=1, anchor<->fields, no emit
+        //    key collisions). Always enforced, never relaxed by the relock window.
+        violations.extend(check_immutability(working, working));
+        violations.extend(working.validate());
+
+        // 2. Immutability vs. the baseline lock, if present there.
+        if let Some(rev) = &baseline {
+            let rel = format!("data/assignments/{}.lock.csv", pos.as_str());
+            match git_show(&root, &format!("{rev}:{rel}"))? {
+                Some(csv) => {
+                    let base_lock = load_lock_from_str(&csv)?;
+                    violations.extend(check_immutability(&base_lock, working));
+                }
+                None => {
+                    println!(
+                        "note: {rel} absent at {rev} (new file); skipping cross-version check for {}.",
+                        pos.as_str()
+                    );
+                }
             }
         }
     }
 
+    // 3. Lock <-> table sync (dump-free): the committed PHF tables must be exactly
+    //    what the lockfiles regenerate. Catches a hand-edited lock or table, or a
+    //    forgotten regeneration, that would ship inflections the lock doesn't back.
+    //    Use a process-unique temp dir so concurrent/stale runs can't cross-contaminate.
+    let tmp = env::temp_dir().join(format!("english_xtask_sync_{}", process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp)?;
+    generate_tables(&noun, &verb, &adj, &tmp)?;
+    for name in ["noun_phf.rs", "verb_phf.rs", "adj_phf.rs"] {
+        // A missing committed table is a violation, not "in sync" — never treat an
+        // absent file as equal to the regenerated one.
+        let committed = match fs::read(generated_dir.join(name)) {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                violations.push(format!(
+                    "{name} is missing from {} (expected a committed PHF table)",
+                    generated_dir.display()
+                ));
+                continue;
+            }
+        };
+        let regenerated = fs::read(tmp.join(name))?; // just written by generate_tables
+        if committed != regenerated {
+            violations.push(format!(
+                "{name} is out of sync with the lockfiles (run `cargo xtask refresh-data` or reconcile the lock)"
+            ));
+        }
+    }
+    let _ = fs::remove_dir_all(&tmp);
+
     if violations.is_empty() {
-        println!("check-registry: OK — no published key changed meaning.");
+        println!("check-registry: OK — no published key changed meaning; tables match the lock.");
         Ok(())
     } else {
         eprintln!("check-registry: FAILED — {} violation(s):", violations.len());
@@ -116,6 +185,62 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
             eprintln!("  - {v}");
         }
         process::exit(1);
+    }
+}
+
+/// The baseline revision to gate lock changes against: the merge-base of `HEAD` with
+/// the target branch (`GITHUB_BASE_REF` on a GitHub PR, otherwise `origin/main`).
+/// Using the merge-base (the point this branch diverged) means new keys added on the
+/// base branch after divergence are not falsely flagged as dropped. Returns `None`
+/// when no such ref exists (e.g. a fresh repo with no remote), in which case only the
+/// internal-consistency and sync checks run.
+fn resolve_baseline(root: &Path) -> Result<Option<String>, Box<dyn Error>> {
+    // When a PR base ref is given, gate against EXACTLY that branch — never silently
+    // fall back to main (which would compare against the wrong baseline). Without one
+    // (local runs / pushes), main is the natural baseline.
+    let base_ref = env::var("GITHUB_BASE_REF")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let candidates: Vec<String> = match &base_ref {
+        Some(b) => vec![format!("origin/{b}"), b.clone()],
+        None => vec!["origin/main".to_string(), "main".to_string()],
+    };
+
+    for base in &candidates {
+        if let Some(mb) = git_merge_base(root, base, "HEAD")? {
+            return Ok(Some(mb));
+        }
+    }
+
+    // No baseline resolved. Under CI this is fail-open and must NOT pass: a shallow
+    // checkout, a missing base fetch, or a renamed default branch would otherwise
+    // silently disable the headline cross-version immutability check while CI stays
+    // green. Locally (no CI) it's fine to skip the cross-version comparison.
+    let in_ci = base_ref.is_some() || env::var("CI").is_ok();
+    if in_ci {
+        return Err(format!(
+            "check-registry: could not resolve a baseline ref ({}) to gate against. \
+             Ensure full history (actions/checkout fetch-depth: 0) and that the base branch is \
+             fetched. Refusing to pass with the cross-version immutability check disabled.",
+            candidates.join(" or ")
+        )
+        .into());
+    }
+    Ok(None)
+}
+
+/// `git merge-base <base> HEAD`; returns `None` if `base` is unknown locally.
+fn git_merge_base(root: &Path, base: &str, head: &str) -> Result<Option<String>, Box<dyn Error>> {
+    let out = Command::new("git")
+        .current_dir(root)
+        .args(["merge-base", base, head])
+        .output()?;
+    if out.status.success() {
+        let sha = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        Ok((!sha.is_empty()).then_some(sha))
+    } else {
+        Ok(None)
     }
 }
 
@@ -150,11 +275,14 @@ fn git_show(root: &Path, target: &str) -> Result<Option<String>, Box<dyn Error>>
 
 /// Parse a lockfile from an in-memory CSV string (via a temp file, reusing Lock::load).
 fn load_lock_from_str(csv: &str) -> Result<Lock, Box<dyn Error>> {
-    let dir = env::temp_dir().join("english_xtask_headlock");
+    // Process-unique dir so concurrent/stale runs can't read each other's temp file.
+    let dir = env::temp_dir().join(format!("english_xtask_headlock_{}", process::id()));
     fs::create_dir_all(&dir)?;
     let path = dir.join("head.lock.csv");
     fs::write(&path, csv)?;
-    Lock::load(&path)
+    let lock = Lock::load(&path);
+    let _ = fs::remove_dir_all(&dir);
+    lock
 }
 
 fn req(iter: &mut impl Iterator<Item = String>, flag: &str) -> Result<String, Box<dyn Error>> {

@@ -12,6 +12,7 @@ exclude = [
 default-members = [
     "crates/english",
     "crates/english-core",
+    "crates/extractor",
     "crates/xtask",
 ]
 resolver = "3"

@@ -67,6 +67,23 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
         );
     }
 
+    // Strict structural validation (suffix>=1, anchor<->fields, no emit-key
+    // collisions) is a hard abort — a structurally broken lock must never be written.
+    let invalid: Vec<String> = noun_lock
+        .validate()
+        .into_iter()
+        .chain(verb_lock.validate())
+        .chain(adj_lock.validate())
+        .collect();
+    if !invalid.is_empty() {
+        return Err(format!(
+            "refusing to write lockfiles — {} structural violation(s):\n  - {}",
+            invalid.len(),
+            invalid.join("\n  - ")
+        )
+        .into());
+    }
+
     save_locks(&config.assignments_dir, &noun_lock, &verb_lock, &adj_lock)?;
     generate_tables(&noun_lock, &verb_lock, &adj_lock, &config.generated_dir)?;
 

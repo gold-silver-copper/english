@@ -63,8 +63,8 @@ awnry,adj,1,sig:awnrier|awnriest,,,,active,2026-06-19,2026-06-19,awnrier|awnries
 babbly,adj,1,sig:babblier|babbliest,,,,active,2026-06-19,2026-06-19,babblier|babbliest,Resembling babbles.
 baby,adj,1,sig:babier|babiest,,,,active,2026-06-19,2026-06-19,babier|babiest,"Picked when small and immature (as in baby corn, baby potatoes)."
 backstabby,adj,1,sig:backstabbier|backstabbiest,,,,active,2026-06-19,2026-06-19,backstabbier|backstabbiest,characteristic of deceit and treachery
-bad,adj,2,sid:en:slang,,en:slang,1,active,2026-06-19,2026-06-19,badder|baddest,"Bold, daring, and tough."
-bad,adj,3,etym:1#sig:worse|worst,,,1,active,2026-06-19,2026-06-19,worse|worst,Of low quality.
+bad,adj,2,etym:1#sig:worse|worst,,,1,active,2026-06-19,2026-06-19,worse|worst,Of low quality.
+bad,adj,3,sid:en:slang,,en:slang,1,active,2026-06-19,2026-06-19,badder|baddest,"Bold, daring, and tough."
 badassy,adj,1,sig:badassier|badassiest,,,,active,2026-06-19,2026-06-19,badassier|badassiest,Characteristic of a badass; impressively tough or audacious.
 baggy,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,baggier|baggiest,"Of clothing, very loose-fitting, so as to hang away from the body."
 bait,adj,1,etym:4,,,4,active,2026-06-19,2026-06-19,baiter|baitest,Obvious; blatant.
@@ -111,8 +111,8 @@ beige,adj,1,sig:beiger|beigest,,,,active,2026-06-19,2026-06-19,beiger|beigest,"H
 beigey,adj,1,sig:beigier|beigiest,,,,active,2026-06-19,2026-06-19,beigier|beigiest,Somewhat beige in colour.
 beigy,adj,1,sig:beigier|beigiest,,,,active,2026-06-19,2026-06-19,beigier|beigiest,Alternative spelling of beigey.
 beloved,adj,1,sig:beloveder|belovedest,,,,active,2026-06-19,2026-06-19,beloveder|belovedest,"Much loved, dearly loved."
-ben,adj,1,etym:6,,,6,active,2026-06-19,2026-06-19,benar|benat,Alternative spelling of bene; good.
-ben,adj,2,etym:2,,,2,active,2026-06-19,2026-06-19,benner|benmost,"Inner, interior."
+ben,adj,1,etym:2,,,2,active,2026-06-19,2026-06-19,benner|benmost,"Inner, interior."
+ben,adj,2,etym:6,,,6,active,2026-06-19,2026-06-19,benar|benat,Alternative spelling of bene; good.
 bendly,adj,1,sig:bendlier|bendliest,,,,active,2026-06-19,2026-06-19,bendlier|bendliest,Having a diagonal stripe; bendy.
 bendy,adj,2,etym:1,,,1,active,2026-06-19,2026-06-19,bendier|bendiest,Having the ability to be bent easily.
 bene,adj,1,etym:3,,,3,active,2026-06-19,2026-06-19,benar|benat,Good.
@@ -311,7 +311,7 @@ carty,adj,1,sig:cartier|cartiest,,,,active,2026-06-19,2026-06-19,cartier|carties
 castworthy,adj,1,sig:castworthier|castworthiest,,,,active,2026-06-19,2026-06-19,castworthier|castworthiest,Worthy or fit for being part of a cast or of being cast.
 catchy,adj,1,sig:catchier|catchiest,,,,active,2026-06-19,2026-06-19,catchier|catchiest,Instantly appealing and memorable.
 catty,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,cattier|cattiest,Resembling or characteristic of a cat.
-central,adj,2,sig:more central|centralmost,,,,active,2026-06-19,2026-06-19,more central|centralmost,Being in the centre.
+central,adj,2,sig:more central|centermost,,,,active,2026-06-19,2026-06-19,more central|centermost,Being in the centre.
 certain,adj,1,sig:certainer|certainest,,,,active,2026-06-19,2026-06-19,certainer|certainest,"Sure in one's mind, positive; absolutely confident in the truth of something."
 chaffy,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,chaffier|chaffiest,Like or containing chaff.
 chalky,adj,1,sig:chalkier|chalkiest,,,,active,2026-06-19,2026-06-19,chalkier|chalkiest,Consisting of or containing chalk.
@@ -538,7 +538,7 @@ daggone,adj,1,sig:more daggone|daggonest,,,,active,2026-06-19,2026-06-19,more da
 daggy,adj,1,sig:daggier|daggiest,,,,active,2026-06-19,2026-06-19,daggier|daggiest,"Uncool, unfashionable, but comfortably so."
 dahk,adj,1,sig:dahker|dahkest,,,,active,2026-06-19,2026-06-19,dahker|dahkest,Pronunciation spelling of dark.
 dainty,adj,1,sig:daintier|daintiest,,,,active,2026-06-19,2026-06-19,daintier|daintiest,Elegant; delicately small and pretty.
-damned,adj,1,sig:damneder|damnedest,,,,active,2026-06-19,2026-06-19,damneder|damnedest,Godforsaken.
+damned,adj,1,sig:damnder|damndest,,,,active,2026-06-19,2026-06-19,damnder|damndest,Godforsaken.
 damp,adj,1,sig:damper|dampest,,,,active,2026-06-19,2026-06-19,damper|dampest,In a state between dry and wet; moderately wet; moist.
 dancy,adj,2,etym:1,,,1,active,2026-06-19,2026-06-19,dancier|danciest,Ready to dance.
 dandy,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,dandier|dandiest,"Like a dandy, foppish."
@@ -549,7 +549,7 @@ dappy,adj,1,sig:dappier|dappiest,,,,active,2026-06-19,2026-06-19,dappier|dappies
 dardy,adj,1,sig:dardier|dardiest,,,,active,2026-06-19,2026-06-19,dardier|dardiest,Cool; great.
 dark,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,darker|darkest,Having an absolute or (more often) relative lack of light.
 darkly,adj,1,etym:2,,,2,active,2026-06-19,2026-06-19,darklier|darkliest,Relating to darkness or obscurity.
-darned,adj,1,sig:more darned|darnedest,,,,active,2026-06-19,2026-06-19,more darned|darnedest,"A minced oath for damned, used to express contempt, exasperation, consternation, etc. towards someone or something."
+darned,adj,1,sig:more darned|darndest,,,,active,2026-06-19,2026-06-19,more darned|darndest,"A minced oath for damned, used to express contempt, exasperation, consternation, etc. towards someone or something."
 darty,adj,1,etym:2,,,2,active,2026-06-19,2026-06-19,dartier|dartiest,"Tending to dart; tending to make quick and sudden moves, especially to the side."
 dashy,adj,1,sig:dashier|dashiest,,,,active,2026-06-19,2026-06-19,dashier|dashiest,Calculated to arrest attention; ostentatiously fashionable; showy.
 dastardly,adj,1,sig:dastardlier|dastardliest,,,,active,2026-06-19,2026-06-19,dastardlier|dastardliest,In the manner of a dastard; marked by cowardice; pusillanimous.
@@ -603,7 +603,7 @@ dodgy,adj,1,sig:dodgier|dodgiest,,,,active,2026-06-19,2026-06-19,dodgier|dodgies
 doggone,adj,1,sig:more doggone|doggonest,,,,active,2026-06-19,2026-06-19,more doggone|doggonest,Euphemistic form of goddamned.
 doggoned,adj,1,sig:more doggoned|doggonedest,,,,active,2026-06-19,2026-06-19,more doggoned|doggonedest,Alternative form of doggone.
 doggy,adj,2,etym:2,,,2,active,2026-06-19,2026-06-19,doggier|doggiest,Suggestive of or in the manner of a dog.
-doleful,adj,1,sig:dolefuller|dolefullest,,,,active,2026-06-19,2026-06-19,dolefuller|dolefullest,"Filled with grief, mournful, bringing feelings of sadness."
+doleful,adj,1,sig:dolefuler|dolefulest,,,,active,2026-06-19,2026-06-19,dolefuler|dolefulest,"Filled with grief, mournful, bringing feelings of sadness."
 doofy,adj,1,sig:doofier|doofiest,,,,active,2026-06-19,2026-06-19,doofier|doofiest,Characteristic of a doof; stupid
 doomy,adj,1,sig:doomier|doomiest,,,,active,2026-06-19,2026-06-19,doomier|doomiest,Filled with doom and gloom: depressing or pessimistic
 doozy,adj,1,sig:doozier|dooziest,,,,active,2026-06-19,2026-06-19,doozier|dooziest,Of high quality; remarkable; excellent.
@@ -662,8 +662,8 @@ drudgy,adj,1,sig:drudgier|drudgiest,,,,active,2026-06-19,2026-06-19,drudgier|dru
 druggy,adj,1,etym:2,,,2,active,2026-06-19,2026-06-19,druggier|druggiest,"Acting as if on drugs; torpid, uncoordinated, etc."
 drumly,adj,1,sig:drumlier|drumliest,,,,active,2026-06-19,2026-06-19,drumlier|drumliest,turbid; muddy
 drunk,adj,1,sig:drunker|drunkest,,,,active,2026-06-19,2026-06-19,drunker|drunkest,"Intoxicated as a result of excessive alcohol consumption, usually by drinking alcoholic beverages."
-dry,adj,1,sid:en:impotent,,en:impotent,,active,2026-06-19,2026-06-19,drier|driest,Free from or lacking moisture.
-dry,adj,2,sig:dryer|dryest,,,,active,2026-06-19,2026-06-19,dryer|dryest,"Of code, having the quality of adhering to the principle of DRY; containing as little repetition as possible."
+dry,adj,1,sig:dryer|dryest,,,,active,2026-06-19,2026-06-19,dryer|dryest,"Of code, having the quality of adhering to the principle of DRY; containing as little repetition as possible."
+dry,adj,2,sid:en:impotent,,en:impotent,,active,2026-06-19,2026-06-19,drier|driest,Free from or lacking moisture.
 ducky,adj,2,etym:1,,,1,active,2026-06-19,2026-06-19,duckier|duckiest,Resembling or characteristic of a duck.
 dud,adj,1,sig:more dud|duddest,,,,active,2026-06-19,2026-06-19,more dud|duddest,Useless; failing; ineffective.
 duddy,adj,1,sig:duddier|duddiest,,,,active,2026-06-19,2026-06-19,duddier|duddiest,ragged
@@ -693,7 +693,7 @@ earthly,adj,2,sig:earthlier|earthliest,,,,active,2026-06-19,2026-06-19,earthlier
 earthy,adj,1,sig:earthier|earthiest,,,,active,2026-06-19,2026-06-19,earthier|earthiest,Resembling dirt or soil (i.e. earth).
 eastern,adj,2,sig:more eastern|easternmost,,,,active,2026-06-19,2026-06-19,more eastern|easternmost,"Of, facing, situated in, or related to the east."
 easy,adj,1,sid:en:consenting readily to sex,,en:consenting readily to sex,,active,2026-06-19,2026-06-19,easier|easiest,Comfortable; at ease.
-easygoing,adj,1,sig:easygoinger|easygoingest,,,,active,2026-06-19,2026-06-19,easygoinger|easygoingest,"Calm, relaxed, casual and informal."
+easygoing,adj,1,sig:easiergoing|easiestgoing,,,,active,2026-06-19,2026-06-19,easiergoing|easiestgoing,"Calm, relaxed, casual and informal."
 eath,adj,1,sig:eather|eathest,,,,active,2026-06-19,2026-06-19,eather|eathest,Easy; not hard or difficult.
 eathy,adj,1,sig:eathier|eathiest,,,,active,2026-06-19,2026-06-19,eathier|eathiest,Easy.
 eazy,adj,1,sig:eazier|eaziest,,,,active,2026-06-19,2026-06-19,eazier|eaziest,Eye dialect spelling of easy.
@@ -713,7 +713,7 @@ elite,adj,1,sig:eliter|elitest,,,,active,2026-06-19,2026-06-19,eliter|elitest,Of
 empty,adj,1,sig:emptier|emptiest,,,,active,2026-06-19,2026-06-19,emptier|emptiest,Devoid of content; containing nothing or nobody; vacant.
 erky,adj,1,sig:erkier|erkiest,,,,active,2026-06-19,2026-06-19,erkier|erkiest,"Yucky, icky, repulsive."
 even,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,evener|evenest,Flat and level.
-evil,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,eviller|evillest,Intending to harm; malevolent.
+evil,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,eviler|evilest,Intending to harm; malevolent.
 exact,adj,1,sig:exacter|exactest,,,,active,2026-06-19,2026-06-19,exacter|exactest,"Precisely agreeing with a standard, a fact, or the truth; perfectly conforming; neither exceeding nor falling short in any respect."
 exploity,adj,1,sig:exploitier|exploitiest,,,,active,2026-06-19,2026-06-19,exploitier|exploitiest,Being or resembling an exploit (unintended mechanic that a player can use to their advantage).
 extreme,adj,1,sig:extremer|extremest,,,,active,2026-06-19,2026-06-19,extremer|extremest,"Of a place, the most remote, farthest or outermost."
@@ -737,7 +737,7 @@ false,adj,2,sig:falser|falsest,,,,active,2026-06-19,2026-06-19,falser|falsest,"U
 fameworthy,adj,1,sig:fameworthier|fameworthiest,,,,active,2026-06-19,2026-06-19,fameworthier|fameworthiest,Alternative form of fame-worthy.
 fancy,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,fancier|fanciest,"Decorative, or featuring decorations, especially intricate or diverse ones."
 fappy,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,fappier|fappiest,Overweight and fortunate with one's life.
-far,adj,1,sid:en:distant,,en:distant,1,active,2026-06-19,2026-06-19,farther|farthest,Distant; remote in space.
+far,adj,1,sid:en:distant,,en:distant,1,active,2026-06-19,2026-06-19,farther|farthermost,Distant; remote in space.
 farmy,adj,1,sig:farmier|farmiest,,,,active,2026-06-19,2026-06-19,farmier|farmiest,Resembling or reminiscent of a farm.
 farty,adj,1,sig:fartier|fartiest,,,,active,2026-06-19,2026-06-19,fartier|fartiest,Resembling or characteristic of a fart; flatulent.
 fashy,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,fashier|fashiest,"Espousing, characteristic of, or relating to fascism."
@@ -848,7 +848,7 @@ fordry,adj,1,etym:2,,,2,active,2026-06-19,2026-06-19,fordrier|fordriest,Very dry
 fore,adj,1,sig:more fore|foremost,,,,active,2026-06-19,2026-06-19,more fore|foremost,Former; occurring earlier (in some order); previous.
 forky,adj,1,sig:forkier|forkiest,,,,active,2026-06-19,2026-06-19,forkier|forkiest,Synonym of forked.
 forlorn,adj,1,sig:forlorner|forlornest,,,,active,2026-06-19,2026-06-19,forlorner|forlornest,"Abandoned, deserted, left behind."
-forward,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,forwarder|forwardmost,Situated toward or at the front of something.
+forward,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,forwarder|forwardest,Situated toward or at the front of something.
 foul,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,fouler|foulest,"Covered with, or containing unclean matter; dirty."
 fouthy,adj,1,sig:fouthier|fouthiest,,,,active,2026-06-19,2026-06-19,fouthier|fouthiest,Ample; plentiful; free in giving; generous; hospitable.
 fowl,adj,1,etym:2,,,2,active,2026-06-19,2026-06-19,fowler|fowlest,foul
@@ -1216,7 +1216,7 @@ indiscreet,adj,1,sig:indiscreeter|indiscreetest,,,,active,2026-06-19,2026-06-19,
 indiscrete,adj,1,sig:indiscreter|indiscretest,,,,active,2026-06-19,2026-06-19,indiscreter|indiscretest,Not discrete mathematically.
 infirm,adj,1,sig:infirmer|infirmest,,,,active,2026-06-19,2026-06-19,infirmer|infirmest,"Weak or ill, not in good health."
 inky,adj,1,sig:inkier|inkiest,,,,active,2026-06-19,2026-06-19,inkier|inkiest,"Of the colour of ink, especially black ink; dark."
-inner,adj,1,sig:more inner|innermost,,,,active,2026-06-19,2026-06-19,more inner|innermost,"Being or occurring (farther) inside, situated farther in, located (situated) or happening on the inside of something, situated within or farther within contained within something."
+inner,adj,1,sig:more inner|inmost,,,,active,2026-06-19,2026-06-19,more inner|inmost,"Being or occurring (farther) inside, situated farther in, located (situated) or happening on the inside of something, situated within or farther within contained within something."
 insane,adj,1,sig:insaner|insanest,,,,active,2026-06-19,2026-06-19,insaner|insanest,Exhibiting unsoundness or disorder of mind; not sane; utterly mad.
 intense,adj,1,sig:intenser|intensest,,,,active,2026-06-19,2026-06-19,intenser|intensest,"Of a characteristic: extreme or very high or strong in degree; severe; also, excessive, towering."
 irate,adj,1,sig:irater|iratest,,,,active,2026-06-19,2026-06-19,irater|iratest,Extremely angry; wrathful; enraged.
@@ -1329,7 +1329,7 @@ leery,adj,1,sig:leerier|leeriest,,,,active,2026-06-19,2026-06-19,leerier|leeries
 leet,adj,1,etym:6,,,6,active,2026-06-19,2026-06-19,leeter|leetest,Of or relating to leetspeak.
 leetle,adj,1,sig:leetler|leetlest,,,,active,2026-06-19,2026-06-19,leetler|leetlest,"Pronunciation spelling of little, small."
 leeward,adj,1,sig:more leeward|leewardmost,,,,active,2026-06-19,2026-06-19,more leeward|leewardmost,On the side sheltered from the wind; in that direction.
-left,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,lefter|leftmost,Designating the side of the body toward the west when one is facing north; the side of the body on which the heart is located in most humans; the opposite of right. This arrow points to the reader's left: ←
+left,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,lefter|leftest,Designating the side of the body toward the west when one is facing north; the side of the body on which the heart is located in most humans; the opposite of right. This arrow points to the reader's left: ←
 leftern,adj,1,sig:more leftern|lefternmost,,,,active,2026-06-19,2026-06-19,more leftern|lefternmost,Left (opposite of right).
 leggy,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,leggier|leggiest,"Having long, attractive legs; long-legged."
 lemony,adj,1,sig:lemonier|lemoniest,,,,active,2026-06-19,2026-06-19,lemonier|lemoniest,"Resembling or characteristic of lemons, especially in terms of aroma, taste or colour."
@@ -1360,7 +1360,7 @@ lit,adj,2,etym:2,,,2,active,2026-06-19,2026-06-19,litter|littest,Little.
 lite,adj,2,etym:2,,,2,active,2026-06-19,2026-06-19,liter|litest,few; little
 lithe,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,lither|lithest,Mild; calm.
 litle,adj,1,sig:litler|litlest,,,,active,2026-06-19,2026-06-19,litler|litlest,"Alternative form or misspelling of little, small."
-little,adj,1,sig:littler|littlest,,,,active,2026-06-19,2026-06-19,littler|littlest,"Small, not large, limited"
+little,adj,1,sig:lesser|least,,,,active,2026-06-19,2026-06-19,lesser|least,"Small, not large, limited"
 lively,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,livelier|liveliest,"Full of life; energetic, vivacious."
 livid,adj,1,sig:livider|lividest,,,,active,2026-06-19,2026-06-19,livider|lividest,"Having a dark, bluish appearance."
 loamy,adj,1,sig:loamier|loamiest,,,,active,2026-06-19,2026-06-19,loamier|loamiest,Consisting of loam; partaking of the nature of loam; resembling loam.
@@ -1497,7 +1497,7 @@ mormony,adj,1,sig:mormonier|mormoniest,,,,active,2026-06-19,2026-06-19,mormonier
 morose,adj,1,sig:moroser|morosest,,,,active,2026-06-19,2026-06-19,moroser|morosest,"Sullen, gloomy; showing a brooding ill humour."
 mossy,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,mossier|mossiest,Covered in or overgrown with moss.
 mothy,adj,1,sig:mothier|mothiest,,,,active,2026-06-19,2026-06-19,mothier|mothiest,Resembling or characteristic of a moth.
-motley,adj,1,sig:motlier|motliest,,,,active,2026-06-19,2026-06-19,motlier|motliest,"Comprising greatly varied elements, to the point of incongruity."
+motley,adj,1,sig:motleyer|motleyest,,,,active,2026-06-19,2026-06-19,motleyer|motleyest,"Comprising greatly varied elements, to the point of incongruity."
 mouldy,adj,1,sig:mouldier|mouldiest,,,,active,2026-06-19,2026-06-19,mouldier|mouldiest,Covered with mould.
 moulty,adj,1,sig:moultier|moultiest,,,,active,2026-06-19,2026-06-19,moultier|moultiest,Currently undergoing moulting; in the process of replacing old feathers for new ones.
 mournful,adj,1,sig:mournfuller|mournfullest,,,,active,2026-06-19,2026-06-19,mournfuller|mournfullest,Filled with grief or sadness; being in a state in which one mourns.
@@ -1613,7 +1613,7 @@ offaly,adj,1,sig:offalier|offaliest,,,,active,2026-06-19,2026-06-19,offalier|off
 oily,adj,1,sid:en:covered with or containing oil,,en:covered with or containing oil,,active,2026-06-19,2026-06-19,oilier|oiliest,Covered with or containing oil.
 ok,adj,2,etym:1,,,1,active,2026-06-19,2026-06-19,oker|okest,"All right, acceptable, permitted."
 okay,adj,1,sig:okayer|okayest,,,,active,2026-06-19,2026-06-19,okayer|okayest,Alternative spelling of OK.
-old,adj,1,sig:older|oldest,,,,active,2026-06-19,2026-06-19,older|oldest,"Of an object, concept, relationship, etc., having existed for a relatively long period of time."
+old,adj,1,sig:elder|eldest,,,,active,2026-06-19,2026-06-19,elder|eldest,"Of an object, concept, relationship, etc., having existed for a relatively long period of time."
 onery,adj,1,sig:onerier|oneriest,,,,active,2026-06-19,2026-06-19,onerier|oneriest,Pronunciation spelling of ornery.
 oniony,adj,2,sig:onionier|onioniest,,,,active,2026-06-19,2026-06-19,onionier|onioniest,"Resembling an onion or onions, especially in terms of smell."
 onry,adj,1,sig:onrier|onriest,,,,active,2026-06-19,2026-06-19,onrier|onriest,"Pronunciation spelling of ornery, representing Southern United States English."
@@ -1649,7 +1649,7 @@ patchy,adj,1,sig:patchier|patchiest,,,,active,2026-06-19,2026-06-19,patchier|pat
 paunchy,adj,1,sig:paunchier|paunchiest,,,,active,2026-06-19,2026-06-19,paunchier|paunchiest,Having a paunch; having a prominent stomach; potbellied.
 pawky,adj,1,sig:pawkier|pawkiest,,,,active,2026-06-19,2026-06-19,pawkier|pawkiest,"Shrewd, sly; often also characterised by a sarcastic sense of humour."
 pawy,adj,1,etym:2,,,2,active,2026-06-19,2026-06-19,pawier|pawiest,Like a paw.
-peaceful,adj,1,sid:en:peaceable,,en:peaceable,1,active,2026-06-19,2026-06-19,peacefuller|peacefullest,Not at war; not disturbed by strife or turmoil.
+peaceful,adj,1,sid:en:peaceable,,en:peaceable,1,active,2026-06-19,2026-06-19,peacefuler|peacefulest,Not at war; not disturbed by strife or turmoil.
 peachy,adj,1,sig:peachier|peachiest,,,,active,2026-06-19,2026-06-19,peachier|peachiest,"Resembling a peach, peach-like."
 peaky,adj,1,sig:peakier|peakiest,,,,active,2026-06-19,2026-06-19,peakier|peakiest,Sickly; peaked.
 pearly,adj,1,sig:pearlier|pearliest,,,,active,2026-06-19,2026-06-19,pearlier|pearliest,"Of a pale greyish white colour, tinted with blue."
@@ -1705,7 +1705,7 @@ pleasant,adj,1,sig:pleasanter|pleasantest,,,,active,2026-06-19,2026-06-19,pleasa
 pleasaunt,adj,1,sig:pleasaunter|pleasauntest,,,,active,2026-06-19,2026-06-19,pleasaunter|pleasauntest,Obsolete form of pleasant.
 pleasy,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,pleasier|pleasiest,Apt or tending to please; pleasing
 plebby,adj,1,sig:plebbier|plebbiest,,,,active,2026-06-19,2026-06-19,plebbier|plebbiest,"déclassé, unsophisticated, oikish, chavvy."
-plentiful,adj,1,sig:plentifuller|plentifullest,,,,active,2026-06-19,2026-06-19,plentifuller|plentifullest,Existing in large number or ample amount.
+plentiful,adj,1,sig:plentifuler|plentifulest,,,,active,2026-06-19,2026-06-19,plentifuler|plentifulest,Existing in large number or ample amount.
 plesaunt,adj,1,sig:plesaunter|plesauntest,,,,active,2026-06-19,2026-06-19,plesaunter|plesauntest,Obsolete form of pleasant.
 plighty,adj,1,sig:plightier|plightiest,,,,active,2026-06-19,2026-06-19,plightier|plightiest,Relating to or indicating plight; misfortunate; dire; precarious; needy
 plinky,adj,1,sig:plinkier|plinkiest,,,,active,2026-06-19,2026-06-19,plinkier|plinkiest,Characterized by plink sounds.
@@ -1888,7 +1888,7 @@ rickety,adj,1,sig:ricketier|ricketiest,,,,active,2026-06-19,2026-06-19,ricketier
 ridgy,adj,1,sig:ridgier|ridgiest,,,,active,2026-06-19,2026-06-19,ridgier|ridgiest,Rising in a ridge or ridges; having ridges.
 rife,adj,1,sig:rifer|rifest,,,,active,2026-06-19,2026-06-19,rifer|rifest,"Widespread, common, prevalent, current (mainly of unpleasant or harmful things)."
 riffy,adj,1,sig:riffier|riffiest,,,,active,2026-06-19,2026-06-19,riffier|riffiest,Characterized by a lot of guitar riffs.
-right,adj,1,sid:en:appropriate,,en:appropriate,1,active,2026-06-19,2026-06-19,righter|rightmost,"Designating the side of the body which is positioned to the east if one is facing north, the side on which the heart is not located in most humans. This arrow points to the reader's right: →"
+right,adj,1,sid:en:appropriate,,en:appropriate,1,active,2026-06-19,2026-06-19,righter|rightest,"Designating the side of the body which is positioned to the east if one is facing north, the side on which the heart is not located in most humans. This arrow points to the reader's right: →"
 rightern,adj,1,sig:more rightern|righternmost,,,,active,2026-06-19,2026-06-19,more rightern|righternmost,Right (opposite of left).
 rigid,adj,1,sig:rigider|rigidest,,,,active,2026-06-19,2026-06-19,rigider|rigidest,"Stiff, rather than flexible."
 rimy,adj,1,sig:rimier|rimiest,,,,active,2026-06-19,2026-06-19,rimier|rimiest,Coated in rime.
@@ -2901,7 +2901,7 @@ wold,adj,1,etym:2,,,2,active,2026-06-19,2026-06-19,wolder|woldest,Old.
 wolfly,adj,1,sig:wolflier|wolfliest,,,,active,2026-06-19,2026-06-19,wolflier|wolfliest,Pertaining to wolves; lupine.
 wolfy,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,wolfier|wolfiest,Wolfish; like a wolf.
 womanly,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,womanlier|womanliest,"Considered typical of, stereotypical of, or appropriate to women; feminine."
-wonderful,adj,1,sig:wonderfuller|wonderfullest,,,,active,2026-06-19,2026-06-19,wonderfuller|wonderfullest,"Tending to excite wonder; surprising, extraordinary."
+wonderful,adj,1,sig:wonderfuler|wonderfulest,,,,active,2026-06-19,2026-06-19,wonderfuler|wonderfulest,"Tending to excite wonder; surprising, extraordinary."
 wonky,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,wonkier|wonkiest,"Lopsided, misaligned or off-centre."
 wood,adj,1,etym:2,,,2,active,2026-06-19,2026-06-19,wooder|woodest,"Mad, insane, crazed."
 woodsy,adj,1,sid:en:wooded,,en:wooded,,active,2026-06-19,2026-06-19,woodsier|woodsiest,"Of, relating to, or suggestive of a wooded area."

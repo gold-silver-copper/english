@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Blocking: the full suite, including the extractor determinism/immutability tests
+  # (extractor is now a default member, so `cargo test --workspace` exercises them).
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace
+
+  # Blocking: the dump-free determinism gate. Verifies (a) the lockfiles are
+  # internally consistent, (b) no published key changed meaning vs the PR base
+  # (merge-base), and (c) the committed PHF tables are exactly what the lockfiles
+  # regenerate. None of this needs the multi-GB Wiktextract dump.
+  registry:
+    name: check-registry
+    runs-on: ubuntu-latest
+    # Pre-release relock window: the sense keys are still being re-keyed freely, so
+    # cross-version immutability is intentionally relaxed. Internal consistency and
+    # lock<->table sync ARE still enforced. Delete this `env:` block when cutting the
+    # first gated release to arm cross-version immutability.
+    env:
+      ENGLISH_ALLOW_RELOCK: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so check-registry can resolve the merge-base
+      - name: Fetch base branch
+        if: github.base_ref != ''
+        run: git fetch --no-tags --depth=2147483647 origin "${{ github.base_ref }}"
+      # Tripwire: the relock window can't be silently forgotten. Surface it on every
+      # run, and HARD-FAIL after its intended end so cross-version immutability can't
+      # stay disabled past the first gated release.
+      - name: Relock-window tripwire
+        if: ${{ env.ENGLISH_ALLOW_RELOCK != '' }}
+        run: |
+          echo "::warning title=Relock window active::Cross-version immutability is RELAXED (ENGLISH_ALLOW_RELOCK). Delete the env block in .github/workflows/ci.yml before/at the first gated release."
+          if [ "$(date -u +%Y%m%d)" -ge 20260901 ]; then
+            echo "::error title=Relock window expired::Past 2026-09-01 with ENGLISH_ALLOW_RELOCK still set. Remove it to arm cross-version immutability (or move the date deliberately)."
+            exit 1
+          fi
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo run -p xtask -- check-registry
+
+  # Informational only: runs fmt/clippy so their output is visible in the logs, but
+  # never fails the check (the tree has pre-existing nits). Flip the two steps to
+  # blocking once a formatting/clippy cleanup lands.
+  lint:
+    name: fmt + clippy (informational)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+        continue-on-error: true
+      - run: cargo clippy --workspace --all-targets
+        continue-on-error: true
