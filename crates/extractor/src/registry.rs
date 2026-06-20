@@ -127,6 +127,15 @@ impl LockRow {
         self.forms.join("|")
     }
 
+    /// Whether this row's *frozen* identity is its etymology number. Only such rows
+    /// may be re-matched on etym alone: `etymology_number` is a renumberable section
+    /// ordinal, so trusting it for a row whose frozen identity is something else
+    /// (a form signature) would let an upstream etymology reorder silently swap two
+    /// senses' forms. qid/sid are durable and need no such guard.
+    fn is_etym_frozen(&self) -> bool {
+        self.anchor.starts_with("etym:")
+    }
+
     /// Fold a freshly-matched candidate into this row: refresh the forms, enrich
     /// any missing anchors, and bump `last_seen`. The frozen `anchor` and `suffix`
     /// are deliberately untouched.
@@ -243,8 +252,14 @@ impl Lock {
             }
 
             // -- Phase B(a): drift re-match by etymology (forms edited but same etym) --
+            // Only for rows whose FROZEN identity is the etym; a sig-frozen row that
+            // merely got an etym enriched onto it must not be re-paired on etym alone
+            // (an etymology renumber could otherwise hand it a different sense's forms).
             for ri in 0..original_len {
                 if matched[ri] || rows[ri].status != Status::Active {
+                    continue;
+                }
+                if !rows[ri].is_etym_frozen() {
                     continue;
                 }
                 let Some(etym) = rows[ri].etym else { continue };
@@ -440,6 +455,88 @@ impl Lock {
         }
         c
     }
+
+    /// Tombstone active rows for `pos` whose lemma was NOT resolved this refresh —
+    /// i.e. the lemma vanished from the dump entirely, or all its senses became
+    /// regular (so [`resolve`] was never called for it and its Phase-D tombstoning
+    /// never ran). Without this, a fully-absent lemma keeps emitting a now-stale
+    /// irregular form forever and [`check_immutability`] sees nothing changed.
+    ///
+    /// Guarded against a partial/corrupt dump: if reaping would retire more than
+    /// `max_fraction` of this pos's active rows, nothing is tombstoned and the
+    /// situation is reported, so a truncated dump cannot silently gut the lockfile.
+    pub fn reap(
+        &mut self,
+        pos: Pos,
+        resolved: &std::collections::HashSet<String>,
+        date: &str,
+        max_fraction: f64,
+    ) -> ReapReport {
+        let pos_str = pos.as_str();
+        let mut active = 0usize;
+        let mut target_keys: Vec<(String, String)> = Vec::new();
+        for ((lemma, p), rows) in self.map.iter() {
+            if p != pos_str {
+                continue;
+            }
+            let n_active = rows.iter().filter(|r| r.status == Status::Active).count();
+            active += n_active;
+            if n_active > 0 && !resolved.contains(lemma) {
+                target_keys.push((lemma.clone(), p.clone()));
+            }
+        }
+
+        let target_rows: usize = target_keys
+            .iter()
+            .filter_map(|k| self.map.get(k))
+            .flat_map(|rows| rows.iter())
+            .filter(|r| r.status == Status::Active)
+            .count();
+
+        if active > 0 && (target_rows as f64) > (active as f64 * max_fraction) {
+            self.notes.push(format!(
+                "REAP SKIPPED [{pos_str}]: {target_rows}/{active} active rows ({:.0}%) are absent from this \
+                 dump — refusing to tombstone (likely a partial/bad dump); no rows changed.",
+                100.0 * target_rows as f64 / active as f64
+            ));
+            return ReapReport {
+                tombstoned: 0,
+                skipped: true,
+            };
+        }
+
+        let mut notes = Vec::new();
+        let mut tombstoned = 0;
+        for key in &target_keys {
+            if let Some(rows) = self.map.get_mut(key) {
+                for r in rows.iter_mut() {
+                    if r.status == Status::Active {
+                        r.status = Status::Tombstone;
+                        r.last_seen = date.to_string();
+                        tombstoned += 1;
+                        notes.push(format!(
+                            "reaped {}{} (anchor {}); lemma absent from dump, suffix retired",
+                            r.lemma,
+                            suffix_note(r.suffix),
+                            r.anchor
+                        ));
+                    }
+                }
+            }
+        }
+        self.notes.append(&mut notes);
+        ReapReport {
+            tombstoned,
+            skipped: false,
+        }
+    }
+}
+
+/// Summary of a [`Lock::reap`] pass.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ReapReport {
+    pub tombstoned: usize,
+    pub skipped: bool,
 }
 
 #[derive(Debug, Default)]
@@ -646,7 +743,7 @@ fn anchor_exact_match(row: &LockRow, c: &Candidate, uniq: &BatchUniq) -> bool {
     }
     if let (Some(re), Some(ce)) = (row.etym, c.etym)
         && re == ce
-        && (uniq.etym_unique(ce) || row.sig() == c.sig())
+        && (row.sig() == c.sig() || (row.is_etym_frozen() && uniq.etym_unique(ce)))
     {
         return true;
     }
@@ -688,6 +785,18 @@ mod tests {
 
     fn cand(forms: &[&str]) -> Candidate {
         Candidate::new(forms.iter().map(|s| s.to_string()).collect())
+    }
+
+    fn cand_e(forms: &[&str], etym: u32) -> Candidate {
+        let mut c = cand(forms);
+        c.etym = Some(etym);
+        c
+    }
+
+    fn cand_q(forms: &[&str], qid: &str) -> Candidate {
+        let mut c = cand(forms);
+        c.qid = Some(qid.to_string());
+        c
     }
 
     fn keys(a: &[Assignment]) -> Vec<String> {
@@ -913,5 +1022,109 @@ mod tests {
         lock.resolve("die", Pos::Noun, vec![c1, c2], false, "d1");
         let anchors: Vec<String> = lock.rows().map(|r| r.anchor.clone()).collect();
         assert!(anchors.iter().all(|a| a.starts_with("etym:2#sig:")), "{anchors:?}");
+    }
+
+    #[test]
+    fn etym_renumber_does_not_swap_sig_frozen_rows() {
+        // Two senses created sig-frozen (no etym), later ENRICHED with etyms. If a
+        // future dump renumbers the etymology sections AND the forms drift, a
+        // sig-frozen row must never grab the other sense's forms via the (renumbered)
+        // etym — that is the silent run1<->run2 swap the lock exists to prevent.
+        let mut lock = Lock::new();
+        lock.resolve("x", Pos::Noun, vec![cand(&["alpha"]), cand(&["beta"])], false, "d1");
+        // d2: same forms, now carrying etyms -> rows get etym enriched (anchors stay sig:).
+        lock.resolve("x", Pos::Noun, vec![cand_e(&["alpha"], 1), cand_e(&["beta"], 2)], false, "d2");
+
+        let dir = std::env::temp_dir().join("english_registry_test_etymswap");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("noun.lock.csv");
+        lock.save(&path).unwrap();
+        let before = Lock::load(&path).unwrap();
+
+        // d3: etyms RENUMBERED (alpha now 2, beta now 1) AND both forms drift.
+        lock.resolve("x", Pos::Noun, vec![cand_e(&["alpha2"], 2), cand_e(&["beta2"], 1)], false, "d3");
+
+        let by_anchor: BTreeMap<String, &LockRow> =
+            lock.rows().map(|r| (r.anchor.clone(), r)).collect();
+        let a = by_anchor.get("sig:alpha").expect("alpha row");
+        let b = by_anchor.get("sig:beta").expect("beta row");
+        assert_eq!(a.suffix, 1);
+        assert_eq!(b.suffix, 2);
+        assert_eq!(a.forms, vec!["alpha".to_string()], "alpha must NOT inherit beta's forms");
+        assert_eq!(b.forms, vec!["beta".to_string()], "beta must NOT inherit alpha's forms");
+        // No published key silently changed meaning.
+        let v = check_immutability(&before, &lock);
+        assert!(v.is_empty(), "{v:?}");
+    }
+
+    #[test]
+    fn qid_enrichment_holds_key_through_drift() {
+        // qid is durable, so once enriched it must absorb form drift even for a
+        // row whose frozen anchor is a signature — in a polysemous lemma where the
+        // signature alone would lose the match.
+        let mut lock = Lock::new();
+        lock.resolve("y", Pos::Noun, vec![cand(&["aaa"]), cand(&["bbb"])], false, "d1");
+        lock.resolve("y", Pos::Noun, vec![cand_q(&["aaa"], "Q1"), cand_q(&["bbb"], "Q2")], false, "d2");
+        // d3: the Q1 sense drifts aaa -> azz; the bare key must hold via qid.
+        let asg = lock.resolve("y", Pos::Noun, vec![cand_q(&["azz"], "Q1"), cand_q(&["bbb"], "Q2")], false, "d3");
+        assert_eq!(keys(&asg), vec!["y".to_string(), "y2".to_string()]);
+        let by_key: BTreeMap<_, _> = asg.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
+        assert_eq!(by_key["y"], vec!["azz".to_string()], "qid Q1 held the bare key through drift");
+        assert_eq!(by_key["y2"], vec!["bbb".to_string()]);
+    }
+
+    #[test]
+    fn ambiguous_drift_tombstones_and_appends() {
+        // Two sig-frozen senses both drift with no shared anchor: the design must
+        // tombstone the old suffixes and append at strictly-higher ones, never
+        // letting a new sense inherit a published key.
+        let mut lock = Lock::new();
+        lock.resolve("z", Pos::Noun, vec![cand(&["p1"]), cand(&["q1"])], false, "d1");
+        let dir = std::env::temp_dir().join("english_registry_test_ambig");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("noun.lock.csv");
+        lock.save(&path).unwrap();
+        let before = Lock::load(&path).unwrap();
+
+        let asg = lock.resolve("z", Pos::Noun, vec![cand(&["p2"]), cand(&["q2"])], false, "d2");
+        assert_eq!(keys(&asg), vec!["z3".to_string(), "z4".to_string()]);
+        assert!(check_immutability(&before, &lock).is_empty());
+        assert!(lock.notes.iter().any(|n| n.contains("AMBIGUOUS")));
+    }
+
+    #[test]
+    fn reap_tombstones_absent_lemma() {
+        let mut lock = Lock::new();
+        lock.resolve("alpha", Pos::Noun, vec![cand(&["alphae"])], false, "d1");
+        lock.resolve("beta", Pos::Noun, vec![cand(&["betae"])], false, "d1");
+        // Next refresh resolves only "alpha"; "beta" vanished from the dump.
+        let mut resolved = std::collections::HashSet::new();
+        resolved.insert("alpha".to_string());
+        let rep = lock.reap(Pos::Noun, &resolved, "d2", 0.90);
+        assert_eq!(rep.tombstoned, 1);
+        assert!(!rep.skipped);
+        let beta = lock.rows().find(|r| r.lemma == "beta").unwrap();
+        assert_eq!(beta.status, Status::Tombstone);
+        let alpha = lock.rows().find(|r| r.lemma == "alpha").unwrap();
+        assert_eq!(alpha.status, Status::Active);
+        let emitted: Vec<String> = lock.emittable(Pos::Noun).into_iter().map(|(k, _)| k).collect();
+        assert!(emitted.contains(&"alpha".to_string()));
+        assert!(!emitted.contains(&"beta".to_string()), "reaped key must stop being emitted");
+    }
+
+    #[test]
+    fn reap_skips_on_mass_absence() {
+        // A partial/bad dump that would retire most of the lock is refused wholesale.
+        let mut lock = Lock::new();
+        lock.resolve("a", Pos::Noun, vec![cand(&["airr"])], false, "d1");
+        lock.resolve("b", Pos::Noun, vec![cand(&["birr"])], false, "d1");
+        lock.resolve("c", Pos::Noun, vec![cand(&["cirr"])], false, "d1");
+        lock.resolve("d", Pos::Noun, vec![cand(&["dirr"])], false, "d1");
+        let mut resolved = std::collections::HashSet::new();
+        resolved.insert("a".to_string()); // 3 of 4 absent -> 75% > 10% guard
+        let rep = lock.reap(Pos::Noun, &resolved, "d2", 0.10);
+        assert!(rep.skipped);
+        assert_eq!(rep.tombstoned, 0);
+        assert!(lock.rows().all(|r| r.status == Status::Active), "nothing tombstoned on a bad dump");
     }
 }

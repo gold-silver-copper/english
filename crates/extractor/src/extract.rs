@@ -4,7 +4,13 @@ use crate::helpers::{
 use crate::registry::{Candidate, Lock};
 use csv::{ReaderBuilder, WriterBuilder};
 use english_core::*;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
+
+/// A refresh that would retire more than this fraction of a part-of-speech's active
+/// lock rows as "absent" is treated as a bad/partial dump: reaping is skipped and
+/// reported rather than silently gutting the lockfile. Legitimate cross-dump churn
+/// is far below this.
+const REAP_MAX_FRACTION: f64 = 0.10;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
@@ -126,6 +132,7 @@ pub fn extract_irregular_nouns(
         }
     }
 
+    let mut resolved: HashSet<String> = HashSet::new();
     for (lemma, mut acc) in by_lemma {
         let predicted_plural = EnglishCore::pluralize_noun(&lemma);
         acc.drop_regular(&[predicted_plural]);
@@ -134,7 +141,9 @@ pub fn extract_irregular_nouns(
             continue;
         }
         lock.resolve(&lemma, Pos::Noun, candidates, had_regular, date);
+        resolved.insert(lemma);
     }
+    lock.reap(Pos::Noun, &resolved, date, REAP_MAX_FRACTION);
 
     println!("Resolved irregular nouns into the lock.");
     Ok(())
@@ -195,6 +204,7 @@ pub fn extract_irregular_adjectives(
             .observe(vec![comparative, superlative], &entry);
     }
 
+    let mut resolved: HashSet<String> = HashSet::new();
     for (lemma, mut acc) in by_lemma {
         let predicted = [
             EnglishCore::comparative(&lemma),
@@ -206,7 +216,9 @@ pub fn extract_irregular_adjectives(
             continue;
         }
         lock.resolve(&lemma, Pos::Adj, candidates, had_regular, date);
+        resolved.insert(lemma);
     }
+    lock.reap(Pos::Adj, &resolved, date, REAP_MAX_FRACTION);
 
     println!("Resolved irregular adjectives into the lock.");
     Ok(())
@@ -314,6 +326,7 @@ pub fn extract_verb_conjugations(
             .observe(vec![third, past, present_part, past_part], &entry);
     }
 
+    let mut resolved: HashSet<String> = HashSet::new();
     for (lemma, mut acc) in by_lemma {
         let predicted = [
             EnglishCore::verb(
@@ -351,7 +364,9 @@ pub fn extract_verb_conjugations(
             continue;
         }
         lock.resolve(&lemma, Pos::Verb, candidates, had_regular, date);
+        resolved.insert(lemma);
     }
+    lock.reap(Pos::Verb, &resolved, date, REAP_MAX_FRACTION);
 
     println!("Resolved verb conjugations into the lock.");
     Ok(())
