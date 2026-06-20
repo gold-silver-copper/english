@@ -43,12 +43,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo run -p xtask -- check-registry
 
-  # Advisory until the tree is formatting/clippy clean (tracked separately). Reports
-  # issues without blocking merges, so adding CI doesn't go red on pre-existing nits.
+  # Informational only: runs fmt/clippy so their output is visible in the logs, but
+  # never fails the check (the tree has pre-existing nits). Flip the two steps to
+  # blocking once a formatting/clippy cleanup lands.
   lint:
-    name: fmt + clippy (advisory)
+    name: fmt + clippy (informational)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -56,4 +56,6 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all --check
+        continue-on-error: true
       - run: cargo clippy --workspace --all-targets
+        continue-on-error: true
