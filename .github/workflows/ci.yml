@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Blocking: the full suite, including the extractor determinism/immutability tests
+  # (extractor is now a default member, so `cargo test --workspace` exercises them).
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace
+
+  # Blocking: the dump-free determinism gate. Verifies (a) the lockfiles are
+  # internally consistent, (b) no published key changed meaning vs the PR base
+  # (merge-base), and (c) the committed PHF tables are exactly what the lockfiles
+  # regenerate. None of this needs the multi-GB Wiktextract dump.
+  registry:
+    name: check-registry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so check-registry can resolve the merge-base
+      - name: Fetch base branch
+        if: github.base_ref != ''
+        run: git fetch --no-tags --depth=2147483647 origin "${{ github.base_ref }}"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo run -p xtask -- check-registry
+
+  # Advisory until the tree is formatting/clippy clean (tracked separately). Reports
+  # issues without blocking merges, so adding CI doesn't go red on pre-existing nits.
+  lint:
+    name: fmt + clippy (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets
