@@ -59,12 +59,6 @@ impl Status {
             Status::Tombstone => "tombstone",
         }
     }
-    fn parse(s: &str) -> Status {
-        match s {
-            "tombstone" => Status::Tombstone,
-            _ => Status::Active,
-        }
-    }
 }
 
 /// A sense observed in a dump, awaiting a stable key assignment.
@@ -90,13 +84,16 @@ impl Candidate {
     fn sig(&self) -> String {
         self.forms.join("|")
     }
-    /// Deterministic sort key for ordering brand-new identities.
-    fn order_key(&self) -> (String, String, String, u32) {
+    /// Deterministic sort key for ordering brand-new identities at cold start.
+    /// Strong, durable anchors come first (qid > sid > etym); the form signature is
+    /// the LAST resort, so a new homograph's bare-vs-`2` assignment is driven by
+    /// stable metadata when present, not by an alphabetical form artifact.
+    fn order_key(&self) -> (String, String, u32, String) {
         (
-            self.sig(),
             self.qid.clone().unwrap_or_default(),
             self.sid.clone().unwrap_or_default(),
             self.etym.unwrap_or(0),
+            self.sig(),
         )
     }
 }
@@ -203,6 +200,79 @@ impl Lock {
             .collect();
         out.sort_by(|a, b| a.0.cmp(&b.0));
         out
+    }
+
+    /// Active-row emit-key collisions for `pos`: any `make_key` produced by more than
+    /// one active row (e.g. suffix 0 and suffix 1 both map to the bare lemma). Each
+    /// entry names the offending key and the colliding anchors. Empty = safe to emit;
+    /// a non-empty result would otherwise surface only as an opaque `phf_map!`
+    /// duplicate-key *compile* error in the downstream crate.
+    pub fn emit_collisions(&self, pos: Pos) -> Vec<String> {
+        let mut by_key: BTreeMap<String, Vec<&str>> = BTreeMap::new();
+        for r in self.map.values().flat_map(|v| v.iter()) {
+            if r.pos == pos && r.status == Status::Active {
+                by_key
+                    .entry(make_key(&r.lemma, r.suffix))
+                    .or_default()
+                    .push(&r.anchor);
+            }
+        }
+        by_key
+            .into_iter()
+            .filter(|(_, anchors)| anchors.len() > 1)
+            .map(|(key, anchors)| {
+                format!(
+                    "emit key `{key}` [{}] is produced by {} active rows (anchors: {})",
+                    pos.as_str(),
+                    anchors.len(),
+                    anchors.join(", ")
+                )
+            })
+            .collect()
+    }
+
+    /// Strict internal-consistency checks over the lock's own contents (no external
+    /// baseline). Catches the kinds of corruption a hand-edit could introduce that
+    /// [`check_immutability`] does not: a suffix below 1 (suffix 0 would alias the
+    /// bare key), a frozen anchor whose tier field is empty, an unknown anchor tier,
+    /// and any emit-key collision. Returns human-readable violations; empty = valid.
+    pub fn validate(&self) -> Vec<String> {
+        let mut v = Vec::new();
+        for r in self.rows() {
+            if r.suffix < 1 {
+                v.push(format!(
+                    "{} [{}] has suffix {} (must be >= 1)",
+                    r.lemma,
+                    r.pos.as_str(),
+                    r.suffix
+                ));
+            }
+            let tier = r.anchor.split(':').next().unwrap_or("");
+            match tier {
+                "qid" if r.qid.is_none() => v.push(format!(
+                    "{} [{}] anchor `{}` is qid-tier but the qid field is empty",
+                    r.lemma, r.pos.as_str(), r.anchor
+                )),
+                "sid" if r.sid.is_none() => v.push(format!(
+                    "{} [{}] anchor `{}` is sid-tier but the sid field is empty",
+                    r.lemma, r.pos.as_str(), r.anchor
+                )),
+                "etym" if r.etym.is_none() => v.push(format!(
+                    "{} [{}] anchor `{}` is etym-tier but the etym field is empty",
+                    r.lemma, r.pos.as_str(), r.anchor
+                )),
+                "qid" | "sid" | "etym" | "sig" => {}
+                other => v.push(format!(
+                    "{} [{}] anchor `{}` has unknown tier `{}`",
+                    r.lemma, r.pos.as_str(), r.anchor, other
+                )),
+            }
+        }
+        for pos in [Pos::Adj, Pos::Noun, Pos::Verb] {
+            v.extend(self.emit_collisions(pos));
+        }
+        v.sort();
+        v
     }
 
     /// Resolve one lemma's candidates against the committed lock, mutating the lock
@@ -329,10 +399,21 @@ impl Lock {
             } else {
                 rows.iter().map(|r| r.suffix).max().unwrap_or(1) + 1
             };
+            // Anchors must stay unique within a (lemma, pos), INCLUDING against
+            // tombstones: a sense that vanished and later reappears re-derives the
+            // same anchor, which would collide with its own retired row. Disambiguate
+            // the new row with its (unique, append-only) suffix so the immutability
+            // guard can still tell the two apart.
+            let mut taken: std::collections::HashSet<String> =
+                rows.iter().map(|r| r.anchor.clone()).collect();
             remaining.sort_by_key(|c| c.order_key());
             for (offset, c) in remaining.into_iter().enumerate() {
                 let suffix = base + offset as u32;
-                let anchor = primary_anchor_token(&c, &uniq);
+                let mut anchor = primary_anchor_token(&c, &uniq);
+                if taken.contains(&anchor) {
+                    anchor = format!("{anchor}#u{suffix}");
+                }
+                taken.insert(anchor.clone());
                 let mut row = LockRow {
                     lemma: lemma.to_string(),
                     pos,
@@ -387,18 +468,32 @@ impl Lock {
             let record = record?;
             let pos = Pos::parse(record.get(1).unwrap_or("").trim())
                 .ok_or_else(|| format!("bad pos in lock row: {record:?}"))?;
+            // Strict parsing: a corrupted suffix or status is a hard error, not a
+            // silent coercion (a suffix that fell back to 0 used to alias the bare key).
+            let suffix: u32 = record
+                .get(2)
+                .unwrap_or("")
+                .trim()
+                .parse()
+                .map_err(|_| format!("invalid suffix in lock row: {record:?}"))?;
+            let status = match record.get(7).unwrap_or("active").trim() {
+                "active" => Status::Active,
+                "tombstone" => Status::Tombstone,
+                other => return Err(format!("invalid status {other:?} in lock row: {record:?}").into()),
+            };
+            let forms = split_forms(record.get(10).unwrap_or(""));
             let row = LockRow {
                 lemma: record.get(0).unwrap_or("").to_string(),
                 pos,
-                suffix: record.get(2).unwrap_or("0").trim().parse().unwrap_or(0),
+                suffix,
                 anchor: record.get(3).unwrap_or("").to_string(),
                 qid: opt(record.get(4)),
                 sid: opt(record.get(5)),
                 etym: record.get(6).and_then(|s| s.trim().parse::<u32>().ok()),
-                status: Status::parse(record.get(7).unwrap_or("active").trim()),
+                status,
                 first_seen: record.get(8).unwrap_or("").to_string(),
                 last_seen: record.get(9).unwrap_or("").to_string(),
-                forms: split_forms(record.get(10).unwrap_or("")),
+                forms,
                 gloss: opt(record.get(11)),
             };
             lock.insert_row(row);
@@ -1126,5 +1221,130 @@ mod tests {
         assert!(rep.skipped);
         assert_eq!(rep.tombstoned, 0);
         assert!(lock.rows().all(|r| r.status == Status::Active), "nothing tombstoned on a bad dump");
+    }
+
+    fn row(lemma: &str, suffix: u32, anchor: &str, qid: Option<&str>, forms: &[&str]) -> LockRow {
+        LockRow {
+            lemma: lemma.to_string(),
+            pos: Pos::Noun,
+            suffix,
+            anchor: anchor.to_string(),
+            qid: qid.map(|s| s.to_string()),
+            sid: None,
+            etym: None,
+            status: Status::Active,
+            first_seen: "d".to_string(),
+            last_seen: "d".to_string(),
+            forms: forms.iter().map(|s| s.to_string()).collect(),
+            gloss: None,
+        }
+    }
+
+    #[test]
+    fn cold_start_orders_by_strongest_anchor_not_forms() {
+        // etym 1 has lexicographically LARGER forms than etym 2. order_key must rank
+        // by the strong anchor (etym) first, so etym 1 takes the bare key regardless
+        // of spelling — the signature is the LAST resort, not the first.
+        let mut lock = Lock::new();
+        let mut e1 = cand(&["zzz"]);
+        e1.etym = Some(1);
+        let mut e2 = cand(&["aaa"]);
+        e2.etym = Some(2);
+        // pass in reverse order to prove ordering is by anchor, not input order
+        let a = lock.resolve("w", Pos::Noun, vec![e2, e1], false, "d1");
+        let by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
+        assert_eq!(by_key["w"], vec!["zzz".to_string()], "etym 1 takes the bare key despite larger forms");
+        assert_eq!(by_key["w2"], vec!["aaa".to_string()]);
+    }
+
+    #[test]
+    fn emit_collisions_detects_duplicate_keys() {
+        let mut lock = Lock::new();
+        // suffix 1 and suffix 0 both map to make_key == bare "w".
+        lock.insert_row(row("w", 1, "sig:a", None, &["a"]));
+        lock.insert_row(row("w", 0, "sig:b", None, &["b"]));
+        let c = lock.emit_collisions(Pos::Noun);
+        assert_eq!(c.len(), 1, "{c:?}");
+        assert!(c[0].contains("emit key `w`"), "{c:?}");
+    }
+
+    #[test]
+    fn validate_flags_suffix_zero_and_anchor_tier_mismatch() {
+        let mut lock = Lock::new();
+        lock.insert_row(row("z", 0, "sig:z", None, &["z"])); // suffix 0
+        lock.insert_row(row("q", 2, "qid:Q1", None, &["q"])); // qid-tier anchor, qid field empty
+        let v = lock.validate();
+        assert!(v.iter().any(|m| m.contains("suffix 0")), "{v:?}");
+        assert!(
+            v.iter().any(|m| m.contains("qid-tier but the qid field is empty")),
+            "{v:?}"
+        );
+        // A clean lock validates empty.
+        let mut ok = Lock::new();
+        ok.insert_row(row("good", 2, "qid:Q9", Some("Q9"), &["goods"]));
+        assert!(ok.validate().is_empty(), "{:?}", ok.validate());
+    }
+}
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    /// A sequence of dumps for one lemma; each dump is a set of senses, each sense a
+    /// (forms, optional-etym) pair. Small alphabet/sizes keep the search dense.
+    fn dumps() -> impl Strategy<Value = Vec<Vec<(Vec<String>, Option<u32>)>>> {
+        let sense = (
+            prop::collection::vec("[a-c]{1,3}", 1..3usize),
+            prop::option::of(0u32..3),
+        );
+        let dump = prop::collection::vec(sense, 0..4usize);
+        prop::collection::vec(dump, 1..6usize)
+    }
+
+    proptest! {
+        /// Across an arbitrary stream of refreshes, no published (active) anchor ever
+        /// changes its suffix, and no tombstoned suffix is revived/reused — verified
+        /// both by check_immutability between consecutive on-disk states and by an
+        /// independent anchor->suffix monotonicity ledger. Exercises the real
+        /// resolve -> save -> load cycle.
+        #[test]
+        fn published_keys_never_move_or_revive(dumps in dumps()) {
+            let dir = std::env::temp_dir().join("english_proptest_lock");
+            let _ = std::fs::create_dir_all(&dir);
+            let path = dir.join("noun.lock.csv");
+
+            let mut lock = Lock::new();
+            let mut seen: std::collections::HashMap<String, u32> = Default::default();
+
+            for (i, dump) in dumps.iter().enumerate() {
+                // Dedup by identity, as the extract layer does before calling resolve.
+                let mut by_ident: BTreeMap<String, Candidate> = BTreeMap::new();
+                for (forms, etym) in dump {
+                    let mut c = Candidate::new(forms.clone());
+                    c.etym = *etym;
+                    by_ident.entry(c.sig()).or_insert(c);
+                }
+                let candidates: Vec<Candidate> = by_ident.into_values().collect();
+
+                lock.save(&path).unwrap();
+                let before = Lock::load(&path).unwrap();
+                lock.resolve("w", Pos::Noun, candidates, false, &format!("d{i}"));
+
+                // No published key changed meaning between the two on-disk states.
+                prop_assert!(check_immutability(&before, &lock).is_empty());
+                // The lock is always internally valid.
+                prop_assert!(lock.validate().is_empty());
+
+                // Anchor -> suffix is monotone for the whole stream.
+                for r in lock.rows() {
+                    if let Some(&s) = seen.get(&r.anchor) {
+                        prop_assert_eq!(s, r.suffix);
+                    } else {
+                        seen.insert(r.anchor.clone(), r.suffix);
+                    }
+                }
+            }
+        }
     }
 }

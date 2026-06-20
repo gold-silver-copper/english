@@ -122,8 +122,11 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
     }
 
     for (pos, working) in [(Pos::Noun, &noun), (Pos::Verb, &verb), (Pos::Adj, &adj)] {
-        // 1. Internal consistency (unique anchors, no two identities share a suffix).
+        // 1. Internal consistency (unique anchors, no two identities share a suffix)
+        //    plus strict structural validation (suffix>=1, anchor<->fields, no emit
+        //    key collisions). Always enforced, never relaxed by the relock window.
         violations.extend(check_immutability(working, working));
+        violations.extend(working.validate());
 
         // 2. Immutability vs. the baseline lock, if present there.
         if let Some(rev) = &baseline {

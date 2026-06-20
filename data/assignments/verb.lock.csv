@@ -741,8 +741,8 @@ cooccur,verb,1,sig:cooccurs|cooccurred|cooccurring|cooccurred,,,,active,2026-06-
 cooee,verb,1,sig:cooees|cooeed|cooeeing|cooeed,,,,active,2026-06-19,2026-06-19,cooees|cooeed|cooeeing|cooeed,To make such a call.
 cooey,verb,1,sig:cooeys|cooeyed|cooeying|cooeyed,,,,active,2026-06-19,2026-06-19,cooeys|cooeyed|cooeying|cooeyed,Alternative spelling of cooee.
 cookie,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,cookies|cookied|cookieing|cookied,"To send a cookie to (a user, computer, etc.)."
-coom,verb,1,etym:4,,,4,active,2026-06-19,2026-06-19,cooms|came|cooming|came,To ejaculate.
-coom,verb,2,etym:2,,,2,active,2026-06-19,2026-06-19,cooms|came|cooming|coom,Pronunciation spelling of come.
+coom,verb,1,etym:2,,,2,active,2026-06-19,2026-06-19,cooms|came|cooming|coom,Pronunciation spelling of come.
+coom,verb,2,etym:4,,,4,active,2026-06-19,2026-06-19,cooms|came|cooming|came,To ejaculate.
 coop,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,coops|cooped|cooping|cooped,To keep in a coop.
 coorie,verb,1,sig:coories|cooried|coorieing|cooried,,,,active,2026-06-19,2026-06-19,coories|cooried|coorieing|cooried,"To crouch, stoop down."
 copay,verb,1,sig:copays|copaid|copaying|copaid,,,,active,2026-06-19,2026-06-19,copays|copaid|copaying|copaid,To jointly pay with another or others.
@@ -1323,8 +1323,8 @@ fingerspell,verb,1,sig:fingerspells|fingerspelt|fingerspelling|fingerspelt,,,,ac
 fink,verb,2,etym:2,,,2,active,2026-06-19,2026-06-19,finks|fought|finking|fought,Pronunciation spelling of think.
 fisheye,verb,1,sig:fisheyes|fisheyed|fisheyeing|fisheyed,,,,active,2026-06-19,2026-06-19,fisheyes|fisheyed|fisheyeing|fisheyed,To glance unfriendlily or suspiciously at.
 fistbump,verb,1,sig:fistbumps|fistbumped|fistbumping|fistbumped,,,,active,2026-06-19,2026-06-19,fistbumps|fistbumped|fistbumping|fistbumped,To bump fists in greeting or celebration.
-fit,verb,2,etym:3,,,3,active,2026-06-19,2026-06-19,fits|fitted|fitting|fitted,To suffer a fit.
-fit,verb,3,etym:1,,,1,active,2026-06-19,2026-06-19,fits|fit|fitting|fit,To be suitable for.
+fit,verb,2,etym:1,,,1,active,2026-06-19,2026-06-19,fits|fit|fitting|fit,To be suitable for.
+fit,verb,3,etym:3,,,3,active,2026-06-19,2026-06-19,fits|fitted|fitting|fitted,To suffer a fit.
 fix,verb,1,sid:en:inject,,en:inject,,active,2026-06-19,2026-06-19,fixes|fixt|fixing|fixt,To pierce; now generally replaced by transfix.
 fixe,verb,1,sig:fixes|fixt|fixing|fixt,,,,active,2026-06-19,2026-06-19,fixes|fixt|fixing|fixt,Archaic form of fix.
 fiz,verb,1,sig:fizzes|fizzed|fizzing|fizzed,,,,active,2026-06-19,2026-06-19,fizzes|fizzed|fizzing|fizzed,Obsolete form of fizz.
@@ -1645,8 +1645,8 @@ gillnet,verb,1,sig:gillnets|gillnetted|gillnetting|gillnetted,,,,active,2026-06-
 gimbal,verb,1,sig:gimbals|gimballed|gimballing|gimballed,,,,active,2026-06-19,2026-06-19,gimbals|gimballed|gimballing|gimballed,To suspend using a gimbal or gimbals.
 gimlet,verb,1,sig:gimlets|gimletted|gimletting|gimletted,,,,active,2026-06-19,2026-06-19,gimlets|gimletted|gimletting|gimletted,To pierce or bore holes (as if using a gimlet).
 gimp,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,gimps|gimped|gimping|gimped,"Of yarn, cord, thread, etc., to wrap or wind (surround) with another length of yarn or wire in a tight spiral, often by means of a gimping machine, creating 'gimped yarn', etc. Also, generally, to wrap or twist with string or wire. See gimped."
-gin,verb,1,etym:3,,,3,active,2026-06-19,2026-06-19,gins|gan|ginning|gun,To begin.
-gin,verb,2,etym:2,,,2,active,2026-06-19,2026-06-19,gins|ginned|ginning|ginned,To remove the seeds from cotton with a cotton gin.
+gin,verb,1,etym:2,,,2,active,2026-06-19,2026-06-19,gins|ginned|ginning|ginned,To remove the seeds from cotton with a cotton gin.
+gin,verb,2,etym:3,,,3,active,2026-06-19,2026-06-19,gins|gan|ginning|gun,To begin.
 gipsey,verb,1,sig:gipseys|gipseyed|gipseying|gipseyed,,,,active,2026-06-19,2026-06-19,gipseys|gipseyed|gipseying|gipseyed,Archaic form of gypsy.
 gird,verb,2,etym:1,,,1,active,2026-06-19,2026-06-19,girds|girt|girding|girt,To bind with a flexible rope or cord.
 git,verb,1,etym:2,,,2,active,2026-06-19,2026-06-19,gits|got|gitting|gotten,Pronunciation spelling of get.
@@ -2139,23 +2139,23 @@ lepay,verb,1,sig:lepays|lepayed|lepaying|lepayed,,,,active,2026-06-19,2026-06-19
 lern,verb,1,sig:lerns|lernt|lerning|lernt,,,,active,2026-06-19,2026-06-19,lerns|lernt|lerning|lernt,Pronunciation spelling of learn.
 lerp,verb,1,etym:2,,,2,active,2026-06-19,2026-06-19,lerps|lerped|lerping|lerped,To interpolate linearly.
 lese,verb,1,sig:leses|lore|lesing|lorn,,,,active,2026-06-19,2026-06-19,leses|lore|lesing|lorn,Alternative form of leese (“to lose”)
-let,verb,1,etym:2,,,2,active,2026-06-19,2026-06-19,lets|letted|letting|let,"To hinder, prevent, impede, hamper, cumber; to obstruct (someone or something)."
-let,verb,2,etym:1,,,1,active,2026-06-19,2026-06-19,lets|let|letting|let,"To allow to, not to prevent (+ infinitive, but usually without to)."
+let,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,lets|let|letting|let,"To allow to, not to prevent (+ infinitive, but usually without to)."
+let,verb,2,etym:2,,,2,active,2026-06-19,2026-06-19,lets|letted|letting|let,"To hinder, prevent, impede, hamper, cumber; to obstruct (someone or something)."
 levee,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,levees|leveed|leveeing|leveed,To keep within a channel by means of levees.
 level,verb,1,sid:en:linguistics,,en:linguistics,,active,2026-06-19,2026-06-19,levels|levelled|levelling|levelled,To adjust so as to make as flat or perpendicular to the ground as possible.
 lewinsky,verb,1,etym:2,,,2,active,2026-06-19,2026-06-19,lewinskys|lewinskyed|lewinskying|lewinskyed,To perform fellatio on.
 lib,verb,1,etym:3,,,3,active,2026-06-19,2026-06-19,libs|libbed|libbing|libbed,To geld; castrate; emasculate (usually said of animals).
 libel,verb,1,sig:libels|libelled|libelling|libelled,,,,active,2026-06-19,2026-06-19,libels|libelled|libelling|libelled,"To defame (someone), especially in a manner that meets the legal definition of libel."
 lid,verb,1,sig:lids|lidded|lidding|lidded,,,,active,2026-06-19,2026-06-19,lids|lidded|lidding|lidded,To put a lid on (something).
-lie,verb,1,sid:en:to rest,,en:to rest,1,active,2026-06-19,2026-06-19,lies|lay|lying|lain,To rest in a horizontal position on a surface.
-lie,verb,2,sid:en:say falsehoods,,en:say falsehoods,2,active,2026-06-19,2026-06-19,lies|lied|lying|lied,To give false information intentionally with intent to deceive.
+lie,verb,1,sid:en:say falsehoods,,en:say falsehoods,2,active,2026-06-19,2026-06-19,lies|lied|lying|lied,To give false information intentionally with intent to deceive.
+lie,verb,2,sid:en:to rest,,en:to rest,1,active,2026-06-19,2026-06-19,lies|lay|lying|lain,To rest in a horizontal position on a surface.
 lifesteal,verb,1,sig:lifesteals|lifestole|lifestealing|lifestolen,,,,active,2026-06-19,2026-06-19,lifesteals|lifestole|lifestealing|lifestolen,"To utilize the lifesteal mechanic, to steal health."
 lig,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,ligs|lag|ligging|lag,To lie; be in a prostrate or recumbent position.
 light,verb,2,sid:en:alight,,en:alight,2,active,2026-06-19,2026-06-19,lights|lit|lighting|lit,To start (a fire).
 limbec,verb,1,sig:limbecs|limbecked|limbecking|limbecked,,,,active,2026-06-19,2026-06-19,limbecs|limbecked|limbecking|limbecked,To distill.
 limelight,verb,1,sig:limelights|limelit|limelighting|limelit,,,,active,2026-06-19,2026-06-19,limelights|limelit|limelighting|limelit,to illuminate with limelight
-limp,verb,1,etym:3,,,3,active,2026-06-19,2026-06-19,limps|lamp|limping|limped,To happen; befall; chance.
-limp,verb,2,etym:1,,,1,active,2026-06-19,2026-06-19,limps|limped|limping|limped,"To walk lamely, as if favoring one leg."
+limp,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,limps|limped|limping|limped,"To walk lamely, as if favoring one leg."
+limp,verb,2,etym:3,,,3,active,2026-06-19,2026-06-19,limps|lamp|limping|limped,To happen; befall; chance.
 lin,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,lins|lan|linning|lan,"To desist, to stop, to cease."
 linchpin,verb,1,sig:linchpins|linchpinned|linchpinning|linchpinned,,,,active,2026-06-19,2026-06-19,linchpins|linchpinned|linchpinning|linchpinned,"To adopt as, or serve as, a central cohesive source of stability and security."
 linebreed,verb,1,sig:linebreeds|linebred|linebreeding|linebred,,,,active,2026-06-19,2026-06-19,linebreeds|linebred|linebreeding|linebred,To breed by linebreeding.
@@ -2192,8 +2192,8 @@ luigi,verb,2,sig:luigis|luigied|luiging|luigied,,,,active,2026-06-19,2026-06-19,
 luminol,verb,1,sig:luminols|luminolled|luminolling|luminolled,,,,active,2026-06-19,2026-06-19,luminols|luminolled|luminolling|luminolled,To test or subject a sample or an individual to a luminol agent in order to locate traces of blood.
 lump,verb,1,sig:lumps|lumped|lumping|lumped,,,,active,2026-06-19,2026-06-19,lumps|lumped|lumping|lumped,To treat as a single unit; to group together in a casual or chaotic manner (as if forming an ill-defined lump of the items).
 luv,verb,1,sig:luvs|luvd|luvving|luvd,,,,active,2026-06-19,2026-06-19,luvs|luvd|luvving|luvd,Alternative form of love.
-lye,verb,1,etym:2,,,2,active,2026-06-19,2026-06-19,lyes|lay|lying|lain,Obsolete spelling of lie.
-lye,verb,2,etym:1,,,1,active,2026-06-19,2026-06-19,lyes|lyed|lyeing|lyed,To treat with lye.
+lye,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,lyes|lyed|lyeing|lyed,To treat with lye.
+lye,verb,2,etym:2,,,2,active,2026-06-19,2026-06-19,lyes|lay|lying|lain,Obsolete spelling of lie.
 lynchpin,verb,1,sig:lynchpins|lynchpinned|lynchpinning|lynchpinned,,,,active,2026-06-19,2026-06-19,lynchpins|lynchpinned|lynchpinning|lynchpinned,Alternative form of linchpin.
 mab,verb,1,sig:mabs|mabbed|mabbing|mabbed,,,,active,2026-06-19,2026-06-19,mabs|mabbed|mabbing|mabbed,To dress untidily.
 macadam,verb,1,sig:macadams|macadammed|macadamming|macadammed,,,,active,2026-06-19,2026-06-19,macadams|macadammed|macadamming|macadammed,To cover or surface with macadam.
@@ -2599,8 +2599,8 @@ outcast,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,outcasts|outcast|outcasti
 outcaste,verb,1,sig:outcastes|outcasted|outcasteing|outcasted,,,,active,2026-06-19,2026-06-19,outcastes|outcasted|outcasteing|outcasted,To expel from a caste.
 outcatch,verb,1,sig:outcatches|outcaught|outcatching|outcaught,,,,active,2026-06-19,2026-06-19,outcatches|outcaught|outcatching|outcaught,To catch more or better than.
 outcon,verb,1,sig:outcons|outconned|outconning|outconned,,,,active,2026-06-19,2026-06-19,outcons|outconned|outconning|outconned,To outdo in confidence trickery.
-outcreep,verb,1,etym:2,,,2,active,2026-06-19,2026-06-19,outcreeps|outcreeped|outcreeping|outcreeped,To surpass in creeping someone out.
-outcreep,verb,2,etym:1,,,1,active,2026-06-19,2026-06-19,outcreeps|outcrept|outcreeping|outcrept,To creep or crawl out.
+outcreep,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,outcreeps|outcrept|outcreeping|outcrept,To creep or crawl out.
+outcreep,verb,2,etym:2,,,2,active,2026-06-19,2026-06-19,outcreeps|outcreeped|outcreeping|outcreeped,To surpass in creeping someone out.
 outcut,verb,1,sig:outcuts|outcut|outcutting|outcut,,,,active,2026-06-19,2026-06-19,outcuts|outcut|outcutting|outcut,To cut out.
 outdeploy,verb,1,sig:outdeploys|outdeployed|outdeploying|outdeployed,,,,active,2026-06-19,2026-06-19,outdeploys|outdeployed|outdeploying|outdeployed,To deploy more weaponry than an opponent or enemy
 outdevil,verb,1,sig:outdevils|outdevilled|outdevilling|outdevilled,,,,active,2026-06-19,2026-06-19,outdevils|outdevilled|outdevilling|outdevilled,To surpass in devilry.
@@ -2652,8 +2652,8 @@ outlead,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,outleads|outled|outleadin
 outlean,verb,1,sig:outleans|outleant|outleaning|outleant,,,,active,2026-06-19,2026-06-19,outleans|outleant|outleaning|outleant,To lean outward.
 outleap,verb,1,sig:outleaps|outleaped|outleaping|outleaped,,,,active,2026-06-19,2026-06-19,outleaps|outleaped|outleaping|outleaped,"To leap out, as if from an ambush."
 outlearn,verb,1,sig:outlearns|outlearnt|outlearning|outlearnt,,,,active,2026-06-19,2026-06-19,outlearns|outlearnt|outlearning|outlearnt,To surpass (someone) in learning.
-outlie,verb,1,etym:2,,,2,active,2026-06-19,2026-06-19,outlies|outlay|outlying|outlain,"To lie outside, or at the extremes or periphery of."
-outlie,verb,2,etym:1,,,1,active,2026-06-19,2026-06-19,outlies|outlied|outlying|outlied,To tell more or better lies than.
+outlie,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,outlies|outlied|outlying|outlied,To tell more or better lies than.
+outlie,verb,2,etym:2,,,2,active,2026-06-19,2026-06-19,outlies|outlay|outlying|outlain,"To lie outside, or at the extremes or periphery of."
 outmagic,verb,1,sig:outmagics|outmagicked|outmagicking|outmagicked,,,,active,2026-06-19,2026-06-19,outmagics|outmagicked|outmagicking|outmagicked,To surpass in the use of magic.
 outman,verb,1,sig:outmans|outmanned|outmanning|outmanned,,,,active,2026-06-19,2026-06-19,outmans|outmanned|outmanning|outmanned,To have more people than (one's competitor); to outnumber in men.
 outmarvel,verb,1,sig:outmarvels|outmarvelled|outmarvelling|outmarvelled,,,,active,2026-06-19,2026-06-19,outmarvels|outmarvelled|outmarvelling|outmarvelled,To surpass in marvellousness.
@@ -2998,8 +2998,8 @@ permit,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,permits|permitted|permitti
 perse,verb,1,etym:2,,,2,active,2026-06-19,2026-06-19,perses|perst|persing|perst,Obsolete form of pierce.
 person,verb,1,sig:persons|personned|personning|personned,,,,active,2026-06-19,2026-06-19,persons|personned|personning|personned,To represent as a person; to personify; to impersonate.
 pertake,verb,1,sig:pertakes|pertook|pertaking|pertaken,,,,active,2026-06-19,2026-06-19,pertakes|pertook|pertaking|pertaken,Obsolete form of partake.
-pet,verb,1,etym:2,,,2,active,2026-06-19,2026-06-19,pets|petted|petting|petted,To be petulant or upset; to have a problem with.
-pet,verb,2,etym:1,,,1,active,2026-06-19,2026-06-19,pets|pet|petting|pet,To stroke or fondle (an animal).
+pet,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,pets|pet|petting|pet,To stroke or fondle (an animal).
+pet,verb,2,etym:2,,,2,active,2026-06-19,2026-06-19,pets|petted|petting|petted,To be petulant or upset; to have a problem with.
 petal,verb,1,sig:petals|petalled|petalling|petalled,,,,active,2026-06-19,2026-06-19,petals|petalled|petalling|petalled,"To spread out from, like the petals of a flower"
 petrol,verb,1,sig:petrols|petrolled|petrolling|petrolled,,,,active,2026-06-19,2026-06-19,petrols|petrolled|petrolling|petrolled,"To fill or supply (a vehicle, etc.) with petrol."
 petsit,verb,1,sig:petsits|petsat|petsitting|petsat,,,,active,2026-06-19,2026-06-19,petsits|petsat|petsitting|petsat,To babysit for (take care of) a pet.
@@ -3432,8 +3432,8 @@ reknow,verb,1,sig:reknows|reknew|reknowing|reknown,,,,active,2026-06-19,2026-06-
 relabel,verb,1,sig:relabels|relabelled|relabelling|relabelled,,,,active,2026-06-19,2026-06-19,relabels|relabelled|relabelling|relabelled,To label again; to apply a new label to.
 relade,verb,1,sig:relades|reladed|relading|reladen,,,,active,2026-06-19,2026-06-19,relades|reladed|relading|reladen,"To lade again; to reload, especially a ship with goods."
 relamp,verb,1,sig:relamps|relamped|relamping|relamped,,,,active,2026-06-19,2026-06-19,relamps|relamped|relamping|relamped,To replace the lamp(s) in (a light fitting).
-relay,verb,1,etym:2,,,2,active,2026-06-19,2026-06-19,relays|relaid|relaying|relaid,Alternative spelling of re-lay.
-relay,verb,2,etym:1,,,1,active,2026-06-19,2026-06-19,relays|relayed|relaying|relayed,To pass on or transfer (information).
+relay,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,relays|relayed|relaying|relayed,To pass on or transfer (information).
+relay,verb,2,etym:2,,,2,active,2026-06-19,2026-06-19,relays|relaid|relaying|relaid,Alternative spelling of re-lay.
 relead,verb,2,etym:2,,,2,active,2026-06-19,2026-06-19,releads|reled|releading|reled,To lead again.
 releap,verb,1,sig:releaps|releaped|releaping|releaped,,,,active,2026-06-19,2026-06-19,releaps|releaped|releaping|releaped,To leap again.
 relearn,verb,1,sig:relearns|relearnt|relearning|relearnt,,,,active,2026-06-19,2026-06-19,relearns|relearnt|relearning|relearnt,To learn (something) again.
@@ -3510,8 +3510,8 @@ resee,verb,1,sig:resees|resaw|reseeing|reseen,,,,active,2026-06-19,2026-06-19,re
 reseek,verb,1,sig:reseeks|resought|reseeking|resought,,,,active,2026-06-19,2026-06-19,reseeks|resought|reseeking|resought,To seek again.
 resell,verb,1,sig:resells|resold|reselling|resold,,,,active,2026-06-19,2026-06-19,resells|resold|reselling|resold,To sell again.
 resend,verb,1,sig:resends|resent|resending|resent,,,,active,2026-06-19,2026-06-19,resends|resent|resending|resent,To send again.
-reset,verb,1,sid:en:law,,en:law,2,active,2026-06-19,2026-06-19,resets|resetted|resetting|resetted,"To receive and hide (stolen goods, or a criminal, etc.)"
-reset,verb,2,etym:1,,,1,active,2026-06-19,2026-06-19,resets|reset|resetting|reset,To set back to the initial state.
+reset,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,resets|reset|resetting|reset,To set back to the initial state.
+reset,verb,2,sid:en:law,,en:law,2,active,2026-06-19,2026-06-19,resets|resetted|resetting|resetted,"To receive and hide (stolen goods, or a criminal, etc.)"
 resew,verb,1,sig:resews|resewed|resewing|resewn,,,,active,2026-06-19,2026-06-19,resews|resewed|resewing|resewn,Alternative spelling of re-sew.
 reshake,verb,1,sig:reshakes|reshook|reshaking|reshaken,,,,active,2026-06-19,2026-06-19,reshakes|reshook|reshaking|reshaken,to shake again
 reshave,verb,1,sig:reshaves|reshaved|reshaving|reshaven,,,,active,2026-06-19,2026-06-19,reshaves|reshaved|reshaving|reshaven,to shave again
@@ -3796,8 +3796,8 @@ sharpshoot,verb,1,sig:sharpshoots|sharpshot|sharpshooting|sharpshot,,,,active,20
 shave,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,shaves|shaved|shaving|shaven,"To make (the head, skin etc.) bald or (the hair) shorter by using a tool such as a razor or electric clippers to cut the hair close to the skin."
 shazam,verb,1,sig:shazams|shazammed|shazamming|shazammed,,,,active,2026-06-19,2026-06-19,shazams|shazammed|shazamming|shazammed,To identify the artist or the name of a song using the Shazam application.
 shear,verb,1,sig:shears|shore|shearing|shorn,,,,active,2026-06-19,2026-06-19,shears|shore|shearing|shorn,"To remove the fleece from (a sheep, llama, etc.) by clipping."
-shed,verb,1,etym:3,,,3,active,2026-06-19,2026-06-19,sheds|shedded|shedding|shedded,"To place or allocate a vehicle, such as a locomotive, in or to a depot or shed."
-shed,verb,2,etym:1,,,1,active,2026-06-19,2026-06-19,sheds|shed|shedding|shed,"To part, separate or divide."
+shed,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,sheds|shed|shedding|shed,"To part, separate or divide."
+shed,verb,2,etym:3,,,3,active,2026-06-19,2026-06-19,sheds|shedded|shedding|shedded,"To place or allocate a vehicle, such as a locomotive, in or to a depot or shed."
 shellac,verb,1,sig:shellacs|shellacked|shellacking|shellacked,,,,active,2026-06-19,2026-06-19,shellacs|shellacked|shellacking|shellacked,To coat with shellac.
 shenanigan,verb,1,sig:shenanigans|shenaniganned|shenaniganning|shenaniganned,,,,active,2026-06-19,2026-06-19,shenanigans|shenaniganned|shenaniganning|shenaniganned,"To play a deceitful confidence trick on (someone); to swindle, to trick; also, to carry out an act of mischief on (someone); to prank."
 shend,verb,1,sig:shends|shent|shending|shent,,,,active,2026-06-19,2026-06-19,shends|shent|shending|shent,To disgrace or put to shame.
@@ -3869,8 +3869,8 @@ simulcast,verb,1,sig:simulcasts|simulcast|simulcasting|simulcast,,,,active,2026-
 simulpub,verb,1,sig:simulpubs|simulpubbed|simulpubbing|simulpubbed,,,,active,2026-06-19,2026-06-19,simulpubs|simulpubbed|simulpubbing|simulpubbed,To simultaneously publish manga in multiple markets.
 sin,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,sins|sinned|sinning|sinned,To commit a sin.
 sing,verb,1,sig:sings|sang|singing|sung,,,,active,2026-06-19,2026-06-19,sings|sang|singing|sung,To produce musical or harmonious sounds with one’s voice.
-singe,verb,1,etym:2,,,2,active,2026-06-19,2026-06-19,singes|sange|singing|sunge,Obsolete form of sing.
-singe,verb,2,etym:1,,,1,active,2026-06-19,2026-06-19,singes|singed|singeing|singed,To burn slightly.
+singe,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,singes|singed|singeing|singed,To burn slightly.
+singe,verb,2,etym:2,,,2,active,2026-06-19,2026-06-19,singes|sange|singing|sunge,Obsolete form of sing.
 sink,verb,1,sid:en:to descend,,en:to descend,,active,2026-06-19,2026-06-19,sinks|sank|sinking|sunk,To move or be moved into something.
 sir,verb,1,sig:sirs|sirred|sirring|sirred,,,,active,2026-06-19,2026-06-19,sirs|sirred|sirring|sirred,"To address another individual using ""sir""."
 sirup,verb,1,sig:sirups|siruped|siruping|siruped,,,,active,2026-06-19,2026-06-19,sirups|siruped|siruping|siruped,Dated form of syrup.
@@ -4025,8 +4025,8 @@ spill,verb,1,sig:spills|spilt|spilling|spilt,,,,active,2026-06-19,2026-06-19,spi
 spin,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,spins|span|spinning|spun,"To rotate, revolve, gyrate (usually quickly); to partially or completely rotate to face another direction."
 spincast,verb,1,sig:spincasts|spincast|spincasting|spincast,,,,active,2026-06-19,2026-06-19,spincasts|spincast|spincasting|spincast,To fish with a reel of this kind.
 spiral,verb,1,sig:spirals|spiralled|spiralling|spiralled,,,,active,2026-06-19,2026-06-19,spirals|spiralled|spiralling|spiralled,To move along the path of a spiral or helix.
-spit,verb,1,sid:en:expectorate,,en:expectorate,2,active,2026-06-19,2026-06-19,spits|spat|spitting|spat,"To evacuate (saliva or another substance) from the mouth, etc."
-spit,verb,2,etym:1,,,1,active,2026-06-19,2026-06-19,spits|spitted|spitting|spitted,To impale on a spit; to pierce with a sharp object.
+spit,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,spits|spitted|spitting|spitted,To impale on a spit; to pierce with a sharp object.
+spit,verb,2,sid:en:expectorate,,en:expectorate,2,active,2026-06-19,2026-06-19,spits|spat|spitting|spat,"To evacuate (saliva or another substance) from the mouth, etc."
 splat,verb,1,etym:2,,,2,active,2026-06-19,2026-06-19,splats|splatted|splatting|splatted,To hit a flat surface and deform into an irregular shape.
 splay,verb,1,etym:1,,,1,active,2026-06-19,2026-06-19,splays|splayed|splaying|splayed,"To spread, spread apart, or spread out (something); to expand."
 splet,verb,1,sig:splets|spletted|spletting|spletted,,,,active,2026-06-19,2026-06-19,splets|spletted|spletting|spletted,To split.

@@ -96,6 +96,25 @@ pub fn generate_tables(
     adj_lock: &Lock,
     generated_dir: &Path,
 ) -> Result<(), Box<dyn Error>> {
+    // Pre-emit guard: refuse to write a table with colliding keys, which would
+    // otherwise blow up only as an opaque `phf_map!` duplicate-key compile error.
+    let collisions: Vec<String> = [
+        (Pos::Noun, noun_lock),
+        (Pos::Verb, verb_lock),
+        (Pos::Adj, adj_lock),
+    ]
+    .iter()
+    .flat_map(|(pos, lock)| lock.emit_collisions(*pos))
+    .collect();
+    if !collisions.is_empty() {
+        return Err(format!(
+            "refusing to generate tables — {} duplicate emit key(s):\n  - {}",
+            collisions.len(),
+            collisions.join("\n  - ")
+        )
+        .into());
+    }
+
     // Nouns: one plural column.
     let noun_emit = noun_lock.emittable(Pos::Noun);
     let noun_pairs: Vec<(String, String)> = noun_emit

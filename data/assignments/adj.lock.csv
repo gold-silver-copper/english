@@ -63,8 +63,8 @@ awnry,adj,1,sig:awnrier|awnriest,,,,active,2026-06-19,2026-06-19,awnrier|awnries
 babbly,adj,1,sig:babblier|babbliest,,,,active,2026-06-19,2026-06-19,babblier|babbliest,Resembling babbles.
 baby,adj,1,sig:babier|babiest,,,,active,2026-06-19,2026-06-19,babier|babiest,"Picked when small and immature (as in baby corn, baby potatoes)."
 backstabby,adj,1,sig:backstabbier|backstabbiest,,,,active,2026-06-19,2026-06-19,backstabbier|backstabbiest,characteristic of deceit and treachery
-bad,adj,2,sid:en:slang,,en:slang,1,active,2026-06-19,2026-06-19,badder|baddest,"Bold, daring, and tough."
-bad,adj,3,etym:1#sig:worse|worst,,,1,active,2026-06-19,2026-06-19,worse|worst,Of low quality.
+bad,adj,2,etym:1#sig:worse|worst,,,1,active,2026-06-19,2026-06-19,worse|worst,Of low quality.
+bad,adj,3,sid:en:slang,,en:slang,1,active,2026-06-19,2026-06-19,badder|baddest,"Bold, daring, and tough."
 badassy,adj,1,sig:badassier|badassiest,,,,active,2026-06-19,2026-06-19,badassier|badassiest,Characteristic of a badass; impressively tough or audacious.
 baggy,adj,1,etym:1,,,1,active,2026-06-19,2026-06-19,baggier|baggiest,"Of clothing, very loose-fitting, so as to hang away from the body."
 bait,adj,1,etym:4,,,4,active,2026-06-19,2026-06-19,baiter|baitest,Obvious; blatant.
@@ -111,8 +111,8 @@ beige,adj,1,sig:beiger|beigest,,,,active,2026-06-19,2026-06-19,beiger|beigest,"H
 beigey,adj,1,sig:beigier|beigiest,,,,active,2026-06-19,2026-06-19,beigier|beigiest,Somewhat beige in colour.
 beigy,adj,1,sig:beigier|beigiest,,,,active,2026-06-19,2026-06-19,beigier|beigiest,Alternative spelling of beigey.
 beloved,adj,1,sig:beloveder|belovedest,,,,active,2026-06-19,2026-06-19,beloveder|belovedest,"Much loved, dearly loved."
-ben,adj,1,etym:6,,,6,active,2026-06-19,2026-06-19,benar|benat,Alternative spelling of bene; good.
-ben,adj,2,etym:2,,,2,active,2026-06-19,2026-06-19,benner|benmost,"Inner, interior."
+ben,adj,1,etym:2,,,2,active,2026-06-19,2026-06-19,benner|benmost,"Inner, interior."
+ben,adj,2,etym:6,,,6,active,2026-06-19,2026-06-19,benar|benat,Alternative spelling of bene; good.
 bendly,adj,1,sig:bendlier|bendliest,,,,active,2026-06-19,2026-06-19,bendlier|bendliest,Having a diagonal stripe; bendy.
 bendy,adj,2,etym:1,,,1,active,2026-06-19,2026-06-19,bendier|bendiest,Having the ability to be bent easily.
 bene,adj,1,etym:3,,,3,active,2026-06-19,2026-06-19,benar|benat,Good.
@@ -662,8 +662,8 @@ drudgy,adj,1,sig:drudgier|drudgiest,,,,active,2026-06-19,2026-06-19,drudgier|dru
 druggy,adj,1,etym:2,,,2,active,2026-06-19,2026-06-19,druggier|druggiest,"Acting as if on drugs; torpid, uncoordinated, etc."
 drumly,adj,1,sig:drumlier|drumliest,,,,active,2026-06-19,2026-06-19,drumlier|drumliest,turbid; muddy
 drunk,adj,1,sig:drunker|drunkest,,,,active,2026-06-19,2026-06-19,drunker|drunkest,"Intoxicated as a result of excessive alcohol consumption, usually by drinking alcoholic beverages."
-dry,adj,1,sid:en:impotent,,en:impotent,,active,2026-06-19,2026-06-19,drier|driest,Free from or lacking moisture.
-dry,adj,2,sig:dryer|dryest,,,,active,2026-06-19,2026-06-19,dryer|dryest,"Of code, having the quality of adhering to the principle of DRY; containing as little repetition as possible."
+dry,adj,1,sig:dryer|dryest,,,,active,2026-06-19,2026-06-19,dryer|dryest,"Of code, having the quality of adhering to the principle of DRY; containing as little repetition as possible."
+dry,adj,2,sid:en:impotent,,en:impotent,,active,2026-06-19,2026-06-19,drier|driest,Free from or lacking moisture.
 ducky,adj,2,etym:1,,,1,active,2026-06-19,2026-06-19,duckier|duckiest,Resembling or characteristic of a duck.
 dud,adj,1,sig:more dud|duddest,,,,active,2026-06-19,2026-06-19,more dud|duddest,Useless; failing; ineffective.
 duddy,adj,1,sig:duddier|duddiest,,,,active,2026-06-19,2026-06-19,duddier|duddiest,ragged

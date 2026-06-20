@@ -21,14 +21,17 @@ use std::path::Path;
 /// regular-prediction-equal pattern was seen (and dropped as a runtime fall-through).
 #[derive(Default)]
 struct LemmaAcc {
-    /// signature -> candidate (anchors enriched across the entries that share it)
+    /// emitted-form signature -> candidate (anchors enriched across the entries that
+    /// share it). Keyed by `forms.join("|")`, so two entries merge only when they emit
+    /// identical forms.
     by_sig: BTreeMap<String, Candidate>,
     had_regular: bool,
 }
 
 impl LemmaAcc {
-    /// Record one observed inflection pattern for this lemma, attaching the
-    /// entry's stable anchors.
+    /// Record one observed inflection pattern (the plain-preferred emitted columns)
+    /// for this lemma, attaching the entry's stable anchors. Deduped by the emitted
+    /// signature, so two entries merge only when they emit the same forms.
     fn observe(&mut self, forms: Vec<String>, entry: &Entry) {
         let sig = forms.join("|");
         let c = self
@@ -49,8 +52,9 @@ impl LemmaAcc {
         }
     }
 
-    /// Drop the pattern that exactly equals the regular prediction; it is produced
-    /// at runtime by the rule engine, so we never emit a table row for it.
+    /// Drop the pattern that exactly equals the regular prediction; the rule engine
+    /// produces it at runtime, so a table row would add nothing (and `had_regular`
+    /// then reserves the bare key for the rule).
     fn drop_regular(&mut self, predicted: &[String]) {
         let sig = predicted.join("|");
         if self.by_sig.remove(&sig).is_some() {
@@ -65,6 +69,12 @@ impl LemmaAcc {
 
 fn open_reader(path: &Path) -> BufReader<File> {
     BufReader::new(File::open(path).unwrap())
+}
+
+/// Pick the form to emit for one inflection slot, falling back to the regular rule
+/// prediction when no plain candidate is eligible.
+fn select_slot(forms: &[(String, u8)], predicted: &str, prefer_regular: bool) -> String {
+    choose_form(forms, predicted, prefer_regular).unwrap_or_else(|| predicted.to_string())
 }
 
 pub fn extract_irregular_nouns(
@@ -121,7 +131,9 @@ pub fn extract_irregular_nouns(
         // nonstandard plural (`busses`) hijack the bare key. Only when the regular
         // form is *not* attested does the irregular become the bare key
         // (`child` -> `children`, since `childs` never appears).
-        let has_regular = plurals.iter().any(|(f, rank)| *rank == 0 && *f == predicted);
+        // had_regular is tag-invariant: a regular plural counts whether or not it
+        // carries a soft tag, so toggling such a tag never flips the bare-key reservation.
+        let has_regular = plurals.iter().any(|(f, _rank)| *f == predicted);
         let irregular = choose_form(&plurals, &predicted, false).filter(|f| *f != predicted);
         let acc = by_lemma.entry(lemma).or_default();
         if has_regular {
@@ -193,10 +205,8 @@ pub fn extract_irregular_adjectives(
 
         let predicted_comp = EnglishCore::comparative(&lemma);
         let predicted_sup = EnglishCore::superlative(&lemma);
-        let comparative =
-            choose_form(&comp_forms, &predicted_comp, false).unwrap_or_else(|| predicted_comp.clone());
-        let superlative =
-            choose_form(&sup_forms, &predicted_sup, false).unwrap_or_else(|| predicted_sup.clone());
+        let comparative = select_slot(&comp_forms, &predicted_comp, false);
+        let superlative = select_slot(&sup_forms, &predicted_sup, false);
 
         by_lemma
             .entry(lemma)
@@ -311,12 +321,10 @@ pub fn extract_verb_conjugations(
         // otherwise a missing tag drops the whole verb and renumbers it next refresh.
         // 3sg is regular for almost every verb, so prefer the predicted form when
         // attested; the other slots prefer a genuine irregular over the rule output.
-        let third =
-            choose_form(&third_forms, &predicted_third, true).unwrap_or_else(|| predicted_third.clone());
-        let past =
-            choose_form(&past_forms, &predicted_past, false).unwrap_or_else(|| predicted_past.clone());
-        let present_part = choose_form(&pres_part_forms, &predicted_participle, false)
-            .unwrap_or_else(|| predicted_participle.clone());
+        let third = select_slot(&third_forms, &predicted_third, true);
+        let past = select_slot(&past_forms, &predicted_past, false);
+        let present_part = select_slot(&pres_part_forms, &predicted_participle, false);
+        // Past participle falls back to the chosen past form when unattested.
         let past_part =
             choose_form(&past_part_forms, &predicted_past, false).unwrap_or_else(|| past.clone());
 

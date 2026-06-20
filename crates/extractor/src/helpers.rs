@@ -74,10 +74,10 @@ pub fn tag_rank(tags: &[String]) -> Option<u8> {
 }
 
 /// Choose the form to emit for one inflection slot from the candidates gathered for
-/// it (each a `(form, tag_rank)` pair). Only *plain* forms (`tag_rank == 0`) are
-/// ever emitted — soft variants are deliberately ignored here so a nonstandard
-/// spelling can never become the canonical output (returns `None`, and the caller
-/// then falls back to the regular rule). Among the plain forms the choice is fully
+/// it (each a `(form, tag_rank)` pair). Only *plain* forms (`tag_rank == 0`) are ever
+/// emitted — soft variants are deliberately ignored, so a nonstandard spelling can
+/// never become canonical output (returns `None` when no plain form exists; the
+/// caller falls back to the rule). Among the plain forms the choice is fully
 /// deterministic and independent of the dump's form-array order:
 ///
 /// 1. `prefer_regular` decides whether a form matching the regular-rule prediction
@@ -91,8 +91,6 @@ pub fn tag_rank(tags: &[String]) -> Option<u8> {
 ///      one — yet a genuinely irregular 3sg (`has`, `does`) is still chosen when the
 ///      predicted spelling is not attested at all.
 /// 2. the lexicographically smallest form breaks any remaining tie.
-///
-/// Returns `None` when there are no plain candidates.
 pub fn choose_form(candidates: &[(String, u8)], regular: &str, prefer_regular: bool) -> Option<String> {
     candidates
         .iter()
@@ -293,4 +291,33 @@ pub fn suffix_rule(singular: &str, plural: &str) -> (String, String) {
     };
 
     (singular_suffix.to_string(), plural_suffix.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn forms(v: &[(&str, u8)]) -> Vec<(String, u8)> {
+        v.iter().map(|(f, r)| (f.to_string(), *r)).collect()
+    }
+
+    #[test]
+    fn emit_is_plain_only() {
+        // "beta" plain (rank 0), "alpha" soft (rank 1): only the plain form is
+        // eligible to be emitted — a nonstandard variant never becomes canonical.
+        let c = forms(&[("beta", 0), ("alpha", 1)]);
+        assert_eq!(choose_form(&c, "reg", false), Some("beta".into()));
+        // No plain candidate -> None (caller falls back to the rule).
+        let soft = forms(&[("alpha", 1)]);
+        assert_eq!(choose_form(&soft, "reg", false), None);
+    }
+
+    #[test]
+    fn choose_form_prefers_irregular_then_lexicographic() {
+        // all plain; "reg" is the rule prediction -> the non-regular wins, then lex.
+        let c = forms(&[("reg", 0), ("zzz", 0), ("kkk", 0)]);
+        assert_eq!(choose_form(&c, "reg", false), Some("kkk".into()));
+        // prefer_regular=true (the 3sg slot): the rule-equal form wins when present.
+        assert_eq!(choose_form(&c, "reg", true), Some("reg".into()));
+    }
 }

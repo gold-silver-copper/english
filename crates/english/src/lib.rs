@@ -20,11 +20,28 @@ mod verb_phf {
 }
 use verb_phf::*;
 
-/// Strips the sense-disambiguation suffix from a key. Assignment suffixes are
-/// allocated append-only and may grow past a single digit, so we strip *all*
-/// trailing ASCII digits (lemmas themselves never contain digits).
+/// Trims trailing ASCII digits — the raw sense-suffix strip. Suffixes are allocated
+/// append-only and may grow past a single digit.
 fn strip_trailing_number(word: &str) -> &str {
     word.trim_end_matches(|c: char| c.is_ascii_digit())
+}
+
+/// Resolve the base lemma for inflection. A trailing-digit run is treated as a
+/// sense-disambiguation suffix **only when it actually resolves to a table key** —
+/// either `word` itself is a key, or stripping the digits yields one. Otherwise the
+/// input is opaque and returned unchanged, so digit-bearing words (`"mp3"`, `"F16"`,
+/// `"co2"`) are never silently corrupted into `"mp"`/`"F"`/`"co"`. Numbered keys are
+/// only ever generated for irregulars (which live in the tables), so a regular word
+/// like `"cat2"` is not a real key and is left opaque rather than stripped to `"cat"`.
+fn base_lemma<'a>(word: &'a str, is_key: impl Fn(&str) -> bool) -> &'a str {
+    let stripped = strip_trailing_number(word);
+    let base = if stripped != word && !stripped.is_empty() && (is_key(word) || is_key(stripped)) {
+        stripped
+    } else {
+        word
+    };
+    debug_assert!(base.is_empty() == word.is_empty());
+    base
 }
 
 /// Entry point for English inflection and morphology.
@@ -51,7 +68,7 @@ impl English {
     /// assert_eq!(English::noun("die2", &Number::Plural), "dice");
     /// ```
     pub fn noun(word: &str, number: &Number) -> String {
-        let base_word = strip_trailing_number(word);
+        let base_word = base_lemma(word, |w| get_plural(w).is_some());
 
         match number {
             Number::Singular => base_word.to_string(),
@@ -81,7 +98,7 @@ impl English {
     /// assert_eq!(English::adj("fun", &Degree::Comparative), "more fun");
     /// ```
     pub fn adj(word: &str, degree: &Degree) -> String {
-        let base_word = strip_trailing_number(word);
+        let base_word = base_lemma(word, |w| get_adjective_forms(w).is_some());
         match degree {
             Degree::Positive => base_word.to_owned(),
             Degree::Comparative => {
@@ -136,7 +153,7 @@ impl English {
         tense: &Tense,
         form: &Form,
     ) -> String {
-        let base_word = strip_trailing_number(word);
+        let base_word = base_lemma(word, |w| get_verb_forms(w).is_some());
         match get_verb_forms(word) {
             Some(wordik) => match (person, number, tense, form) {
                 (_, _, _, Form::Infinitive) => base_word.to_owned(),
