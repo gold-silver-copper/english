@@ -1,5 +1,5 @@
 use crate::helpers::{
-    Entry, Pos, contains_bad_tag, entry_is_proper, suffix_rule, word_is_proper,
+    Entry, Pos, choose_form, entry_is_proper, suffix_rule, tag_rank, word_is_proper,
 };
 use crate::registry::{Candidate, Lock};
 use csv::{ReaderBuilder, WriterBuilder};
@@ -82,23 +82,47 @@ pub fn extract_irregular_nouns(
         }
 
         let lemma = entry.word.to_lowercase();
-        let acc = by_lemma.entry(lemma).or_default();
 
+        // Gather every eligible plural-tagged form for THIS entry (= this etymology)
+        // and emit a single candidate for it, rather than one homograph key per
+        // plural spelling. A sense that lists `cacti`/`cactus`/`cactusses` is one
+        // identity, not three; genuine homographs arrive as separate entries and
+        // stay separated by their etymology/qid/sid anchor.
+        let mut plurals: Vec<(String, u8)> = Vec::new();
         if let Some(forms) = &entry.forms {
             for form in forms {
-                let tags = &form.tags;
                 let entry_form = form.form.to_lowercase();
-                if entry_form == "dubious" {
+                if entry_form == "dubious" || !word_is_proper(&entry_form) {
                     continue;
                 }
-                if !word_is_proper(&entry_form) || contains_bad_tag(tags.clone()) {
+                if !form.tags.iter().any(|t| t == "plural") {
                     continue;
                 }
-
-                if tags.contains(&"plural".into()) {
-                    acc.observe(vec![entry_form], &entry);
-                }
+                let Some(rank) = tag_rank(&form.tags) else {
+                    continue;
+                };
+                plurals.push((entry_form, rank));
             }
+        }
+        if plurals.is_empty() {
+            continue;
+        }
+
+        let predicted = EnglishCore::pluralize_noun(&lemma);
+        // If Wiktionary attests the regular plural for this sense, the bare lemma
+        // key is reserved for the rule engine (had_regular) and any genuine
+        // irregular variant is emitted at a higher suffix — never letting a
+        // nonstandard plural (`busses`) hijack the bare key. Only when the regular
+        // form is *not* attested does the irregular become the bare key
+        // (`child` -> `children`, since `childs` never appears).
+        let has_regular = plurals.iter().any(|(f, rank)| *rank == 0 && *f == predicted);
+        let irregular = choose_form(&plurals, &predicted, false).filter(|f| *f != predicted);
+        let acc = by_lemma.entry(lemma).or_default();
+        if has_regular {
+            acc.had_regular = true;
+        }
+        if let Some(primary) = irregular {
+            acc.observe(vec![primary], &entry);
         }
     }
 
@@ -136,36 +160,34 @@ pub fn extract_irregular_adjectives(
         }
 
         let lemma = entry.word.to_lowercase();
-        let mut comparative = String::new();
-        let mut superlative = String::new();
 
+        let mut comp_forms: Vec<(String, u8)> = Vec::new();
+        let mut sup_forms: Vec<(String, u8)> = Vec::new();
         if let Some(forms) = &entry.forms {
             for form in forms {
                 let tags = &form.tags;
                 let entry_form = form.form.to_lowercase();
-                if entry_form == "dubious" {
+                if entry_form == "dubious" || !word_is_proper(&entry_form) {
                     continue;
                 }
-                if !word_is_proper(&entry_form) || contains_bad_tag(tags.clone()) {
+                let Some(rank) = tag_rank(tags) else {
                     continue;
+                };
+                if tags.iter().any(|t| t == "comparative") {
+                    comp_forms.push((entry_form.clone(), rank));
                 }
-
-                if tags.contains(&"comparative".into()) && comparative.is_empty() {
-                    comparative = entry_form.clone();
-                }
-
-                if tags.contains(&"superlative".into()) && superlative.is_empty() {
-                    superlative = entry_form.clone();
+                if tags.iter().any(|t| t == "superlative") {
+                    sup_forms.push((entry_form, rank));
                 }
             }
         }
 
-        if comparative.is_empty() {
-            comparative = EnglishCore::comparative(&lemma);
-        }
-        if superlative.is_empty() {
-            superlative = EnglishCore::superlative(&lemma);
-        }
+        let predicted_comp = EnglishCore::comparative(&lemma);
+        let predicted_sup = EnglishCore::superlative(&lemma);
+        let comparative =
+            choose_form(&comp_forms, &predicted_comp, false).unwrap_or_else(|| predicted_comp.clone());
+        let superlative =
+            choose_form(&sup_forms, &predicted_sup, false).unwrap_or_else(|| predicted_sup.clone());
 
         by_lemma
             .entry(lemma)
@@ -216,52 +238,46 @@ pub fn extract_verb_conjugations(
             continue;
         }
 
-        let mut has_third_person = false;
-        let mut third = String::new();
-        let mut past = String::new();
-        let mut present_part = String::new();
-        let mut past_part = String::new();
+        // Gather every eligible form per slot, then pick each deterministically.
+        let mut third_forms: Vec<(String, u8)> = Vec::new();
+        let mut past_forms: Vec<(String, u8)> = Vec::new();
+        let mut pres_part_forms: Vec<(String, u8)> = Vec::new();
+        let mut past_part_forms: Vec<(String, u8)> = Vec::new();
 
         if let Some(forms) = &entry.forms {
             for form in forms {
                 let tags = &form.tags;
                 let entry_form = form.form.to_lowercase();
-                if !word_is_proper(&entry_form) || contains_bad_tag(tags.clone()) {
+                if entry_form == "dubious" || !word_is_proper(&entry_form) {
                     continue;
                 }
+                let Some(rank) = tag_rank(tags) else {
+                    continue;
+                };
 
-                if tags.contains(&"third-person".into())
-                    && tags.contains(&"singular".into())
-                    && tags.contains(&"present".into())
-                    && !has_third_person
-                {
-                    has_third_person = true;
-                    third = entry_form.clone();
+                let has = |t: &str| tags.iter().any(|x| x == t);
+                if has("third-person") && has("singular") && has("present") {
+                    third_forms.push((entry_form.clone(), rank));
                 }
-
-                if tags.contains(&"past".into())
-                    && !tags.contains(&"participle".into())
-                    && past.is_empty()
-                {
-                    past = entry_form.clone();
+                if has("past") && !has("participle") {
+                    past_forms.push((entry_form.clone(), rank));
                 }
-
-                if tags.contains(&"participle".into())
-                    && tags.contains(&"present".into())
-                    && present_part.is_empty()
-                {
-                    present_part = entry_form.clone();
+                if has("participle") && has("present") {
+                    pres_part_forms.push((entry_form.clone(), rank));
                 }
-
-                if tags.contains(&"participle".into())
-                    && tags.contains(&"past".into())
-                    && past_part.is_empty()
-                {
-                    past_part = entry_form.clone();
+                if has("participle") && has("past") {
+                    past_part_forms.push((entry_form, rank));
                 }
             }
         }
 
+        let predicted_third = EnglishCore::verb(
+            &lemma,
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Present,
+            &Form::Finite,
+        );
         let predicted_past = EnglishCore::verb(
             &lemma,
             &Person::Third,
@@ -277,22 +293,25 @@ pub fn extract_verb_conjugations(
             &Form::Participle,
         );
 
-        if past.is_empty() {
-            past = predicted_past;
-        }
-        if past_part.is_empty() {
-            past_part = past.clone();
-        }
-        if present_part.is_empty() {
-            present_part = predicted_participle;
-        }
+        // Synthesize the regular 3sg when the dump omits it, exactly as we already do
+        // for past/participles. A verb's presence must depend only on it being an
+        // English verb, never on whether the dump happened to tag a 3sg form —
+        // otherwise a missing tag drops the whole verb and renumbers it next refresh.
+        // 3sg is regular for almost every verb, so prefer the predicted form when
+        // attested; the other slots prefer a genuine irregular over the rule output.
+        let third =
+            choose_form(&third_forms, &predicted_third, true).unwrap_or_else(|| predicted_third.clone());
+        let past =
+            choose_form(&past_forms, &predicted_past, false).unwrap_or_else(|| predicted_past.clone());
+        let present_part = choose_form(&pres_part_forms, &predicted_participle, false)
+            .unwrap_or_else(|| predicted_participle.clone());
+        let past_part =
+            choose_form(&past_part_forms, &predicted_past, false).unwrap_or_else(|| past.clone());
 
-        if has_third_person {
-            by_lemma
-                .entry(lemma)
-                .or_default()
-                .observe(vec![third, past, present_part, past_part], &entry);
-        }
+        by_lemma
+            .entry(lemma)
+            .or_default()
+            .observe(vec![third, past, present_part, past_part], &entry);
     }
 
     for (lemma, mut acc) in by_lemma {

@@ -33,6 +33,78 @@ pub fn contains_bad_tag(words: Vec<String>) -> bool {
     false
 }
 
+/// Tags that *disqualify* a form outright: dead or broken forms we never want to
+/// emit under any circumstances.
+pub static EXCLUDE_TAGS: &[&str] = &["obsolete", "archaic", "error-unknown-tag"];
+
+/// Editorially-*soft* tags: a form carrying one of these is a real but nonstandard
+/// variant (dialectal/rare/jocular/etc.). We keep these forms in the candidate pool
+/// — so a later, anchor-based identity pass can expose them as variants — but they
+/// are never chosen as the canonical emitted form: a nonstandard spelling must not
+/// shadow the regular rule (e.g. never emit `busses`/`dangerouser`/`ageing`). Note
+/// `EXCLUDE_TAGS ∪ SOFT_TAGS` equals the legacy `BAD_TAGS` set, so emitted forms are
+/// drawn from exactly the same (plain) pool as before — only the selection within it
+/// is now deterministic.
+pub static SOFT_TAGS: &[&str] = &[
+    "dialectal",
+    "alternative",
+    "nonstandard",
+    "humorous",
+    "feminine",
+    "pronunciation-spelling",
+    "rare",
+    "dated",
+    "informal",
+    "sometimes",
+    "colloquial",
+];
+
+/// Rank a form's tags for selection. Returns `None` if the form is disqualified
+/// (an [`EXCLUDE_TAGS`] match), `Some(0)` for a plain form, and `Some(1)` for a
+/// form carrying only [`SOFT_TAGS`]. Lower is preferred.
+pub fn tag_rank(tags: &[String]) -> Option<u8> {
+    if tags.iter().any(|t| EXCLUDE_TAGS.contains(&t.as_str())) {
+        return None;
+    }
+    if tags.iter().any(|t| SOFT_TAGS.contains(&t.as_str())) {
+        Some(1)
+    } else {
+        Some(0)
+    }
+}
+
+/// Choose the form to emit for one inflection slot from the candidates gathered for
+/// it (each a `(form, tag_rank)` pair). Only *plain* forms (`tag_rank == 0`) are
+/// ever emitted — soft variants are deliberately ignored here so a nonstandard
+/// spelling can never become the canonical output (returns `None`, and the caller
+/// then falls back to the regular rule). Among the plain forms the choice is fully
+/// deterministic and independent of the dump's form-array order:
+///
+/// 1. `prefer_regular` decides whether a form matching the regular-rule prediction
+///    is favored or disfavored:
+///    - `false` (past/participle/plural/comparative slots): a form that *differs*
+///      from the prediction wins, so a genuine irregular is never shadowed by a
+///      rule-equal spelling (`dove` over `dived`, `cacti` over `cactuses`);
+///    - `true` (the 3rd-person-singular slot, which is regular `+s/+es` for almost
+///      every verb): the predicted form wins when it is attested, so a stray
+///      archaic/nonstandard 3sg (`allyeth`, `alibies`) never displaces the regular
+///      one — yet a genuinely irregular 3sg (`has`, `does`) is still chosen when the
+///      predicted spelling is not attested at all.
+/// 2. the lexicographically smallest form breaks any remaining tie.
+///
+/// Returns `None` when there are no plain candidates.
+pub fn choose_form(candidates: &[(String, u8)], regular: &str, prefer_regular: bool) -> Option<String> {
+    candidates
+        .iter()
+        .filter(|(_, rank)| *rank == 0)
+        .min_by(|a, b| {
+            ((a.0 == regular) != prefer_regular)
+                .cmp(&((b.0 == regular) != prefer_regular))
+                .then_with(|| a.0.cmp(&b.0))
+        })
+        .map(|(form, _)| form.clone())
+}
+
 /// Returns true if the input contains any non-alphabetic character.
 pub fn contains_bad_chars(input: &str) -> bool {
     for x in BAD_CHARS.iter() {
