@@ -31,9 +31,11 @@ struct LemmaAcc {
 
 impl LemmaAcc {
     /// Record one observed inflection pattern (the plain-preferred emitted columns)
-    /// for this lemma, attaching the entry's stable anchors. Deduped by the emitted
-    /// signature, so two entries merge only when they emit the same forms.
-    fn observe(&mut self, forms: Vec<String>, entry: &Entry) {
+    /// for this lemma, attaching the entry's stable anchors and any alternate plain
+    /// attested forms per slot (recognition payload, never identity). Deduped by
+    /// the emitted signature, so two entries merge only when they emit the same
+    /// forms.
+    fn observe(&mut self, forms: Vec<String>, variants: Vec<(u8, String)>, entry: &Entry) {
         let soft = entry_is_soft(entry);
         let sig = forms.join("|");
         let is_new = !self.by_sig.contains_key(&sig);
@@ -41,6 +43,7 @@ impl LemmaAcc {
             .by_sig
             .entry(sig)
             .or_insert_with(|| Candidate::new(forms));
+        c.variants.extend(variants); // normalized (sorted/deduped) at apply_match
         // Soft only while EVERY contributing entry is soft: one standard sense
         // sharing the signature makes the candidate standard.
         c.soft_sense = if is_new { soft } else { c.soft_sense && soft };
@@ -94,6 +97,20 @@ fn open_reader(path: &Path) -> BufReader<File> {
 /// prediction when no plain candidate is eligible.
 fn select_slot(forms: &[(String, u8)], predicted: &str, prefer_regular: bool) -> String {
     choose_form(forms, predicted, prefer_regular).unwrap_or_else(|| predicted.to_string())
+}
+
+/// Recognition variants for a candidate: every plain attested form in a slot's
+/// pool other than the chosen canonical, tagged with its slot index.
+fn slot_variants(slots: &[(&Vec<(String, u8)>, &String)]) -> Vec<(u8, String)> {
+    let mut out = Vec::new();
+    for (slot, (pool, chosen)) in slots.iter().enumerate() {
+        for (form, rank) in pool.iter() {
+            if *rank == 0 && form != *chosen {
+                out.push((slot as u8, form.clone()));
+            }
+        }
+    }
+    out
 }
 
 /// A periphrastic attestation ("more X"/"most X") is only credible when nothing
@@ -194,7 +211,13 @@ pub fn extract_irregular_nouns(
             acc.had_regular = true;
         }
         if let Some(primary) = irregular {
-            acc.observe(vec![primary], &entry);
+            // Every other plain attested plural is a recognition variant.
+            let variants: Vec<(u8, String)> = plurals
+                .iter()
+                .filter(|(f, rank)| *rank == 0 && *f != primary)
+                .map(|(f, _)| (0u8, f.clone()))
+                .collect();
+            acc.observe(vec![primary], variants, &entry);
         }
     }
 
@@ -264,6 +287,11 @@ pub fn extract_irregular_adjectives(
             }
         }
 
+        // Snapshot the full plain pools for variant collection BEFORE the
+        // periphrastic preference filter: a plainly-attested "more bad" is not
+        // canonical when "badder" is attested, but it is still a real variant.
+        let full_comp = comp_forms.clone();
+        let full_sup = sup_forms.clone();
         drop_periphrastic_if_single_word_attested(&mut comp_forms);
         drop_periphrastic_if_single_word_attested(&mut sup_forms);
 
@@ -286,10 +314,11 @@ pub fn extract_irregular_adjectives(
         let comparative = select_slot(&comp_forms, &predicted_comp, false);
         let superlative = select_slot(&sup_forms, &predicted_sup, false);
 
+        let variants = slot_variants(&[(&full_comp, &comparative), (&full_sup, &superlative)]);
         by_lemma
             .entry(lemma)
             .or_default()
-            .observe(vec![comparative, superlative], &entry);
+            .observe(vec![comparative.clone(), superlative.clone()], variants, &entry);
     }
 
     let mut resolved: HashSet<String> = HashSet::new();
@@ -419,10 +448,17 @@ pub fn extract_verb_conjugations(
         let past_part =
             choose_form(&past_part_forms, &predicted_past, false).unwrap_or_else(|| past.clone());
 
-        by_lemma
-            .entry(lemma)
-            .or_default()
-            .observe(vec![third, past, present_part, past_part], &entry);
+        let variants = slot_variants(&[
+            (&third_forms, &third),
+            (&past_forms, &past),
+            (&pres_part_forms, &present_part),
+            (&past_part_forms, &past_part),
+        ]);
+        by_lemma.entry(lemma).or_default().observe(
+            vec![third.clone(), past.clone(), present_part.clone(), past_part.clone()],
+            variants,
+            &entry,
+        );
     }
 
     let mut resolved: HashSet<String> = HashSet::new();
@@ -643,6 +679,56 @@ mod tests {
 
 
 
+
+    #[test]
+    fn canonical_form_is_first_listed_and_alternates_become_variants() {
+        // abide-like: two plain pasts attested, "abode" listed FIRST. Canonical
+        // selection must follow listing order (abode), not lexicographic (abid),
+        // and the alternates must be captured as slot variants.
+        let jsonl = concat!(
+            r#"{"word":"abide","pos":"verb","lang_code":"en","forms":[{"form":"abides","tags":["third-person","singular","present"]},{"form":"abiding","tags":["participle","present"]},{"form":"abode","tags":["past"]},{"form":"abided","tags":["past"]},{"form":"abid","tags":["past"]},{"form":"abode","tags":["participle","past"]}]}"#,
+            "\n"
+        );
+        let lock = extract(jsonl, "abide.jsonl", |p, l| {
+            extract_verb_conjugations(p, l, "d1").unwrap()
+        });
+        let emit = emitted(&lock, Pos::Verb);
+        assert_eq!(emit.len(), 1);
+        assert_eq!(emit[0].1[1], "abode", "first-listed non-regular past wins");
+        let row = lock.rows().next().unwrap();
+        let past_variants: Vec<&str> = row
+            .variants
+            .iter()
+            .filter(|(s, _)| *s == 1)
+            .map(|(_, f)| f.as_str())
+            .collect();
+        assert_eq!(past_variants, vec!["abid", "abided"], "alternates captured, sorted");
+    }
+
+    #[test]
+    fn noun_alternate_plurals_become_variants() {
+        // cactus-like: the regular "cactuses" is plainly attested (bare key
+        // reserved for the rule), the irregular "cacti" is canonical at suffix 2,
+        // and the other plain attestation lands in that row's variants payload —
+        // the soft-tagged one does not.
+        let jsonl = concat!(
+            r#"{"word":"cactus","pos":"noun","lang_code":"en","forms":[{"form":"cacti","tags":["plural"]},{"form":"cactuses","tags":["plural"]},{"form":"cactusses","tags":["plural","nonstandard"]}]}"#,
+            "\n"
+        );
+        let lock = extract(jsonl, "cactus.jsonl", |p, l| {
+            extract_irregular_nouns(p, l, "d1").unwrap()
+        });
+        assert_eq!(
+            emitted(&lock, Pos::Noun),
+            vec![("cactus2".to_string(), vec!["cacti".to_string()])]
+        );
+        let row = lock.rows().next().unwrap();
+        assert_eq!(
+            row.variants,
+            vec![(0u8, "cactuses".to_string())],
+            "plain alternate kept, soft variant excluded"
+        );
+    }
 
     #[test]
     fn formless_verb_entry_does_not_reserve_the_bare_key() {

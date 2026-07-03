@@ -94,11 +94,11 @@ pub fn tag_rank(tags: &[String]) -> Option<u8> {
 }
 
 /// Choose the form to emit for one inflection slot from the candidates gathered for
-/// it (each a `(form, tag_rank)` pair). Only *plain* forms (`tag_rank == 0`) are ever
-/// emitted — soft variants are deliberately ignored, so a nonstandard spelling can
-/// never become canonical output (returns `None` when no plain form exists; the
-/// caller falls back to the rule). Among the plain forms the choice is fully
-/// deterministic and independent of the dump's form-array order:
+/// it (each a `(form, tag_rank)` pair, IN THE DUMP'S LISTING ORDER). Only *plain*
+/// forms (`tag_rank == 0`) are ever emitted — soft variants are deliberately
+/// ignored, so a nonstandard spelling can never become canonical output (returns
+/// `None` when no plain form exists; the caller falls back to the rule). Among the
+/// plain forms:
 ///
 /// 1. `prefer_regular` decides whether a form matching the regular-rule prediction
 ///    is favored or disfavored:
@@ -110,17 +110,23 @@ pub fn tag_rank(tags: &[String]) -> Option<u8> {
 ///      archaic/nonstandard 3sg (`allyeth`, `alibies`) never displaces the regular
 ///      one — yet a genuinely irregular 3sg (`has`, `does`) is still chosen when the
 ///      predicted spelling is not attested at all.
-/// 2. the lexicographically smallest form breaks any remaining tie.
+/// 2. the FIRST-LISTED form breaks any remaining tie. Wiktionary head templates
+///    list the canonical form first, and wiktextract preserves that order — it is
+///    editorial data (`abode` before `abid`, `crowed` before `crew`), unlike the
+///    lexicographic tiebreak this replaces, which picked whatever sorted first.
+///
+/// Determinism: within one dump the listing order is fixed, so generation is
+/// reproducible. Across dumps, an upstream reorder updates a key's FORMS in place
+/// (visible in the lock diff, like any form edit) but can never swap keys — the
+/// registry pins identity by anchor, not by forms. That containment is why listing
+/// order is safe to trust now and was not under the old positional numbering.
 pub fn choose_form(candidates: &[(String, u8)], regular: &str, prefer_regular: bool) -> Option<String> {
     candidates
         .iter()
-        .filter(|(_, rank)| *rank == 0)
-        .min_by(|a, b| {
-            ((a.0 == regular) != prefer_regular)
-                .cmp(&((b.0 == regular) != prefer_regular))
-                .then_with(|| a.0.cmp(&b.0))
-        })
-        .map(|(form, _)| form.clone())
+        .enumerate()
+        .filter(|(_, (_, rank))| *rank == 0)
+        .min_by_key(|(i, (form, _))| ((*form == regular) != prefer_regular, *i))
+        .map(|(_, (form, _))| form.clone())
 }
 
 /// Returns true if the input contains any non-alphabetic character.
@@ -350,11 +356,16 @@ mod tests {
     }
 
     #[test]
-    fn choose_form_prefers_irregular_then_lexicographic() {
-        // all plain; "reg" is the rule prediction -> the non-regular wins, then lex.
+    fn choose_form_prefers_irregular_then_listing_order() {
+        // all plain; "reg" is the rule prediction -> the non-regular wins, and the
+        // FIRST-LISTED non-regular breaks the tie (listing order is editorial:
+        // canonical first), NOT the lexicographically smallest.
         let c = forms(&[("reg", 0), ("zzz", 0), ("kkk", 0)]);
-        assert_eq!(choose_form(&c, "reg", false), Some("kkk".into()));
+        assert_eq!(choose_form(&c, "reg", false), Some("zzz".into()));
         // prefer_regular=true (the 3sg slot): the rule-equal form wins when present.
         assert_eq!(choose_form(&c, "reg", true), Some("reg".into()));
+        // A soft form ahead of a plain one never wins regardless of position.
+        let soft_first = forms(&[("aaa", 1), ("bbb", 0)]);
+        assert_eq!(choose_form(&soft_first, "reg", false), Some("bbb".into()));
     }
 }

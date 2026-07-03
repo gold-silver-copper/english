@@ -12,7 +12,10 @@
 //! (round-trips the existing tables, proving losslessness) and the refresh
 //! pipeline (emits tables from freshly-resolved locks).
 
-use crate::file_generation::{write_adjectives_phf, write_nouns_phf, write_verbs_phf};
+use crate::file_generation::{
+    write_adj_variants_phf, write_adjectives_phf, write_noun_variants_phf, write_nouns_phf,
+    write_verb_variants_phf, write_verbs_phf,
+};
 use crate::helpers::Pos;
 use crate::registry::{Lock, LockRow, Status};
 use std::error::Error;
@@ -79,6 +82,7 @@ pub fn lock_from_pairs(pairs: &[KeyForms], pos: Pos, date: &str) -> Lock {
             last_seen: date.to_string(),
             forms: forms.clone(),
             gloss: None,
+            variants: Vec::new(),
         });
     }
     lock
@@ -138,6 +142,21 @@ pub fn generate_tables(
         .map(|(k, f)| (k.clone(), (col(f, 0), col(f, 1))))
         .collect();
     write_adjectives_phf(adj_pairs, generated_dir.join("adj_phf.rs"))?;
+
+    // Variants tables: recognition payload for the alternate attested forms the
+    // canonical collapse drops. Covered by the same check-registry sync gate.
+    write_noun_variants_phf(
+        noun_lock.emittable_variants(Pos::Noun),
+        generated_dir.join("noun_variants_phf.rs"),
+    )?;
+    write_verb_variants_phf(
+        verb_lock.emittable_variants(Pos::Verb),
+        generated_dir.join("verb_variants_phf.rs"),
+    )?;
+    write_adj_variants_phf(
+        adj_lock.emittable_variants(Pos::Adj),
+        generated_dir.join("adj_variants_phf.rs"),
+    )?;
 
     Ok(())
 }

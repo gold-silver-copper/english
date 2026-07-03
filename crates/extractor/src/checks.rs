@@ -1,43 +1,50 @@
 //! Dump-driven accuracy measurement (feature `checks`, which links the `english`
 //! crate so the CURRENT committed tables + rule engine are what gets measured).
 //!
-//! For every plain-tagged form Wiktionary attests, ask the library to produce
-//! that slot and count whether any sense-numbered variant of the lemma
-//! reproduces it. Soft-tagged (nonstandard/dialectal/...) and excluded
-//! (obsolete/...) forms are NOT counted against the library: by policy it never
-//! emits them. The per-POS percentages are the headline metric — run
+//! Scoring is per SLOT, not per attested form: Wiktionary frequently attests
+//! several valid variants for one slot (`abode` AND `abided`), and a per-form
+//! metric could never reach 100% no matter which variant the library picks. A
+//! slot counts as a hit when the library's output (through any sense-numbered
+//! variant of the lemma) is IN the plain attested set for that slot.
+//!
+//! Two companion numbers are reported per POS:
+//! - the slot accuracy (the headline);
+//! - the variant gap: how many plain attested forms the library cannot produce
+//!   at all (the canonical-collapse remainder that the variants tables recover).
+//!
+//! Soft-tagged (nonstandard/dialectal/...) and excluded (obsolete/...) forms are
+//! not counted: by policy the library never emits them. Run
 //! `cargo xtask accuracy` before and after any rule/table change so the change
-//! carries a number, not an anecdote. Misses are written to per-POS CSVs for
-//! eyeballing.
+//! carries a number, not an anecdote. Misses are written to per-POS CSVs.
 
 #[cfg(feature = "checks")]
 use crate::helpers::{Entry, base_setup, entry_is_proper, tag_rank, word_is_proper};
+#[cfg(feature = "checks")]
+use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 #[cfg(feature = "checks")]
 use std::io::BufRead;
 use std::path::Path;
 
-/// One slot's score: how many plain attested forms the library reproduced.
+/// One POS's score: slots reproduced, plus the variant gap.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Score {
-    pub matched: u64,
-    pub total: u64,
+    /// Slots where the library produced one of the plain attested forms.
+    pub matched_slots: u64,
+    pub total_slots: u64,
+    /// Plain attested forms the library cannot produce for their slot.
+    pub unreachable_forms: u64,
+    /// Of the unreachable forms, how many the variants API surfaces.
+    pub recovered_by_variants: u64,
 }
 
 #[cfg_attr(not(feature = "checks"), allow(dead_code))]
 impl Score {
-    fn hit(&mut self) {
-        self.matched += 1;
-        self.total += 1;
-    }
-    fn miss(&mut self) {
-        self.total += 1;
-    }
     pub fn percent(&self) -> f64 {
-        if self.total == 0 {
+        if self.total_slots == 0 {
             100.0
         } else {
-            100.0 * self.matched as f64 / self.total as f64
+            100.0 * self.matched_slots as f64 / self.total_slots as f64
         }
     }
 }
@@ -49,16 +56,19 @@ pub fn run_checks(filtered_json_path: &Path, artifacts_dir: &Path) -> Result<(),
             filtered_json_path,
             artifacts_dir.join("noun_plural_check.csv"),
         )?;
-        let verb = check_verb_conjugations(filtered_json_path, artifacts_dir.join("verbs_check.csv"))?;
+        let verb =
+            check_verb_conjugations(filtered_json_path, artifacts_dir.join("verbs_check.csv"))?;
         let adj = check_adjective_forms(filtered_json_path, artifacts_dir.join("adj_check.csv"))?;
 
-        println!("\naccuracy (plain attested forms reproduced by the library):");
+        println!("\naccuracy (slots whose plain attested forms the library reproduces):");
         for (name, s) in [("noun plural", noun), ("verb forms", verb), ("adj comp/sup", adj)] {
             println!(
-                "  {name:>12}: {:>7}/{:<7} = {:.2}%",
-                s.matched,
-                s.total,
-                s.percent()
+                "  {name:>12}: {:>7}/{:<7} = {:.2}%   variant gap: {} attested form(s) not produced, {} recovered by the variants API",
+                s.matched_slots,
+                s.total_slots,
+                s.percent(),
+                s.unreachable_forms,
+                s.recovered_by_variants,
             );
         }
         Ok(())
@@ -72,8 +82,8 @@ pub fn run_checks(filtered_json_path: &Path, artifacts_dir: &Path) -> Result<(),
     }
 }
 
-/// The library reaches a homograph sense through its numbered key; a form counts
-/// as reproduced if ANY published variant of the lemma produces it.
+/// The library reaches a homograph sense through its numbered key; a slot counts
+/// as reproduced if ANY published variant of the lemma produces an attested form.
 #[cfg(feature = "checks")]
 fn numbered_variants(word: &str) -> Vec<String> {
     let mut variants = vec![word.to_string()];
@@ -81,6 +91,31 @@ fn numbered_variants(word: &str) -> Vec<String> {
         variants.push(format!("{word}{i}"));
     }
     variants
+}
+
+/// Score one slot: attested set vs the outputs produced across numbered keys,
+/// with `extra_reachable` (the variants-API surface) credited for gap recovery.
+#[cfg(feature = "checks")]
+fn score_slot(
+    score: &mut Score,
+    attested: &BTreeSet<String>,
+    produced: &BTreeSet<String>,
+    extra_reachable: &BTreeSet<String>,
+) -> bool {
+    score.total_slots += 1;
+    let hit = attested.iter().any(|f| produced.contains(f));
+    if hit {
+        score.matched_slots += 1;
+    }
+    for f in attested {
+        if !produced.contains(f) {
+            score.unreachable_forms += 1;
+            if extra_reachable.contains(f) {
+                score.recovered_by_variants += 1;
+            }
+        }
+    }
+    hit
 }
 
 #[cfg(feature = "checks")]
@@ -92,10 +127,10 @@ pub fn check_noun_plurals(
 
     let output_path = output_path.as_ref();
     let (reader, mut writer) = base_setup(input_path.as_ref(), output_path);
-    writer.write_record(&["wiki_singular", "wiki_plural", "library_said"])?;
+    writer.write_record(&["lemma", "attested_plurals", "library_said"])?;
 
-    let mut score = Score::default();
-
+    // lemma -> plain attested plurals, aggregated across every entry.
+    let mut attested: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for line in reader.lines() {
         let line = line?;
         let entry: Entry = match serde_json::from_str(&line) {
@@ -106,8 +141,6 @@ pub fn check_noun_plurals(
             continue;
         }
         let lemma = entry.word.to_lowercase();
-
-        let mut attested = Vec::new();
         if let Some(forms) = &entry.forms {
             for form in forms {
                 let f = form.form.to_lowercase();
@@ -115,31 +148,36 @@ pub fn check_noun_plurals(
                     continue;
                 }
                 if form.tags.iter().any(|t| t == "plural") && tag_rank(&form.tags) == Some(0) {
-                    attested.push(f);
+                    attested.entry(lemma.clone()).or_default().insert(f);
                 }
             }
         }
+    }
 
-        for wiki_plural in &attested {
-            let variants = numbered_variants(&lemma);
-            let produced: Vec<String> = variants
-                .iter()
-                .map(|v| English::noun(v, &Number::Plural))
-                .collect();
-            if produced.iter().any(|p| p == wiki_plural) {
-                score.hit();
-            } else {
-                score.miss();
-                writer.write_record(&[lemma.clone(), wiki_plural.clone(), produced[0].clone()])?;
-            }
+    let mut score = Score::default();
+    for (lemma, forms) in &attested {
+        let keys = numbered_variants(lemma);
+        let produced: BTreeSet<String> =
+            keys.iter().map(|v| English::noun(v, &Number::Plural)).collect();
+        let via_variants: BTreeSet<String> = keys
+            .iter()
+            .flat_map(|v| English::noun_variants(v).iter().map(|s| s.to_string()))
+            .collect();
+        if !score_slot(&mut score, forms, &produced, &via_variants) {
+            let shown: Vec<&str> = forms.iter().map(|s| s.as_str()).collect();
+            writer.write_record(&[
+                lemma.clone(),
+                shown.join("|"),
+                English::noun(lemma, &Number::Plural),
+            ])?;
         }
     }
 
     writer.flush()?;
     println!(
-        "noun plural check: {}/{} ({:.2}%); misses in {}",
-        score.matched,
-        score.total,
+        "noun plural check: {}/{} slots ({:.2}%); misses in {}",
+        score.matched_slots,
+        score.total_slots,
         score.percent(),
         output_path.display()
     );
@@ -155,9 +193,11 @@ pub fn check_verb_conjugations(
 
     let output_path = output_path.as_ref();
     let (reader, mut writer) = base_setup(input_path.as_ref(), output_path);
-    writer.write_record(&["lemma", "wiki_form", "slot", "library_said"])?;
+    writer.write_record(&["lemma", "slot", "attested_forms", "library_said"])?;
 
-    let mut score = Score::default();
+    const SLOTS: usize = 4; // 3sg, past, pres_part, past_part
+    let slot_name = ["3sg", "past", "pres_part", "past_part"];
+    let mut attested: BTreeMap<String, [BTreeSet<String>; SLOTS]> = BTreeMap::new();
 
     for line in reader.lines() {
         let line = line?;
@@ -172,9 +212,6 @@ pub fn check_verb_conjugations(
         if lemma == "be" {
             continue; // handled directly by english-core, not the tables
         }
-
-        // (attested form, slot label, person, number, tense, form)
-        let mut targets: Vec<(String, &'static str, Person, Number, Tense, Form)> = Vec::new();
         if let Some(forms) = &entry.forms {
             for form in forms {
                 let f = form.form.to_lowercase();
@@ -182,38 +219,61 @@ pub fn check_verb_conjugations(
                     continue;
                 }
                 let has = |t: &str| form.tags.iter().any(|x| x == t);
-                if has("third-person") && has("singular") && has("present") {
-                    targets.push((f.clone(), "3sg", Person::Third, Number::Singular, Tense::Present, Form::Finite));
+                let slot = if has("third-person") && has("singular") && has("present") {
+                    0
                 } else if has("participle") && has("present") {
-                    targets.push((f.clone(), "pres_part", Person::Third, Number::Singular, Tense::Present, Form::Participle));
+                    2
                 } else if has("participle") && has("past") {
-                    targets.push((f.clone(), "past_part", Person::Third, Number::Singular, Tense::Past, Form::Participle));
+                    3
                 } else if has("past") {
-                    targets.push((f.clone(), "past", Person::Third, Number::Singular, Tense::Past, Form::Finite));
-                }
+                    1
+                } else {
+                    continue;
+                };
+                attested.entry(lemma.clone()).or_default()[slot].insert(f);
             }
         }
+    }
 
-        for (wiki_form, slot, person, number, tense, form_type) in targets {
-            let variants = numbered_variants(&lemma);
-            let produced: Vec<String> = variants
+    let slot_query = |v: &str, slot: usize| match slot {
+        0 => English::verb(v, &Person::Third, &Number::Singular, &Tense::Present, &Form::Finite),
+        1 => English::verb(v, &Person::Third, &Number::Singular, &Tense::Past, &Form::Finite),
+        2 => English::verb(v, &Person::Third, &Number::Singular, &Tense::Present, &Form::Participle),
+        _ => English::verb(v, &Person::Third, &Number::Singular, &Tense::Past, &Form::Participle),
+    };
+
+    let mut score = Score::default();
+    for (lemma, slots) in &attested {
+        let keys = numbered_variants(lemma);
+        for (slot, forms) in slots.iter().enumerate() {
+            if forms.is_empty() {
+                continue;
+            }
+            let produced: BTreeSet<String> = keys.iter().map(|v| slot_query(v, slot)).collect();
+            let via_variants: BTreeSet<String> = keys
                 .iter()
-                .map(|v| English::verb(v, &person, &number, &tense, &form_type))
+                .flat_map(|v| {
+                    let (a, b, c, d) = English::verb_variants(v);
+                    [a, b, c, d][slot].iter().map(|s| s.to_string())
+                })
                 .collect();
-            if produced.iter().any(|p| *p == wiki_form) {
-                score.hit();
-            } else {
-                score.miss();
-                writer.write_record(&[lemma.clone(), wiki_form, slot.to_string(), produced[0].clone()])?;
+            if !score_slot(&mut score, forms, &produced, &via_variants) {
+                let shown: Vec<&str> = forms.iter().map(|s| s.as_str()).collect();
+                writer.write_record(&[
+                    lemma.clone(),
+                    slot_name[slot].to_string(),
+                    shown.join("|"),
+                    slot_query(lemma, slot),
+                ])?;
             }
         }
     }
 
     writer.flush()?;
     println!(
-        "verb form check: {}/{} ({:.2}%); misses in {}",
-        score.matched,
-        score.total,
+        "verb form check: {}/{} slots ({:.2}%); misses in {}",
+        score.matched_slots,
+        score.total_slots,
         score.percent(),
         output_path.display()
     );
@@ -229,10 +289,11 @@ pub fn check_adjective_forms(
 
     let output_path = output_path.as_ref();
     let (reader, mut writer) = base_setup(input_path.as_ref(), output_path);
-    writer.write_record(&["lemma", "wiki_form", "degree", "library_said"])?;
+    writer.write_record(&["lemma", "degree", "attested_forms", "library_said"])?;
 
-    let mut score = Score::default();
-
+    // Periphrastic attestations ("more free") are legitimate for adjectives, so
+    // no word_is_proper filter on the forms here.
+    let mut attested: BTreeMap<String, [BTreeSet<String>; 2]> = BTreeMap::new();
     for line in reader.lines() {
         let line = line?;
         let entry: Entry = match serde_json::from_str(&line) {
@@ -243,9 +304,6 @@ pub fn check_adjective_forms(
             continue;
         }
         let lemma = entry.word.to_lowercase();
-
-        let mut comps = Vec::new();
-        let mut sups = Vec::new();
         if let Some(forms) = &entry.forms {
             for form in forms {
                 let f = form.form.to_lowercase();
@@ -253,44 +311,49 @@ pub fn check_adjective_forms(
                     continue;
                 }
                 if form.tags.iter().any(|t| t == "comparative") {
-                    comps.push(f.clone());
+                    attested.entry(lemma.clone()).or_default()[0].insert(f.clone());
                 }
                 if form.tags.iter().any(|t| t == "superlative") {
-                    sups.push(f);
+                    attested.entry(lemma.clone()).or_default()[1].insert(f);
                 }
             }
         }
+    }
 
-        let variants = numbered_variants(&lemma);
-        for (attested, degree, label) in [
-            (&comps, Degree::Comparative, "Comparative"),
-            (&sups, Degree::Superlative, "Superlative"),
-        ] {
-            for wiki_form in attested {
-                let produced: Vec<String> = variants
-                    .iter()
-                    .map(|v| English::adj(v, &degree))
-                    .collect();
-                if produced.iter().any(|p| p == wiki_form) {
-                    score.hit();
-                } else {
-                    score.miss();
-                    writer.write_record(&[
-                        lemma.clone(),
-                        wiki_form.clone(),
-                        label.to_string(),
-                        produced[0].clone(),
-                    ])?;
-                }
+    let mut score = Score::default();
+    for (lemma, slots) in &attested {
+        let keys = numbered_variants(lemma);
+        for (slot, forms) in slots.iter().enumerate() {
+            if forms.is_empty() {
+                continue;
+            }
+            let degree = if slot == 0 { Degree::Comparative } else { Degree::Superlative };
+            let produced: BTreeSet<String> =
+                keys.iter().map(|v| English::adj(v, &degree)).collect();
+            let via_variants: BTreeSet<String> = keys
+                .iter()
+                .flat_map(|v| {
+                    let (c, s) = English::adj_variants(v);
+                    [c, s][slot].iter().map(|x| x.to_string())
+                })
+                .collect();
+            if !score_slot(&mut score, forms, &produced, &via_variants) {
+                let shown: Vec<&str> = forms.iter().map(|s| s.as_str()).collect();
+                writer.write_record(&[
+                    lemma.clone(),
+                    if slot == 0 { "Comparative" } else { "Superlative" }.to_string(),
+                    shown.join("|"),
+                    English::adj(lemma, &degree),
+                ])?;
             }
         }
     }
 
     writer.flush()?;
     println!(
-        "adj form check: {}/{} ({:.2}%); misses in {}",
-        score.matched,
-        score.total,
+        "adj form check: {}/{} slots ({:.2}%); misses in {}",
+        score.matched_slots,
+        score.total_slots,
         score.percent(),
         output_path.display()
     );

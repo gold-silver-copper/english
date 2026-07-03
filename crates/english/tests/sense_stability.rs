@@ -87,6 +87,28 @@ fn trailing_digits_strip_only_for_real_table_keys() {
 }
 
 #[test]
+fn canonical_variant_selection_follows_listing_order() {
+    // Among several plain attested forms, the FIRST-LISTED one is canonical
+    // (Wiktionary head templates list the canonical form first) — not the
+    // lexicographically smallest. Regression: abide used to emit "abid".
+    assert_eq!(past_finite("abide"), "abode");
+}
+
+#[test]
+fn variants_api_recovers_collapsed_alternates() {
+    // Canonical selection emits ONE form per slot; the other plain attested
+    // forms are reachable through the variants API (recognition aid only —
+    // not covered by the key-stability guarantee).
+    let (_, past, _, _) = English::verb_variants("abide");
+    assert!(past.contains(&"abided"), "{past:?}");
+    let (_, past, _, _) = English::verb_variants("crow");
+    assert!(past.contains(&"crowed"), "{past:?}");
+    assert!(English::noun_variants("octopus2").contains(&"octopuses"));
+    // Unknown words return empty slices, never panic.
+    assert!(English::noun_variants("mp3").is_empty());
+}
+
+#[test]
 fn capitalized_input_preserves_its_casing() {
     // Tables are all-lowercase; Title-case and ALL-CAPS input must still hit them,
     // with the casing restored on the value. Regular-rule fallbacks always
