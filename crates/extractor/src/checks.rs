@@ -99,16 +99,10 @@ fn published_keys(table_keys: &[&'static str]) -> std::collections::BTreeMap<Str
     let mut by_lemma: std::collections::BTreeMap<String, Vec<String>> =
         std::collections::BTreeMap::new();
     for key in table_keys {
-        let lemma = match key.rsplit_once('_') {
-            Some((base, digits))
-                if !base.is_empty()
-                    && !digits.is_empty()
-                    && digits.bytes().all(|b| b.is_ascii_digit()) =>
-            {
-                base
-            }
-            _ => key,
-        };
+        // The one shared decoder for the emitted-key format (see registry::split_key).
+        let lemma = crate::registry::split_key(key)
+            .map(|(base, _)| base)
+            .unwrap_or(key);
         by_lemma
             .entry(lemma.to_string())
             .or_default()

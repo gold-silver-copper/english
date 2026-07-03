@@ -28,7 +28,10 @@
 //! 1. Case-insensitive: Title-case and ALL-CAPS input hit the all-lowercase
 //!    tables with the casing restored on the value; regular-rule fallbacks get
 //!    the identical treatment via [`rule_with_case`], so `HOT -> HOTTER`
-//!    exactly as `GOOD -> BEST`. Mixed case is never guessed at.
+//!    exactly as `GOOD -> BEST`. Mixed case is never guessed at. Known acronym
+//!    homographs of irregular rows are excluded from the case-folded fallback
+//!    (`US` inflects by rule, never through the `us` row — see
+//!    `ACRONYM_SHADOWED`).
 //! 2. Base-lemma agreement: when a `_<n>` suffix strips (the word or its base
 //!    is a table key), EVERY code path treats the input as that base lemma —
 //!    lookups fall back `get_*(word)` then `get_*(base)` so `child_2` inflects
@@ -138,6 +141,14 @@ fn rule_with_case(word: &str, rule: impl Fn(&str) -> String) -> String {
     }
 }
 
+/// Lowercase table rows shadowed by a common ALL-CAPS/Title-case homograph:
+/// `US`/`Us` (the acronym / its title-casing) must not pluralize through the
+/// closed-class row `"us" => "uss"`. The case-folded fallback skips these keys
+/// — such input inflects by rule instead — while every other key restyles as
+/// usual (`CHILD -> CHILDREN`). Curated and tiny; extend it if another common
+/// acronym collides with an attested irregular row.
+const ACRONYM_SHADOWED: &[&str] = &["us"];
+
 /// Case-insensitive table lookup: the exact key first; for Title/ALL-CAPS input,
 /// fall back to the lowercase key (the tables are all-lowercase) and remember how
 /// to restore the casing onto the value. Regular-rule fallbacks never need this —
@@ -147,12 +158,32 @@ fn ci_lookup<T>(word: &str, get: impl Fn(&str) -> Option<T>) -> Option<(T, CaseS
         return Some((v, CaseStyle::AsIs));
     }
     let style = case_style(word);
-    if style != CaseStyle::AsIs
-        && let Some(v) = get(&word.to_lowercase())
-    {
-        return Some((v, style));
+    if style != CaseStyle::AsIs {
+        let lower = word.to_lowercase();
+        if !ACRONYM_SHADOWED.contains(&lower.as_str())
+            && let Some(v) = get(&lower)
+        {
+            return Some((v, style));
+        }
     }
     None
+}
+
+/// `ci_lookup` on the word, then on its base lemma — skipping the second,
+/// byte-identical probe when no sense suffix stripped (the common case: most
+/// input has no `_<n>` suffix, so `base == word`).
+fn ci_lookup_with_base<T>(
+    word: &str,
+    base: &str,
+    get: impl Fn(&str) -> Option<T>,
+) -> Option<(T, CaseStyle)> {
+    ci_lookup(word, &get).or_else(|| {
+        if base != word {
+            ci_lookup(base, &get)
+        } else {
+            None
+        }
+    })
 }
 
 /// Test-only visibility into the generated tables (integration tests cannot see
@@ -186,7 +217,9 @@ impl English {
     ///
     /// Handles irregular nouns (e.g., `"child" -> "children"`) and
     /// falls back to regular pluralization rules when no override is found.
-    /// Strips trailing numbers used for sense disambiguation (`"die_2" -> "dice"`).
+    /// Sense-numbered keys resolve to their pinned homograph (`"die_2" -> "dice"`);
+    /// a `_<n>` suffix that resolves to no table key stays opaque
+    /// (`"cat_2" -> "cat_2s"`).
     ///
     /// # Examples
     /// ```rust
@@ -202,9 +235,7 @@ impl English {
         match number {
             Number::Singular => base_word.to_string(),
             Number::Plural => {
-                if let Some((x, style)) =
-                    ci_lookup(word, get_plural).or_else(|| ci_lookup(base_word, get_plural))
-                {
+                if let Some((x, style)) = ci_lookup_with_base(word, base_word, get_plural) {
                     restyle(x.to_owned(), style)
                 } else {
                     rule_with_case(base_word, |w| EnglishCore::noun(w, number))
@@ -218,7 +249,9 @@ impl English {
     /// Handles irregular adjectives (e.g., `"good" -> "better"/"best"`)
     /// and falls back to regular periphrastic forms
     /// (e.g., `"fun" -> "more fun"/"most fun"`).
-    /// Strips trailing numbers used for disambiguation (`"bad_2"` -> `"badder"`).
+    /// Sense-numbered keys resolve to their pinned homograph
+    /// (`"bad_2"` -> `"badder"`); a suffix that resolves to no table key stays
+    /// opaque.
     ///
     /// # Examples
     /// ```rust
@@ -230,22 +263,20 @@ impl English {
     /// ```
     pub fn adj(word: &str, degree: &Degree) -> String {
         let base_word = base_lemma(word, |w| ci_lookup(w, get_adjective_forms).is_some());
-        let forms = ci_lookup(word, get_adjective_forms)
-            .or_else(|| ci_lookup(base_word, get_adjective_forms));
+        // The table lookup lives inside the arms that use it: Positive returns
+        // the base lemma directly and must not pay two probes for nothing.
         match degree {
             Degree::Positive => base_word.to_owned(),
             Degree::Comparative => {
-                if let Some(((comp, _), style)) = forms {
-                    restyle(comp.to_owned(), style)
-                } else {
-                    rule_with_case(base_word, EnglishCore::comparative)
+                match ci_lookup_with_base(word, base_word, get_adjective_forms) {
+                    Some(((comp, _), style)) => restyle(comp.to_owned(), style),
+                    None => rule_with_case(base_word, EnglishCore::comparative),
                 }
             }
             Degree::Superlative => {
-                if let Some(((_, sup), style)) = forms {
-                    restyle(sup.to_owned(), style)
-                } else {
-                    rule_with_case(base_word, EnglishCore::superlative)
+                match ci_lookup_with_base(word, base_word, get_adjective_forms) {
+                    Some(((_, sup), style)) => restyle(sup.to_owned(), style),
+                    None => rule_with_case(base_word, EnglishCore::superlative),
                 }
             }
         }
@@ -294,7 +325,7 @@ impl English {
         form: &Form,
     ) -> String {
         let base_word = base_lemma(word, |w| ci_lookup(w, get_verb_forms).is_some());
-        match ci_lookup(word, get_verb_forms).or_else(|| ci_lookup(base_word, get_verb_forms)) {
+        match ci_lookup_with_base(word, base_word, get_verb_forms) {
             Some((wordik, style)) => match (person, number, tense, form) {
                 // Branches that return the lemma itself keep the caller's own
                 // casing; branches that return a table value restore it.

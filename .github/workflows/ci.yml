@@ -24,9 +24,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace
-      # Examples are assert-based demos that `cargo test` never executes — run
-      # them so stale key formats or API drift in examples fail CI, not users.
+      # Examples are assert-based demos that `cargo test` never executes (it only
+      # compiles them) — run every assert-bearing example so stale key formats or
+      # behavioral drift in examples fail CI, not users. speedmark is excluded:
+      # it is a benchmark with no asserts.
       - run: cargo run -p english --example test
+      - run: cargo run -p english --example semantic_triples
 
   # Blocking: the dump-free determinism gate. Verifies (a) the lockfiles are
   # internally consistent, (b) no published key changed meaning vs the PR base

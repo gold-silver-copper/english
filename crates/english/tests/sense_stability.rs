@@ -110,6 +110,60 @@ fn attested_variants_are_numbered_keys_in_listing_order() {
 }
 
 #[test]
+fn table_column_order_is_pinned() {
+    // Canary for the lock -> table emitter. check-registry's sync gate
+    // regenerates tables with the SAME in-tree emitter it verifies, so an
+    // emitter bug that permutes columns (past <-> past participle, comparative
+    // <-> superlative) would pass it by construction. These keys have pairwise
+    // DISTINCT column values, so any permutation fails here instead: regular
+    // pairs like lied/lied can't detect a swap, went/gone/going/goes can.
+    assert_eq!(
+        English::verb(
+            "go",
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Present,
+            &Form::Finite
+        ),
+        "goes"
+    );
+    assert_eq!(past_finite("go"), "went");
+    assert_eq!(
+        English::verb(
+            "go",
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Present,
+            &Form::Participle
+        ),
+        "going"
+    );
+    assert_eq!(
+        English::verb(
+            "go",
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Past,
+            &Form::Participle
+        ),
+        "gone"
+    );
+    assert_eq!(English::adj("good", &Degree::Comparative), "better");
+    assert_eq!(English::adj("good", &Degree::Superlative), "best");
+    assert_eq!(English::noun("child", &Number::Plural), "children");
+}
+
+#[test]
+fn acronym_homographs_never_hit_shadowing_table_rows() {
+    // "US" (the acronym) lowercases to the attested irregular row "us" => "uss";
+    // the case-folded fallback must skip such shadowed rows and inflect by rule
+    // instead of publishing "USS". Lowercase "us" itself still hits the table.
+    assert_eq!(English::noun("US", &Number::Plural), "USES");
+    assert_eq!(English::noun("Us", &Number::Plural), "Uses");
+    assert_eq!(English::noun("us", &Number::Plural), "uss");
+}
+
+#[test]
 fn capitalized_input_preserves_its_casing() {
     // Tables are all-lowercase; Title-case and ALL-CAPS input must still hit them,
     // with the casing restored on the value. Regular-rule fallbacks always

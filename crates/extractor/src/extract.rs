@@ -29,7 +29,7 @@
 use crate::helpers::{
     Entry, Pos, choose_form, entry_is_proper, entry_is_soft, suffix_rule, tag_rank, word_is_proper,
 };
-use crate::registry::{Candidate, Lock, ReapReport};
+use crate::registry::{Candidate, Lock, ReapReport, forms_sig, split_key};
 use csv::{ReaderBuilder, WriterBuilder};
 use english_core::*;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -50,8 +50,9 @@ use std::path::Path;
 #[derive(Default)]
 struct LemmaAcc {
     /// emitted-form signature -> candidate (anchors enriched across the entries that
-    /// share it). Keyed by `forms.join("|")`, so two entries merge only when they emit
-    /// identical forms.
+    /// share it). Keyed by `registry::forms_sig` (the same encoding `Candidate::sig`
+    /// and `drop_regular` use), so two entries merge only when they emit identical
+    /// forms.
     by_sig: BTreeMap<String, Candidate>,
     had_regular: bool,
 }
@@ -64,7 +65,7 @@ impl LemmaAcc {
     /// signature, so two entries merge only when they emit the same forms.
     fn observe(&mut self, forms: Vec<String>, ordinal: u8, entry: &Entry) {
         let soft = entry_is_soft(entry);
-        let sig = forms.join("|");
+        let sig = forms_sig(&forms);
         let is_new = !self.by_sig.contains_key(&sig);
         let c = self
             .by_sig
@@ -86,9 +87,11 @@ impl LemmaAcc {
         merge_min(&mut c.qid, entry.lowest_qid());
         merge_min(&mut c.sid, entry.lowest_senseid());
         merge_min(&mut c.etym, entry.etymology_number);
-        if c.gloss.is_none() {
-            c.gloss = entry.first_gloss();
-        }
+        // The gloss is only a human review aid, but it is PERSISTED in the
+        // lockfile — first-writer-wins would make the committed CSV depend on
+        // dump entry order, producing spurious lock diffs on an upstream
+        // reorder. min() keeps it order-independent like the anchors.
+        merge_min(&mut c.gloss, entry.first_gloss());
     }
 
     /// Drop the pattern that exactly equals the regular prediction; the rule engine
@@ -113,7 +116,7 @@ impl LemmaAcc {
     ///   sole candidate (then the bare key does fall through to the rule and the
     ///   row really would be redundant).
     fn drop_regular(&mut self, predicted: &[String], soft_reserves: bool) {
-        let sig = predicted.join("|");
+        let sig = forms_sig(predicted);
         let Some(c) = self.by_sig.get(&sig) else {
             return;
         };
@@ -159,6 +162,61 @@ fn merge_min<T: Ord>(slot: &mut Option<T>, incoming: Option<T>) {
 
 fn open_reader(path: &Path) -> BufReader<File> {
     BufReader::new(File::open(path).unwrap())
+}
+
+/// A dump pass may tolerate at most this fraction of JSONL lines failing to
+/// deserialize. A healthy dump parses ~100%; a spike means wiktextract changed
+/// its schema (it has before — see `de_etym_number` in helpers.rs), and the
+/// affected lemmas would otherwise silently vanish from the scan and be reaped
+/// as "absent from dump" with nothing pointing at the real cause.
+const MAX_PARSE_FAILURE_FRACTION: f64 = 0.001;
+
+/// Counts parse failures across one dump pass so they are REPORTED, never
+/// silent: below the threshold a summary line still prints (the reap notes
+/// misattribute such losses to absence otherwise), above it the pass hard-errors.
+#[derive(Default)]
+struct ParseTally {
+    lines: usize,
+    failures: usize,
+}
+
+impl ParseTally {
+    fn parse(&mut self, line: &str) -> Option<Entry> {
+        self.lines += 1;
+        match serde_json::from_str(line) {
+            Ok(entry) => Some(entry),
+            Err(_) => {
+                self.failures += 1;
+                None
+            }
+        }
+    }
+
+    fn finish(self, pass: &str) -> Result<(), Box<dyn Error>> {
+        if self.failures == 0 {
+            return Ok(());
+        }
+        let fraction = self.failures as f64 / self.lines.max(1) as f64;
+        if fraction > MAX_PARSE_FAILURE_FRACTION {
+            return Err(format!(
+                "{pass}: {} of {} lines ({:.2}%) failed to deserialize — likely a wiktextract \
+                 schema change; refusing to continue (the affected lemmas would be silently \
+                 reaped as absent). Fix the Entry schema in helpers.rs first.",
+                self.failures,
+                self.lines,
+                100.0 * fraction
+            )
+            .into());
+        }
+        println!(
+            "WARNING {pass}: {} of {} lines failed to deserialize (below the {:.2}% abort \
+             threshold); their lemmas are invisible to this pass.",
+            self.failures,
+            self.lines,
+            100.0 * MAX_PARSE_FAILURE_FRACTION
+        );
+        Ok(())
+    }
 }
 
 /// Pick the form to emit for one inflection slot, falling back to the regular rule
@@ -217,11 +275,11 @@ pub fn extract_irregular_nouns(
     let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
 
     let reader = open_reader(input_path);
+    let mut tally = ParseTally::default();
     for line in reader.lines() {
         let line = line?;
-        let entry: Entry = match serde_json::from_str(&line) {
-            Ok(entry) => entry,
-            Err(_) => continue,
+        let Some(entry) = tally.parse(&line) else {
+            continue;
         };
 
         if !entry_is_proper(&entry, "noun") {
@@ -253,13 +311,13 @@ pub fn extract_irregular_nouns(
         }
 
         // Every distinct PLAIN attested plural becomes its own candidate: each
-        // variant gets its own numbered key (`cactus2` -> cacti, `cactus3` -> ...),
+        // variant gets its own numbered key (`cactus_2` -> cacti, `cactus_3` -> ...),
         // with the listing index as the cold-start ordinal so the head template's
         // canonical-first order decides the numbering, not the alphabet. Soft
         // forms (`busses`, nonstandard `sheeps`) are never emitted. The candidate
         // that EQUALS the rule prediction is observed too and removed at lemma
         // level by drop_regular, which reserves the bare key for the rule engine
-        // (`die` -> dies via the rule, `die2` -> dice); only when no plain regular
+        // (`die` -> dies via the rule, `die_2` -> dice); only when no plain regular
         // is attested does an irregular take the bare key (`child` -> children,
         // `sheep` -> sheep). soft_reserves=true for nouns: a soft-SENSE entry's
         // plain regular still reserves — measured on the real dump, the
@@ -274,6 +332,7 @@ pub fn extract_irregular_nouns(
             acc.observe(vec![form.clone()], (seen.len() - 1) as u8, &entry);
         }
     }
+    tally.finish("extract_irregular_nouns")?;
 
     let mut resolved: HashSet<String> = HashSet::new();
     for (lemma, mut acc) in by_lemma {
@@ -309,11 +368,11 @@ pub fn extract_irregular_adjectives(
     let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
     let reader = open_reader(input_path);
 
+    let mut tally = ParseTally::default();
     for line in reader.lines() {
         let line = line?;
-        let entry: Entry = match serde_json::from_str(&line) {
-            Ok(entry) => entry,
-            Err(_) => continue,
+        let Some(entry) = tally.parse(&line) else {
+            continue;
         };
         if !entry_is_proper(&entry, "adj") {
             continue;
@@ -403,7 +462,7 @@ pub fn extract_irregular_adjectives(
         // variant tuple equals the prediction, is dropped by drop_regular, and —
         // when standard-sense — reserves the bare key for the rule engine, moving
         // the suffixal form to suffix 2. That is the same attested-regular-reserves
-        // policy as die/die2 and abide/abide2.
+        // policy as die/die_2 and abide/abide_2.
         let acc = by_lemma.entry(lemma).or_default();
         acc.observe(vec![comparative.clone(), superlative.clone()], 0, &entry);
         let alt = [
@@ -427,6 +486,7 @@ pub fn extract_irregular_adjectives(
             );
         }
     }
+    tally.finish("extract_irregular_adjectives")?;
 
     let mut resolved: HashSet<String> = HashSet::new();
     for (lemma, mut acc) in by_lemma {
@@ -467,11 +527,11 @@ pub fn extract_verb_conjugations(
     let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
     let reader = open_reader(input_path);
 
+    let mut tally = ParseTally::default();
     for line in reader.lines() {
         let line = line?;
-        let entry: Entry = match serde_json::from_str(&line) {
-            Ok(entry) => entry,
-            Err(_) => continue,
+        let Some(entry) = tally.parse(&line) else {
+            continue;
         };
         if !entry_is_proper(&entry, "verb") {
             continue;
@@ -577,7 +637,7 @@ pub fn extract_verb_conjugations(
         // fully regular is dropped at lemma level by drop_regular, reserving the
         // bare key for the rule engine — so a verb attesting both an irregular and
         // the regular conjugation serves the regular on the bare key and the
-        // irregular at suffix 2, exactly like nouns (`die`/`die2`).
+        // irregular at suffix 2, exactly like nouns (`die`/`die_2`).
         let acc = by_lemma.entry(lemma).or_default();
         let canonical = vec![
             third.clone(),
@@ -604,6 +664,7 @@ pub fn extract_verb_conjugations(
             acc.observe(tuple, (k + 1).min(u8::MAX as usize) as u8, &entry);
         }
     }
+    tally.finish("extract_verb_conjugations")?;
 
     let mut resolved: HashSet<String> = HashSet::new();
     for (lemma, mut acc) in by_lemma {
@@ -665,11 +726,11 @@ pub fn filter_english_entries(
     let reader = BufReader::new(input);
     let mut output = File::create(output_path)?;
 
+    let mut tally = ParseTally::default();
     for line in reader.lines() {
         let line = line?;
-        let entry: Entry = match serde_json::from_str(&line) {
-            Ok(entry) => entry,
-            Err(_) => continue,
+        let Some(entry) = tally.parse(&line) else {
+            continue;
         };
 
         if entry.lang_code != "en" {
@@ -678,23 +739,16 @@ pub fn filter_english_entries(
 
         writeln!(output, "{}", line)?;
     }
+    tally.finish("filter_english_entries")?;
 
     println!("Filtered dataset saved to {}", output_path.display());
     Ok(())
 }
 
 /// Strip a `_<digits>` sense suffix from an emitted key (legacy artifact tool).
+/// Thin wrapper over `registry::split_key`, the one decoder for the key format.
 pub fn strip_trailing_number(word: &str) -> &str {
-    match word.rsplit_once('_') {
-        Some((base, digits))
-            if !base.is_empty()
-                && !digits.is_empty()
-                && digits.bytes().all(|b| b.is_ascii_digit()) =>
-        {
-            base
-        }
-        _ => word,
-    }
+    split_key(word).map(|(base, _)| base).unwrap_or(word)
 }
 
 #[cfg(test)]

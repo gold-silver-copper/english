@@ -18,7 +18,7 @@
 
 use crate::file_generation::{write_adjectives_phf, write_nouns_phf, write_verbs_phf};
 use crate::helpers::Pos;
-use crate::registry::{Lock, LockRow, Status};
+use crate::registry::{Lock, LockRow, Status, sig_anchor, split_key};
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -57,25 +57,16 @@ fn quoted_fields(line: &str) -> Vec<String> {
         .collect()
 }
 
-/// Split an emitted key into `(lemma, suffix)`: a trailing `_<digits>` is the
-/// sense suffix (see `registry::make_key`); anything else is a bare key.
-fn split_key(key: &str) -> (&str, u32) {
-    if let Some((base, digits)) = key.rsplit_once('_')
-        && !base.is_empty()
-        && !digits.is_empty()
-        && digits.bytes().all(|b| b.is_ascii_digit())
-    {
-        return (base, digits.parse().unwrap_or(1));
-    }
-    (key, 1)
-}
-
 /// Build a lock for one part of speech directly from existing `(key, forms)` pairs.
+/// Key decoding and the `sig:` anchor encoding are `registry`'s (`split_key`,
+/// `sig_anchor`) — seeded anchors must correspond byte-for-byte to the signatures
+/// refresh-time matching computes, or sig-frozen rows would mass-tombstone on the
+/// next refresh.
 pub fn lock_from_pairs(pairs: &[KeyForms], pos: Pos, date: &str) -> Lock {
     let mut lock = Lock::new();
     for (key, forms) in pairs {
-        let (lemma, suffix) = split_key(key);
-        let anchor = format!("sig:{}", forms.join("|"));
+        let (lemma, suffix) = split_key(key).unwrap_or((key, 1));
+        let anchor = sig_anchor(forms);
         lock.insert_row(LockRow {
             lemma: lemma.to_string(),
             pos,

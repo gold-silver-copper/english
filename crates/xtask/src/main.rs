@@ -278,13 +278,31 @@ fn resolve_baseline(root: &Path) -> Result<Option<String>, Box<dyn Error>> {
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
+    let in_ci = base_ref.is_some() || env::var("CI").is_ok();
     let candidates: Vec<String> = match &base_ref {
         Some(b) => vec![format!("origin/{b}"), b.clone()],
         None => vec!["origin/main".to_string(), "main".to_string()],
     };
 
+    let head = git_rev_parse(root, "HEAD")?;
     for base in &candidates {
         if let Some(mb) = git_merge_base(root, base, "HEAD")? {
+            // On a push-to-main CI run there is no GITHUB_BASE_REF and origin/main
+            // IS the pushed commit, so the merge-base equals HEAD and the lock
+            // would be diffed against itself — a vacuous gate (comparing against
+            // HEAD is exactly what the baseline exists to avoid). Gate against
+            // the previous tip (first parent) instead so direct pushes to main
+            // are still checked.
+            if in_ci && Some(&mb) == head.as_ref() {
+                return match git_rev_parse(root, "HEAD^")? {
+                    Some(prev) => Ok(Some(prev)),
+                    None => Err(
+                        "check-registry: the baseline resolved to HEAD itself and HEAD has no \
+                         parent; refusing to run a vacuous cross-version check in CI."
+                            .into(),
+                    ),
+                };
+            }
             return Ok(Some(mb));
         }
     }
@@ -293,7 +311,6 @@ fn resolve_baseline(root: &Path) -> Result<Option<String>, Box<dyn Error>> {
     // checkout, a missing base fetch, or a renamed default branch would otherwise
     // silently disable the headline cross-version immutability check while CI stays
     // green. Locally (no CI) it's fine to skip the cross-version comparison.
-    let in_ci = base_ref.is_some() || env::var("CI").is_ok();
     if in_ci {
         return Err(format!(
             "check-registry: could not resolve a baseline ref ({}) to gate against. \
@@ -458,6 +475,22 @@ fn regen_tables() -> Result<(), Box<dyn Error>> {
     let assignments_dir = default_assignments_dir()?;
     let generated_dir = default_generated_dir()?;
     let (noun, verb, adj) = load_locks(&assignments_dir)?;
+    // A structurally invalid lock (hand-edit, bad merge) must never reach the
+    // emitter: the pad-with-default column path would happily write "" inflections.
+    let invalid: Vec<String> = noun
+        .validate()
+        .into_iter()
+        .chain(verb.validate())
+        .chain(adj.validate())
+        .collect();
+    if !invalid.is_empty() {
+        return Err(format!(
+            "refusing to regenerate tables — {} structural violation(s) in the lockfiles:\n  - {}",
+            invalid.len(),
+            invalid.join("\n  - ")
+        )
+        .into());
+    }
     generate_tables(&noun, &verb, &adj, &generated_dir)?;
     println!(
         "Regenerated tables in {} from the lockfiles.",
@@ -482,14 +515,35 @@ fn report_coverage() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// `git show <rev:path>`; returns None if the object does not exist.
+/// `git show <rev:path>`; `Ok(None)` ONLY when the path does not exist at that
+/// revision (a genuinely new file). Any other git failure — bad object, missing
+/// tree, corrupt/partial clone — is a hard error: callers treat `None` as
+/// "skip the cross-version check", and the immutability gate must never fail
+/// open because git itself failed.
 fn git_show(root: &Path, target: &str) -> Result<Option<String>, Box<dyn Error>> {
     let out = Command::new("git")
         .current_dir(root)
         .args(["show", target])
         .output()?;
     if out.status.success() {
-        Ok(Some(String::from_utf8_lossy(&out.stdout).into_owned()))
+        return Ok(Some(String::from_utf8_lossy(&out.stdout).into_owned()));
+    }
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    if stderr.contains("does not exist") || stderr.contains("exists on disk, but not in") {
+        return Ok(None);
+    }
+    Err(format!("`git show {target}` failed: {}", stderr.trim()).into())
+}
+
+/// `git rev-parse --verify <rev>`; `None` when the rev cannot be resolved.
+fn git_rev_parse(root: &Path, rev: &str) -> Result<Option<String>, Box<dyn Error>> {
+    let out = Command::new("git")
+        .current_dir(root)
+        .args(["rev-parse", "--verify", rev])
+        .output()?;
+    if out.status.success() {
+        let sha = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        Ok((!sha.is_empty()).then_some(sha))
     } else {
         Ok(None)
     }

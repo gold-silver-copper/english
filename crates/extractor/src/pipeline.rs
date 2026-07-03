@@ -89,8 +89,10 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
     if !skipped.is_empty() && !config.allow_partial_refresh {
         return Err(format!(
             "refusing to write lockfiles: the dump looks partial/corrupt (mass-absence reap \
-             guard tripped for: {}). Nothing was written. If this dump is genuinely correct, \
-             re-run with --allow-partial-refresh.",
+             guard tripped for: {}). Nothing was written. --allow-partial-refresh proceeds \
+             WITHOUT reaping (vanished lemmas stay active with their last-seen forms — it does \
+             not mean 'trust this dump'); if this many lemmas really did vanish upstream, raise \
+             REAP_MAX_FRACTION deliberately and review the tombstone diff.",
             skipped.join(", ")
         )
         .into());

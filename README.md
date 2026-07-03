@@ -213,7 +213,7 @@ It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive
 * Resolves homograph sense numbers against the checked-in assignment lockfiles so keys stay stable across releases
 * Generates the static PHF tables used in `english`
 * Emits every plain attested variant as its own sense-numbered key (`cactus_2` → *cacti*, `cactus_3` → …), numbered canonical-first by the head template's listing order; each variant key is pinned in the lockfiles like any other
-* `cargo xtask accuracy` measures, per part of speech, the share of slots whose plain attested Wiktionary forms the library reproduces, plus the variant gap (attested forms not reachable through any published key) — run it before and after any rule or table change
+* `cargo xtask accuracy` measures, per part of speech, the share of slots whose plain attested Wiktionary forms the library reproduces, plus the variant gap (attested forms not reachable through any published key) — run it before and after any rule or table change. It needs dump data: either the cached `data/intermediate/english_filtered.jsonl` (gitignored; produced by a prior `cargo xtask refresh-data`) or an explicit `--dump /path/to/raw-wiktextract.jsonl`
 
 ---
 
