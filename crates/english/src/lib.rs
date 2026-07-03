@@ -19,27 +19,6 @@ mod verb_phf {
     ));
 }
 use verb_phf::*;
-mod noun_variants_phf {
-    include!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/generated/noun_variants_phf.rs"
-    ));
-}
-use noun_variants_phf::*;
-mod verb_variants_phf {
-    include!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/generated/verb_variants_phf.rs"
-    ));
-}
-use verb_variants_phf::*;
-mod adj_variants_phf {
-    include!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/generated/adj_variants_phf.rs"
-    ));
-}
-use adj_variants_phf::*;
 
 /// Trims trailing ASCII digits — the raw sense-suffix strip. Suffixes are allocated
 /// append-only and may grow past a single digit.
@@ -302,51 +281,6 @@ impl English {
     pub fn pronoun(person: &Person, number: &Number, gender: &Gender, case: &Case) -> &'static str {
         EnglishCore::pronoun(person, number, gender, case)
     }
-    /// Alternate plain attested plurals for a noun key, beyond the canonical one
-    /// [`English::noun`] produces — e.g. a lemma attesting both `cacti` and
-    /// `cactuses` emits one canonical plural and lists the other here.
-    ///
-    /// Recognition aid only: variants are drawn from the current data revision
-    /// and are NOT covered by the sense-key stability guarantee (they may change
-    /// across data refreshes; only the keys themselves are pinned). Returns an
-    /// empty slice for unknown words.
-    pub fn noun_variants(word: &str) -> &'static [&'static str] {
-        let base_word = base_lemma(word, |w| ci_lookup(w, get_plural).is_some());
-        ci_lookup(word, |w| PLURAL_VARIANTS.get(w).copied())
-            .or_else(|| ci_lookup(base_word, |w| PLURAL_VARIANTS.get(w).copied()))
-            .map(|(v, _)| v)
-            .unwrap_or(&[])
-    }
-
-    /// Alternate plain attested verb forms for a key, as
-    /// `(3sg, past, present participle, past participle)` slices. Same caveats
-    /// as [`English::noun_variants`].
-    pub fn verb_variants(
-        word: &str,
-    ) -> (
-        &'static [&'static str],
-        &'static [&'static str],
-        &'static [&'static str],
-        &'static [&'static str],
-    ) {
-        let base_word = base_lemma(word, |w| ci_lookup(w, get_verb_forms).is_some());
-        ci_lookup(word, |w| VERB_VARIANTS.get(w).copied())
-            .or_else(|| ci_lookup(base_word, |w| VERB_VARIANTS.get(w).copied()))
-            .map(|(v, _)| v)
-            .unwrap_or((&[], &[], &[], &[]))
-    }
-
-    /// Alternate plain attested adjective forms for a key, as
-    /// `(comparative, superlative)` slices. Same caveats as
-    /// [`English::noun_variants`].
-    pub fn adj_variants(word: &str) -> (&'static [&'static str], &'static [&'static str]) {
-        let base_word = base_lemma(word, |w| ci_lookup(w, get_adjective_forms).is_some());
-        ci_lookup(word, |w| ADJECTIVE_VARIANTS.get(w).copied())
-            .or_else(|| ci_lookup(base_word, |w| ADJECTIVE_VARIANTS.get(w).copied()))
-            .map(|(v, _)| v)
-            .unwrap_or((&[], &[]))
-    }
-
     /// Adds an English possessive suffix (`'s` or `'`) to a word.
     ///
     /// # Examples

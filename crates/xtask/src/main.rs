@@ -193,14 +193,7 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
     let _ = fs::remove_dir_all(&tmp);
     fs::create_dir_all(&tmp)?;
     generate_tables(&noun, &verb, &adj, &tmp)?;
-    for name in [
-        "noun_phf.rs",
-        "verb_phf.rs",
-        "adj_phf.rs",
-        "noun_variants_phf.rs",
-        "verb_variants_phf.rs",
-        "adj_variants_phf.rs",
-    ] {
+    for name in ["noun_phf.rs", "verb_phf.rs", "adj_phf.rs"] {
         // A missing committed table is a violation, not "in sync" — never treat an
         // absent file as equal to the regenerated one.
         let committed = match fs::read(generated_dir.join(name)) {

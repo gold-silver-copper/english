@@ -10,7 +10,7 @@
 //! Two companion numbers are reported per POS:
 //! - the slot accuracy (the headline);
 //! - the variant gap: how many plain attested forms the library cannot produce
-//!   at all (the canonical-collapse remainder that the variants tables recover).
+//!   through any published key (bare or sense-numbered).
 //!
 //! Soft-tagged (nonstandard/dialectal/...) and excluded (obsolete/...) forms are
 //! not counted: by policy the library never emits them. Run
@@ -34,8 +34,6 @@ pub struct Score {
     pub total_slots: u64,
     /// Plain attested forms the library cannot produce for their slot.
     pub unreachable_forms: u64,
-    /// Of the unreachable forms, how many the variants API surfaces.
-    pub recovered_by_variants: u64,
 }
 
 #[cfg_attr(not(feature = "checks"), allow(dead_code))]
@@ -63,12 +61,11 @@ pub fn run_checks(filtered_json_path: &Path, artifacts_dir: &Path) -> Result<(),
         println!("\naccuracy (slots whose plain attested forms the library reproduces):");
         for (name, s) in [("noun plural", noun), ("verb forms", verb), ("adj comp/sup", adj)] {
             println!(
-                "  {name:>12}: {:>7}/{:<7} = {:.2}%   variant gap: {} attested form(s) not produced, {} recovered by the variants API",
+                "  {name:>12}: {:>7}/{:<7} = {:.2}%   variant gap: {} attested form(s) not produced",
                 s.matched_slots,
                 s.total_slots,
                 s.percent(),
                 s.unreachable_forms,
-                s.recovered_by_variants,
             );
         }
         Ok(())
@@ -87,34 +84,25 @@ pub fn run_checks(filtered_json_path: &Path, artifacts_dir: &Path) -> Result<(),
 #[cfg(feature = "checks")]
 fn numbered_variants(word: &str) -> Vec<String> {
     let mut variants = vec![word.to_string()];
-    for i in 2..=9 {
+    for i in 2..=15 {
         variants.push(format!("{word}{i}"));
     }
     variants
 }
 
-/// Score one slot: attested set vs the outputs produced across numbered keys,
-/// with `extra_reachable` (the variants-API surface) credited for gap recovery.
+/// Score one slot: attested set vs the outputs produced across numbered keys.
 #[cfg(feature = "checks")]
 fn score_slot(
     score: &mut Score,
     attested: &BTreeSet<String>,
     produced: &BTreeSet<String>,
-    extra_reachable: &BTreeSet<String>,
 ) -> bool {
     score.total_slots += 1;
     let hit = attested.iter().any(|f| produced.contains(f));
     if hit {
         score.matched_slots += 1;
     }
-    for f in attested {
-        if !produced.contains(f) {
-            score.unreachable_forms += 1;
-            if extra_reachable.contains(f) {
-                score.recovered_by_variants += 1;
-            }
-        }
-    }
+    score.unreachable_forms += attested.iter().filter(|f| !produced.contains(*f)).count() as u64;
     hit
 }
 
@@ -159,11 +147,7 @@ pub fn check_noun_plurals(
         let keys = numbered_variants(lemma);
         let produced: BTreeSet<String> =
             keys.iter().map(|v| English::noun(v, &Number::Plural)).collect();
-        let via_variants: BTreeSet<String> = keys
-            .iter()
-            .flat_map(|v| English::noun_variants(v).iter().map(|s| s.to_string()))
-            .collect();
-        if !score_slot(&mut score, forms, &produced, &via_variants) {
+        if !score_slot(&mut score, forms, &produced) {
             let shown: Vec<&str> = forms.iter().map(|s| s.as_str()).collect();
             writer.write_record(&[
                 lemma.clone(),
@@ -250,14 +234,7 @@ pub fn check_verb_conjugations(
                 continue;
             }
             let produced: BTreeSet<String> = keys.iter().map(|v| slot_query(v, slot)).collect();
-            let via_variants: BTreeSet<String> = keys
-                .iter()
-                .flat_map(|v| {
-                    let (a, b, c, d) = English::verb_variants(v);
-                    [a, b, c, d][slot].iter().map(|s| s.to_string())
-                })
-                .collect();
-            if !score_slot(&mut score, forms, &produced, &via_variants) {
+            if !score_slot(&mut score, forms, &produced) {
                 let shown: Vec<&str> = forms.iter().map(|s| s.as_str()).collect();
                 writer.write_record(&[
                     lemma.clone(),
@@ -330,14 +307,7 @@ pub fn check_adjective_forms(
             let degree = if slot == 0 { Degree::Comparative } else { Degree::Superlative };
             let produced: BTreeSet<String> =
                 keys.iter().map(|v| English::adj(v, &degree)).collect();
-            let via_variants: BTreeSet<String> = keys
-                .iter()
-                .flat_map(|v| {
-                    let (c, s) = English::adj_variants(v);
-                    [c, s][slot].iter().map(|x| x.to_string())
-                })
-                .collect();
-            if !score_slot(&mut score, forms, &produced, &via_variants) {
+            if !score_slot(&mut score, forms, &produced) {
                 let shown: Vec<&str> = forms.iter().map(|s| s.as_str()).collect();
                 writer.write_record(&[
                     lemma.clone(),

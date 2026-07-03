@@ -211,8 +211,8 @@ It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive
 * Uses `english-core` to filter out regular forms, preserving only irregulars
 * Resolves homograph sense numbers against the checked-in assignment lockfiles so keys stay stable across releases
 * Generates the static PHF tables used in `english`
-* Emits the canonical form per slot (first-listed plain attestation beats the lexicographic accident) and captures the remaining plain attested alternates into per-key **variants tables** (`English::noun_variants` / `verb_variants` / `adj_variants` — recognition aids, NOT covered by the sense-key stability guarantee)
-* `cargo xtask accuracy` measures, per part of speech, the share of slots whose plain attested Wiktionary forms the library reproduces, plus the variant gap and how much of it the variants API recovers — run it before and after any rule or table change
+* Emits every plain attested variant as its own sense-numbered key (`cactus2` → *cacti*, `cactus3` → …), numbered canonical-first by the head template's listing order; each variant key is pinned in the lockfiles like any other
+* `cargo xtask accuracy` measures, per part of speech, the share of slots whose plain attested Wiktionary forms the library reproduces, plus the variant gap (attested forms not reachable through any published key) — run it before and after any rule or table change
 
 ---
 
@@ -274,9 +274,8 @@ So sense keys are stable for as long as you stay on a crate major version, and c
 bounded by the compaction cadence instead of growing forever.
 
 What the guarantee covers: the mapping from a published key to its sense (and therefore
-which inflection family it produces). What it does not cover: the exact form values (they
-update in place as Wiktionary is edited) and the contents of the variants tables
-(`*_variants_phf.rs`), which are recognition payload regenerated freely on each refresh.
+which inflection family it produces). What it does not cover: the exact form values,
+which update in place as Wiktionary is edited.
 
 ## Benchmarks
 Performance benchmarks were run on my M2 Macbook.

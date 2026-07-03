@@ -44,7 +44,6 @@ const LOCK_HEADER: &[&str] = &[
     "last_seen",
     "forms",
     "glosses",
-    "variants",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,11 +76,12 @@ pub struct Candidate {
     /// candidate never reserves the bare key for the rule engine when dropped as
     /// regular-equal. Extraction-time metadata only; not persisted in the lock.
     pub soft_sense: bool,
-    /// Alternate plain attested forms beyond the canonical ones, as
-    /// `(slot_index, form)`. Payload only: variants never participate in anchors,
-    /// signatures, or matching — they update in place like `forms`, and they are
-    /// NOT covered by the key-stability guarantee.
-    pub variants: Vec<(u8, String)>,
+    /// Cold-start tiebreak among candidates that co-appear with identical anchor
+    /// fields (typically several variant patterns from ONE entry): lower ordinals
+    /// take lower suffixes. Derived from the dump's listing order (canonical form
+    /// first — editorial data), frozen at assignment like everything else, and
+    /// never persisted: committed rows keep their suffix by anchor, not ordinal.
+    pub ordinal: u8,
 }
 
 impl Candidate {
@@ -96,18 +96,20 @@ impl Candidate {
     }
     /// A *deterministic, reproducible* total order for assigning suffixes to the
     /// brand-new identities that co-appear at cold start. It orders by the anchor
-    /// fields (qid, then sid, then etym) and only then the form signature, so the
-    /// assignment doesn't rest solely on an alphabetical-forms artifact when stronger
-    /// metadata is present. Note this is purely a tiebreak among co-appearing new
-    /// senses (the result is frozen immediately after) — NOT a claim about which
-    /// sense is "primary": a missing qid sorts as the empty string, so a
-    /// metadata-less sense can sort ahead of a metadata-bearing one. The bare-vs-`2`
-    /// choice among genuine homographs is intentionally arbitrary-but-stable.
-    fn order_key(&self) -> (String, String, u32, String) {
+    /// fields (qid, then sid, then etym), then the listing `ordinal` (several
+    /// variant patterns from one entry number canonical-first, per the head
+    /// template's editorial order), and only then the form signature. Note this is
+    /// purely a tiebreak among co-appearing new senses (the result is frozen
+    /// immediately after) — NOT a claim about which sense is "primary": a missing
+    /// qid sorts as the empty string, so a metadata-less sense can sort ahead of a
+    /// metadata-bearing one. The bare-vs-`2` choice among genuine homographs is
+    /// intentionally arbitrary-but-stable.
+    fn order_key(&self) -> (String, String, u32, u8, String) {
         (
             self.qid.clone().unwrap_or_default(),
             self.sid.clone().unwrap_or_default(),
             self.etym.unwrap_or(0),
+            self.ordinal,
             self.sig(),
         )
     }
@@ -132,9 +134,6 @@ pub struct LockRow {
     /// Current emittable forms (the values written into the PHF tables).
     pub forms: Vec<String>,
     pub gloss: Option<String>,
-    /// Alternate plain attested `(slot_index, form)` pairs, kept sorted+deduped.
-    /// Recognition payload (the `*_variants_phf.rs` tables); never identity.
-    pub variants: Vec<(u8, String)>,
 }
 
 impl LockRow {
@@ -168,23 +167,9 @@ impl LockRow {
             self.gloss = c.gloss.clone();
         }
         self.forms = c.forms.clone();
-        self.variants = normalize_variants(&c.variants, &c.forms);
         self.last_seen = date.to_string();
         self.status = Status::Active;
     }
-}
-
-/// Canonical on-disk shape for a variant list: sorted by `(slot, form)`, deduped,
-/// and never containing the canonical form for its own slot.
-fn normalize_variants(variants: &[(u8, String)], forms: &[String]) -> Vec<(u8, String)> {
-    let mut v: Vec<(u8, String)> = variants
-        .iter()
-        .filter(|(slot, form)| forms.get(*slot as usize).map(|c| c != form).unwrap_or(false))
-        .cloned()
-        .collect();
-    v.sort();
-    v.dedup();
-    v
 }
 
 /// The output of resolving one lemma: a stable key plus the forms to emit under it.
@@ -218,20 +203,6 @@ impl Lock {
 
     pub fn rows(&self) -> impl Iterator<Item = &LockRow> {
         self.map.values().flat_map(|v| v.iter())
-    }
-
-    /// Active rows with a non-empty variant list, as `(key, variants)`, sorted by
-    /// key — what the `*_variants_phf.rs` generators consume.
-    pub fn emittable_variants(&self, pos: Pos) -> Vec<(String, Vec<(u8, String)>)> {
-        let mut out: Vec<(String, Vec<(u8, String)>)> = self
-            .map
-            .values()
-            .flat_map(|v| v.iter())
-            .filter(|r| r.pos == pos && r.status == Status::Active && !r.variants.is_empty())
-            .map(|r| (make_key(&r.lemma, r.suffix), r.variants.clone()))
-            .collect();
-        out.sort_by(|a, b| a.0.cmp(&b.0));
-        out
     }
 
     /// All active rows for a part of speech, as `(key, forms)`, sorted by key —
@@ -473,7 +444,6 @@ impl Lock {
                     last_seen: date.to_string(),
                     forms: Vec::new(),
                     gloss: None,
-                    variants: Vec::new(),
                 };
                 row.apply_match(&c, date);
                 assignments.push(Assignment {
@@ -583,7 +553,6 @@ impl Lock {
                 last_seen: record.get(9).unwrap_or("").to_string(),
                 forms,
                 gloss: opt(record.get(11)),
-                variants: parse_variants(record.get(12).unwrap_or(""))?,
             };
             lock.insert_row(row);
         }
@@ -610,7 +579,6 @@ impl Lock {
                     r.last_seen.clone(),
                     r.forms.join("|"),
                     r.gloss.clone().unwrap_or_default(),
-                    encode_variants(&r.variants),
                 ])?;
             }
         }
@@ -876,32 +844,6 @@ fn split_forms(s: &str) -> Vec<String> {
     }
 }
 
-/// Variants column encoding: `slot:form` entries joined by `|` (forms never
-/// contain either character). Kept sorted+deduped by [`normalize_variants`].
-fn encode_variants(variants: &[(u8, String)]) -> String {
-    variants
-        .iter()
-        .map(|(slot, form)| format!("{slot}:{form}"))
-        .collect::<Vec<_>>()
-        .join("|")
-}
-
-fn parse_variants(s: &str) -> Result<Vec<(u8, String)>, Box<dyn Error>> {
-    if s.trim().is_empty() {
-        return Ok(Vec::new());
-    }
-    let mut out = Vec::new();
-    for part in s.split('|') {
-        let (slot, form) = part
-            .split_once(':')
-            .ok_or_else(|| format!("invalid variants entry {part:?}"))?;
-        let slot: u8 = slot
-            .parse()
-            .map_err(|_| format!("invalid variants slot in {part:?}"))?;
-        out.push((slot, form.to_string()));
-    }
-    Ok(out)
-}
 
 /// Anchor values (per tier) that are shared by more than one candidate in a batch.
 /// A strong anchor (qid/sid/etym) is only safe to use bare when it is unique among
@@ -1367,7 +1309,6 @@ mod tests {
             last_seen: "d".to_string(),
             forms: forms.iter().map(|s| s.to_string()).collect(),
             gloss: None,
-            variants: Vec::new(),
         }
     }
 
@@ -1465,37 +1406,6 @@ mod tests {
         assert_eq!(rep.tombstoned, 0);
     }
 
-    #[test]
-    fn variants_round_trip_through_csv_and_update_in_place() {
-        let mut lock = Lock::new();
-        let mut c = cand(&["oxen"]);
-        c.variants = vec![(0, "oxes".to_string()), (0, "oxes".to_string()), (0, "oxen".to_string())];
-        lock.resolve("ox", Pos::Noun, vec![c], false, "d1");
-        // Normalized on the way in: deduped and never containing the canonical form.
-        let row = lock.rows().next().unwrap();
-        assert_eq!(row.variants, vec![(0, "oxes".to_string())]);
-
-        let dir = std::env::temp_dir().join("english_registry_test_variants");
-        let _ = std::fs::create_dir_all(&dir);
-        let path = dir.join("noun.lock.csv");
-        lock.save(&path).unwrap();
-        let mut loaded = Lock::load(&path).unwrap();
-        assert_eq!(
-            loaded.rows().next().unwrap().variants,
-            vec![(0, "oxes".to_string())],
-            "variants survive the CSV round trip"
-        );
-
-        // A later refresh replaces variants in place, like forms.
-        let mut c2 = cand(&["oxen"]);
-        c2.variants = vec![(0, "oxan".to_string())];
-        loaded.resolve("ox", Pos::Noun, vec![c2], false, "d2");
-        assert_eq!(loaded.rows().next().unwrap().variants, vec![(0, "oxan".to_string())]);
-        assert_eq!(
-            loaded.emittable_variants(Pos::Noun),
-            vec![("ox".to_string(), vec![(0, "oxan".to_string())])]
-        );
-    }
 
     #[test]
     fn compact_drops_tombstones_and_closes_gaps_in_order() {
