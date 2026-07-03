@@ -5,7 +5,7 @@
 //! across releases. If a data refresh ever renumbers a homograph, one of these
 //! fails loudly instead of silently shipping a swapped meaning.
 
-use english::{count, Degree, English, Form, Number, Person, Tense};
+use english::{Degree, English, Form, Number, Person, Tense, count};
 
 fn past_finite(word: &str) -> String {
     English::verb(
@@ -109,7 +109,6 @@ fn attested_variants_are_numbered_keys_in_listing_order() {
     assert_eq!(past_finite("dive_2"), "dove");
 }
 
-
 #[test]
 fn capitalized_input_preserves_its_casing() {
     // Tables are all-lowercase; Title-case and ALL-CAPS input must still hit them,
@@ -142,7 +141,13 @@ fn suffixed_alias_of_bare_irregular_key_inflects_as_the_base_lemma() {
     assert_eq!(English::noun("child_2", &Number::Plural), "children");
     assert_eq!(past_finite("go_7"), "went");
     assert_eq!(
-        English::verb("go_7", &Person::Third, &Number::Singular, &Tense::Present, &Form::Infinitive),
+        English::verb(
+            "go_7",
+            &Person::Third,
+            &Number::Singular,
+            &Tense::Present,
+            &Form::Infinitive
+        ),
         "go"
     );
 }

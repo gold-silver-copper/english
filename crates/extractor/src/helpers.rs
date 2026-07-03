@@ -132,7 +132,11 @@ pub fn tag_rank(tags: &[String]) -> Option<u8> {
 /// (visible in the lock diff, like any form edit) but can never swap keys — the
 /// registry pins identity by anchor, not by forms. That containment is why listing
 /// order is safe to trust now and was not under the old positional numbering.
-pub fn choose_form(candidates: &[(String, u8)], regular: &str, prefer_regular: bool) -> Option<String> {
+pub fn choose_form(
+    candidates: &[(String, u8)],
+    regular: &str,
+    prefer_regular: bool,
+) -> Option<String> {
     candidates
         .iter()
         .enumerate()
@@ -270,7 +274,6 @@ impl Entry {
             .find(|g| !g.is_empty())
             .cloned()
     }
-
 }
 
 #[derive(Debug, Default, Eq, Hash, PartialEq, Clone, Ord, PartialOrd)]
@@ -364,7 +367,11 @@ mod tests {
     #[test]
     fn exclude_plus_soft_equals_legacy_bad_tags() {
         use std::collections::HashSet;
-        let union: HashSet<&str> = EXCLUDE_TAGS.iter().chain(SOFT_TAGS.iter()).copied().collect();
+        let union: HashSet<&str> = EXCLUDE_TAGS
+            .iter()
+            .chain(SOFT_TAGS.iter())
+            .copied()
+            .collect();
         let legacy: HashSet<&str> = BAD_TAGS.iter().copied().collect();
         assert_eq!(
             union, legacy,
@@ -372,7 +379,10 @@ mod tests {
         );
         let excl: HashSet<&str> = EXCLUDE_TAGS.iter().copied().collect();
         let soft: HashSet<&str> = SOFT_TAGS.iter().copied().collect();
-        assert!(excl.is_disjoint(&soft), "EXCLUDE_TAGS and SOFT_TAGS must be disjoint");
+        assert!(
+            excl.is_disjoint(&soft),
+            "EXCLUDE_TAGS and SOFT_TAGS must be disjoint"
+        );
     }
 
     #[test]

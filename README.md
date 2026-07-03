@@ -141,11 +141,11 @@ fn main() {
     // Numbered adjective keys expose standard, slang, and periphrastic variants.
     assert_eq!(English::adj("bad", &Degree::Comparative), "worse");
     assert_eq!(English::adj("bad", &Degree::Superlative), "worst");
-    assert_eq!(English::adj("bad2", &Degree::Comparative), "badder");
-    assert_eq!(English::adj("bad2", &Degree::Superlative), "baddest");
-    assert_eq!(English::adj("bad3", &Degree::Comparative), "more bad");
-    assert_eq!(English::adj("bad3", &Degree::Superlative), "most bad");
-    assert_eq!(English::adj("bad3", &Degree::Positive), "bad");
+    assert_eq!(English::adj("bad_2", &Degree::Comparative), "badder");
+    assert_eq!(English::adj("bad_2", &Degree::Superlative), "baddest");
+    assert_eq!(English::adj("bad_3", &Degree::Comparative), "more bad");
+    assert_eq!(English::adj("bad_3", &Degree::Superlative), "most bad");
+    assert_eq!(English::adj("bad_3", &Degree::Positive), "bad");
 
     // --- Pronouns ---
     assert_eq!(

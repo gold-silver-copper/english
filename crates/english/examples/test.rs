@@ -33,7 +33,7 @@ fn main() {
     // Regular plurals
     assert_eq!(English::noun("cat", &Number::Plural), "cats");
     // Sense-numbered keys expose homographs and attested variants.
-    assert_eq!(English::noun("die2", &Number::Plural), "dice");
+    assert_eq!(English::noun("die_2", &Number::Plural), "dice");
     // Use count function for better ergonomics if needed
     assert_eq!(count("man", 2), "men");
     // Use count_with_number function to preserve the number
@@ -73,7 +73,7 @@ fn main() {
         "gone"
     );
     // Sense-numbered keys distinguish homographs: "lie" (tell an untruth)
-    // and "lie2" (recline) inflect differently.
+    // and "lie_2" (recline) inflect differently.
     assert_eq!(
         English::verb(
             "lie",
@@ -86,7 +86,7 @@ fn main() {
     );
     assert_eq!(
         English::verb(
-            "lie2",
+            "lie_2",
             &Person::Third,
             &Number::Singular,
             &Tense::Past,
@@ -110,11 +110,11 @@ fn main() {
     // Numbered adjective keys expose standard, slang, and periphrastic variants.
     assert_eq!(English::adj("bad", &Degree::Comparative), "worse");
     assert_eq!(English::adj("bad", &Degree::Superlative), "worst");
-    assert_eq!(English::adj("bad2", &Degree::Comparative), "badder");
-    assert_eq!(English::adj("bad2", &Degree::Superlative), "baddest");
-    assert_eq!(English::adj("bad3", &Degree::Comparative), "more bad");
-    assert_eq!(English::adj("bad3", &Degree::Superlative), "most bad");
-    assert_eq!(English::adj("bad3", &Degree::Positive), "bad");
+    assert_eq!(English::adj("bad_2", &Degree::Comparative), "badder");
+    assert_eq!(English::adj("bad_2", &Degree::Superlative), "baddest");
+    assert_eq!(English::adj("bad_3", &Degree::Comparative), "more bad");
+    assert_eq!(English::adj("bad_3", &Degree::Superlative), "most bad");
+    assert_eq!(English::adj("bad_3", &Degree::Positive), "bad");
 
     // --- Pronouns ---
     assert_eq!(

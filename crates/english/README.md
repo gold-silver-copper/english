@@ -64,7 +64,7 @@ fn main() {
     // Regular plurals
     assert_eq!(English::noun("cat", &Number::Plural), "cats");
     // Sense-numbered keys expose homographs and attested variants.
-    assert_eq!(English::noun("die2", &Number::Plural), "dice");
+    assert_eq!(English::noun("die_2", &Number::Plural), "dice");
     // Use count function for better ergonomics if needed
     assert_eq!(count("man", 2), "men");
     // Use count_with_number function to preserve the number
@@ -104,7 +104,7 @@ fn main() {
         "gone"
     );
     // Sense-numbered keys distinguish homographs: "lie" (tell an untruth)
-    // and "lie2" (recline) inflect differently.
+    // and "lie_2" (recline) inflect differently.
     assert_eq!(
         English::verb(
             "lie",
@@ -117,7 +117,7 @@ fn main() {
     );
     assert_eq!(
         English::verb(
-            "lie2",
+            "lie_2",
             &Person::Third,
             &Number::Singular,
             &Tense::Past,
@@ -141,11 +141,11 @@ fn main() {
     // Numbered adjective keys expose standard, slang, and periphrastic variants.
     assert_eq!(English::adj("bad", &Degree::Comparative), "worse");
     assert_eq!(English::adj("bad", &Degree::Superlative), "worst");
-    assert_eq!(English::adj("bad2", &Degree::Comparative), "badder");
-    assert_eq!(English::adj("bad2", &Degree::Superlative), "baddest");
-    assert_eq!(English::adj("bad3", &Degree::Comparative), "more bad");
-    assert_eq!(English::adj("bad3", &Degree::Superlative), "most bad");
-    assert_eq!(English::adj("bad3", &Degree::Positive), "bad");
+    assert_eq!(English::adj("bad_2", &Degree::Comparative), "badder");
+    assert_eq!(English::adj("bad_2", &Degree::Superlative), "baddest");
+    assert_eq!(English::adj("bad_3", &Degree::Comparative), "more bad");
+    assert_eq!(English::adj("bad_3", &Degree::Superlative), "most bad");
+    assert_eq!(English::adj("bad_3", &Degree::Positive), "bad");
 
     // --- Pronouns ---
     assert_eq!(
@@ -211,7 +211,7 @@ It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive
 * Extracts all verb, noun, and adjective forms
 * Uses `english-core` to filter out regular forms, preserving only irregulars
 * Resolves homograph sense numbers against the checked-in assignment lockfiles so keys stay stable across releases
-* Emits every plain attested variant as its own sense-numbered key (`cactus2` → *cacti*, `cactus3` → …), numbered canonical-first by Wiktionary listing order
+* Emits every plain attested variant as its own sense-numbered key (`cactus_2` → *cacti*, `cactus_3` → …), numbered canonical-first by Wiktionary listing order
 * Generates the static PHF tables used in `english`
 
 ---
@@ -239,7 +239,7 @@ Performance benchmarks were run on my M2 Macbook.
 Writing benchmarks and tests for such a project is rather difficult and requires opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of words may be inconsistent. This library includes a few uncountable words in its dataset, but not all. Uncountable words require special handling anyway. Take all benchmarks with a pound of salt, write your own tests for your own usecases. Any suggestions to improve the benchmarking are highly appreciated.
 
 ## Disclaimer
-Wiktionary data is often unstable and subject to weird changes. This means that the provided inflections may change unexpectedly. The generated lookup tables in `crates/english/generated/*_phf.rs` are the source of truth for a given revision, and the assignment lockfiles in `data/assignments/*.lock.csv` keep each sense-numbered key (`lie2`, `die2`, …) pointing at the same inflection family across revisions.
+Wiktionary data is often unstable and subject to weird changes. This means that the provided inflections may change unexpectedly. The generated lookup tables in `crates/english/generated/*_phf.rs` are the source of truth for a given revision, and the assignment lockfiles in `data/assignments/*.lock.csv` keep each sense-numbered key (`lie_2`, `die_2`, …) pointing at the same inflection family across revisions.
 
 ## Inspirations and Thanks
 - Ole in the bevy discord suggested I use ```phf``` instead of sorted arrays, this resulted in up to 40% speedups

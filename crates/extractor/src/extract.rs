@@ -27,8 +27,7 @@
 //!   single-word plain form exists for the slot.
 
 use crate::helpers::{
-    Entry, Pos, choose_form, entry_is_proper, entry_is_soft, suffix_rule, tag_rank,
-    word_is_proper,
+    Entry, Pos, choose_form, entry_is_proper, entry_is_soft, suffix_rule, tag_rank, word_is_proper,
 };
 use crate::registry::{Candidate, Lock, ReapReport};
 use csv::{ReaderBuilder, WriterBuilder};
@@ -71,19 +70,22 @@ impl LemmaAcc {
             .by_sig
             .entry(sig)
             .or_insert_with(|| Candidate::new(forms));
-        c.ordinal = if is_new { ordinal } else { c.ordinal.min(ordinal) };
+        c.ordinal = if is_new {
+            ordinal
+        } else {
+            c.ordinal.min(ordinal)
+        };
         // Soft only while EVERY contributing entry is soft: one standard sense
         // sharing the signature makes the candidate standard.
         c.soft_sense = if is_new { soft } else { c.soft_sense && soft };
-        if c.qid.is_none() {
-            c.qid = entry.lowest_qid();
-        }
-        if c.sid.is_none() {
-            c.sid = entry.lowest_senseid();
-        }
-        if c.etym.is_none() {
-            c.etym = entry.etymology_number;
-        }
+        // Anchor fields merge as the MINIMUM across all contributing entries —
+        // never first-writer-wins, which would make the selected anchor depend
+        // on upstream entry order (a reorder could then change a new row's
+        // frozen identity). min() is order-independent and matches the
+        // "lowest/stablest" convention of Entry::lowest_qid.
+        merge_min(&mut c.qid, entry.lowest_qid());
+        merge_min(&mut c.sid, entry.lowest_senseid());
+        merge_min(&mut c.etym, entry.etymology_number);
         if c.gloss.is_none() {
             c.gloss = entry.first_gloss();
         }
@@ -140,6 +142,18 @@ impl LemmaAcc {
 
     fn into_candidates(self) -> (Vec<Candidate>, bool) {
         (self.by_sig.into_values().collect(), self.had_regular)
+    }
+}
+
+/// Keep the smaller of the existing and incoming value (absent = no opinion).
+/// Order-independent by construction: any permutation of contributors yields
+/// the same result, unlike set-if-None.
+fn merge_min<T: Ord>(slot: &mut Option<T>, incoming: Option<T>) {
+    if let Some(new) = incoming {
+        match slot {
+            Some(cur) if *cur <= new => {}
+            _ => *slot = Some(new),
+        }
     }
 }
 
@@ -367,8 +381,10 @@ pub fn extract_irregular_adjectives(
         // emit "more fast" while faster/fastest sat at `fast2`). Reservation must
         // come from attested plain forms (`fun` really lists "more fun"), never
         // from a synthesized prediction.
-        let attests_plain =
-            comp_forms.iter().chain(sup_forms.iter()).any(|(_, rank)| *rank == 0);
+        let attests_plain = comp_forms
+            .iter()
+            .chain(sup_forms.iter())
+            .any(|(_, rank)| *rank == 0);
         if !attests_plain {
             continue;
         }
@@ -397,8 +413,14 @@ pub fn extract_irregular_adjectives(
         for k in 0..alt.iter().map(|v| v.len()).max().unwrap_or(0) {
             acc.observe(
                 vec![
-                    alt[0].get(k).cloned().unwrap_or_else(|| comparative.clone()),
-                    alt[1].get(k).cloned().unwrap_or_else(|| superlative.clone()),
+                    alt[0]
+                        .get(k)
+                        .cloned()
+                        .unwrap_or_else(|| comparative.clone()),
+                    alt[1]
+                        .get(k)
+                        .cloned()
+                        .unwrap_or_else(|| superlative.clone()),
                 ],
                 (k + 1).min(u8::MAX as usize) as u8,
                 &entry,
@@ -501,9 +523,14 @@ pub fn extract_verb_conjugations(
         // irregular sibling). The slot synthesis below is for entries that attest
         // SOME slots — e.g. an irregular past with the 3sg omitted — not for
         // entries that attest nothing at all.
-        let attests_plain = [&third_forms, &past_forms, &pres_part_forms, &past_part_forms]
-            .iter()
-            .any(|slot| slot.iter().any(|(_, rank)| *rank == 0));
+        let attests_plain = [
+            &third_forms,
+            &past_forms,
+            &pres_part_forms,
+            &past_part_forms,
+        ]
+        .iter()
+        .any(|slot| slot.iter().any(|(_, rank)| *rank == 0));
         if !attests_plain {
             continue;
         }
@@ -552,7 +579,12 @@ pub fn extract_verb_conjugations(
         // the regular conjugation serves the regular on the bare key and the
         // irregular at suffix 2, exactly like nouns (`die`/`die2`).
         let acc = by_lemma.entry(lemma).or_default();
-        let canonical = vec![third.clone(), past.clone(), present_part.clone(), past_part.clone()];
+        let canonical = vec![
+            third.clone(),
+            past.clone(),
+            present_part.clone(),
+            past_part.clone(),
+        ];
         acc.observe(canonical.clone(), 0, &entry);
         let alt = [
             slot_alternates(&third_forms, &third),
@@ -562,7 +594,12 @@ pub fn extract_verb_conjugations(
         ];
         for k in 0..alt.iter().map(|v| v.len()).max().unwrap_or(0) {
             let tuple: Vec<String> = (0..4)
-                .map(|i| alt[i].get(k).cloned().unwrap_or_else(|| canonical[i].clone()))
+                .map(|i| {
+                    alt[i]
+                        .get(k)
+                        .cloned()
+                        .unwrap_or_else(|| canonical[i].clone())
+                })
                 .collect();
             acc.observe(tuple, (k + 1).min(u8::MAX as usize) as u8, &entry);
         }
@@ -708,10 +745,14 @@ mod tests {
             );
         }
         let report = extract_irregular_nouns(&path, &mut lock, "d1").unwrap();
-        assert!(report.skipped, "mass absence must be reported as a skipped reap");
+        assert!(
+            report.skipped,
+            "mass absence must be reported as a skipped reap"
+        );
         assert_eq!(report.tombstoned, 0);
         assert!(
-            lock.rows().all(|r| r.status == crate::registry::Status::Active),
+            lock.rows()
+                .all(|r| r.status == crate::registry::Status::Active),
             "no stale row may be silently tombstoned or altered"
         );
     }
@@ -808,7 +849,10 @@ mod tests {
         });
         assert_eq!(
             emitted(&lock, Pos::Adj),
-            vec![("fun".to_string(), vec!["more fun".to_string(), "most fun".to_string()])]
+            vec![(
+                "fun".to_string(),
+                vec!["more fun".to_string(), "most fun".to_string()]
+            )]
         );
     }
 
@@ -835,9 +879,18 @@ mod tests {
         assert_eq!(
             emitted(&lock, Pos::Adj),
             vec![
-                ("bad".to_string(), vec!["worse".to_string(), "worst".to_string()]),
-                ("bad_2".to_string(), vec!["badder".to_string(), "baddest".to_string()]),
-                ("bad_3".to_string(), vec!["more bad".to_string(), "most bad".to_string()]),
+                (
+                    "bad".to_string(),
+                    vec!["worse".to_string(), "worst".to_string()]
+                ),
+                (
+                    "bad_2".to_string(),
+                    vec!["badder".to_string(), "baddest".to_string()]
+                ),
+                (
+                    "bad_3".to_string(),
+                    vec!["more bad".to_string(), "most bad".to_string()]
+                ),
             ]
         );
     }
@@ -858,11 +911,17 @@ mod tests {
             vec![
                 (
                     "downhill".to_string(),
-                    vec!["farther downhill".to_string(), "farthest downhill".to_string()]
+                    vec![
+                        "farther downhill".to_string(),
+                        "farthest downhill".to_string()
+                    ]
                 ),
                 (
                     "downhill_2".to_string(),
-                    vec!["further downhill".to_string(), "furthest downhill".to_string()]
+                    vec![
+                        "further downhill".to_string(),
+                        "furthest downhill".to_string()
+                    ]
                 ),
             ]
         );
@@ -921,13 +980,12 @@ mod tests {
         // reserved for the rule; the periphrastic variant is the published key.
         assert_eq!(
             emitted(&lock, Pos::Adj),
-            vec![("vree_2".to_string(), vec!["more vree".to_string(), "most vree".to_string()])]
+            vec![(
+                "vree_2".to_string(),
+                vec!["more vree".to_string(), "most vree".to_string()]
+            )]
         );
     }
-
-
-
-
 
     #[test]
     fn verb_variant_conjugations_get_their_own_numbered_keys() {
@@ -944,8 +1002,14 @@ mod tests {
         });
         let emit = emitted(&lock, Pos::Verb);
         assert_eq!(emit.len(), 2, "{emit:?}");
-        assert_eq!(emit[0].0, "abide_2", "bare key reserved: the regular conjugation is attested");
-        assert_eq!(emit[0].1[1], "abode", "canonical (first-listed) tuple takes the lowest key");
+        assert_eq!(
+            emit[0].0, "abide_2",
+            "bare key reserved: the regular conjugation is attested"
+        );
+        assert_eq!(
+            emit[0].1[1], "abode",
+            "canonical (first-listed) tuple takes the lowest key"
+        );
         assert_eq!(emit[1].0, "abide_3");
         assert_eq!(emit[1].1[1], "abid", "alternate variant gets the next key");
     }
@@ -990,7 +1054,10 @@ mod tests {
         assert_eq!(emit.len(), 1, "{emit:?}");
         assert_eq!(emit[0].0, "zorp", "irregular takes the bare key");
         assert_eq!(emit[0].1[1], "zarp");
-        assert_eq!(emit[0].1[0], "zorps", "3sg synthesized from the regular rule");
+        assert_eq!(
+            emit[0].1[0], "zorps",
+            "3sg synthesized from the regular rule"
+        );
     }
 }
 

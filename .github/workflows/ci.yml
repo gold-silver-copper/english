@@ -24,6 +24,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace
+      # Examples are assert-based demos that `cargo test` never executes — run
+      # them so stale key formats or API drift in examples fail CI, not users.
+      - run: cargo run -p english --example test
 
   # Blocking: the dump-free determinism gate. Verifies (a) the lockfiles are
   # internally consistent, (b) no published key changed meaning vs the PR base
@@ -48,11 +51,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo run -p xtask -- check-registry
 
-  # Informational only: runs fmt/clippy so their output is visible in the logs, but
-  # never fails the check (the tree has pre-existing nits). Flip the two steps to
-  # blocking once a formatting/clippy cleanup lands.
+  # fmt is BLOCKING (the tree is formatted; keep it that way). clippy remains
+  # informational until a dedicated warning cleanup lands — flip it to blocking
+  # then.
   lint:
-    name: fmt + clippy (informational)
+    name: fmt (blocking) + clippy (informational)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -61,6 +64,5 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all --check
-        continue-on-error: true
       - run: cargo clippy --workspace --all-targets
         continue-on-error: true

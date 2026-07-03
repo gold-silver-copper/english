@@ -158,7 +158,11 @@ fn col(forms: &[String], i: usize) -> String {
 
 /// One-time seed: parse committed tables -> write lockfiles -> regenerate tables
 /// from those locks (round-trip; should be byte-identical to what was committed).
-pub fn seed(generated_dir: &Path, assignments_dir: &Path, date: &str) -> Result<(), Box<dyn Error>> {
+pub fn seed(
+    generated_dir: &Path,
+    assignments_dir: &Path,
+    date: &str,
+) -> Result<(), Box<dyn Error>> {
     fs::create_dir_all(assignments_dir)?;
 
     let noun_pairs = parse_phf_pairs(generated_dir.join("noun_phf.rs"))?;

@@ -69,9 +69,12 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
     let (before_noun, before_verb, before_adj) = load_locks(&config.assignments_dir)?;
     let (mut noun_lock, mut verb_lock, mut adj_lock) = load_locks(&config.assignments_dir)?;
 
-    let verb_reap = extract_verb_conjugations(&filtered_json_path, &mut verb_lock, &config.data_date)?;
-    let noun_reap = extract_irregular_nouns(&filtered_json_path, &mut noun_lock, &config.data_date)?;
-    let adj_reap = extract_irregular_adjectives(&filtered_json_path, &mut adj_lock, &config.data_date)?;
+    let verb_reap =
+        extract_verb_conjugations(&filtered_json_path, &mut verb_lock, &config.data_date)?;
+    let noun_reap =
+        extract_irregular_nouns(&filtered_json_path, &mut noun_lock, &config.data_date)?;
+    let adj_reap =
+        extract_irregular_adjectives(&filtered_json_path, &mut adj_lock, &config.data_date)?;
 
     // A skipped reap means the dump looks partial/corrupt (it would have retired
     // an implausible share of a part-of-speech). Writing lockfiles from such a

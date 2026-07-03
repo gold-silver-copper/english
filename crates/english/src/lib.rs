@@ -160,7 +160,10 @@ fn ci_lookup<T>(word: &str, get: impl Fn(&str) -> Option<T>) -> Option<(T, CaseS
 #[doc(hidden)]
 pub fn __table_entries() -> (
     Vec<(&'static str, &'static str)>,
-    Vec<(&'static str, (&'static str, &'static str, &'static str, &'static str))>,
+    Vec<(
+        &'static str,
+        (&'static str, &'static str, &'static str, &'static str),
+    )>,
     Vec<(&'static str, (&'static str, &'static str))>,
 ) {
     (
@@ -304,9 +307,9 @@ impl English {
                 (_, _, Tense::Past, Form::Participle) => restyle(wordik.3.to_owned(), style),
                 (_, _, Tense::Past, Form::Finite) => restyle(wordik.1.to_owned(), style),
             },
-            None => {
-                rule_with_case(base_word, |w| EnglishCore::verb(w, person, number, tense, form))
-            }
+            None => rule_with_case(base_word, |w| {
+                EnglishCore::verb(w, person, number, tense, form)
+            }),
         }
     }
     /// Returns the correct English pronoun for the given grammatical features.

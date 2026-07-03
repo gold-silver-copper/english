@@ -94,7 +94,9 @@ fn seed_assignments(args: Vec<String>) -> Result<(), Box<dyn Error>> {
             }
             "--data-date" => data_date = req(&mut iter, "--data-date")?,
             "-h" | "--help" => {
-                eprintln!("Usage: cargo xtask seed-assignments [--data-date YYYY-MM-DD] [--generated-dir DIR] [--assignments-dir DIR]");
+                eprintln!(
+                    "Usage: cargo xtask seed-assignments [--data-date YYYY-MM-DD] [--generated-dir DIR] [--assignments-dir DIR]"
+                );
                 return Ok(());
             }
             other => return Err(format!("unknown flag for `seed-assignments`: {other}").into()),
@@ -135,7 +137,11 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
     // arrives inside a PR would slip through. We use the merge-base with the PR base
     // ref (GITHUB_BASE_REF on GitHub, else origin/main), which needs full history
     // (actions/checkout with fetch-depth: 0).
-    let mut baseline = if allow_relock { None } else { resolve_baseline(&root)? };
+    let mut baseline = if allow_relock {
+        None
+    } else {
+        resolve_baseline(&root)?
+    };
     if allow_relock {
         println!(
             "check-registry: ENGLISH_ALLOW_RELOCK set — cross-version immutability SKIPPED \
@@ -247,7 +253,10 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
         println!("check-registry: OK — no published key changed meaning; tables match the lock.");
         Ok(())
     } else {
-        eprintln!("check-registry: FAILED — {} violation(s):", violations.len());
+        eprintln!(
+            "check-registry: FAILED — {} violation(s):",
+            violations.len()
+        );
         for v in &violations {
             eprintln!("  - {v}");
         }
@@ -344,7 +353,15 @@ fn accuracy(args: Vec<String>) -> Result<(), Box<dyn Error>> {
     let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
     let status = Command::new(cargo)
         .current_dir(&root)
-        .args(["run", "-p", "extractor", "--release", "--features", "checks", "--"])
+        .args([
+            "run",
+            "-p",
+            "extractor",
+            "--release",
+            "--features",
+            "checks",
+            "--",
+        ])
         .arg("--dump")
         .arg(&dump)
         .arg("--checks-only")
@@ -424,7 +441,8 @@ fn read_data_major_file(path: &Path) -> Result<u32, Box<dyn Error>> {
         return Ok(1);
     }
     let s = fs::read_to_string(path)?;
-    parse_data_major(&s).ok_or_else(|| format!("unparseable DATA_MAJOR file {path:?}: {s:?}").into())
+    parse_data_major(&s)
+        .ok_or_else(|| format!("unparseable DATA_MAJOR file {path:?}: {s:?}").into())
 }
 
 fn parse_data_major(s: &str) -> Option<u32> {
@@ -441,7 +459,10 @@ fn regen_tables() -> Result<(), Box<dyn Error>> {
     let generated_dir = default_generated_dir()?;
     let (noun, verb, adj) = load_locks(&assignments_dir)?;
     generate_tables(&noun, &verb, &adj, &generated_dir)?;
-    println!("Regenerated tables in {} from the lockfiles.", generated_dir.display());
+    println!(
+        "Regenerated tables in {} from the lockfiles.",
+        generated_dir.display()
+    );
     Ok(())
 }
 
@@ -487,7 +508,8 @@ fn load_lock_from_str(csv: &str) -> Result<Lock, Box<dyn Error>> {
 }
 
 fn req(iter: &mut impl Iterator<Item = String>, flag: &str) -> Result<String, Box<dyn Error>> {
-    iter.next().ok_or_else(|| format!("expected a value after `{flag}`").into())
+    iter.next()
+        .ok_or_else(|| format!("expected a value after `{flag}`").into())
 }
 
 // --------------------------------------------------------------------------
@@ -552,8 +574,12 @@ fn parse_refresh_data_args(args: Vec<String>) -> Result<RefreshDataArgs, Box<dyn
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--dump" => dump_path = Some(PathBuf::from(req(&mut iter, "--dump")?)),
-            "--generated-dir" => generated_dir = Some(PathBuf::from(req(&mut iter, "--generated-dir")?)),
-            "--artifacts-dir" => artifacts_dir = Some(PathBuf::from(req(&mut iter, "--artifacts-dir")?)),
+            "--generated-dir" => {
+                generated_dir = Some(PathBuf::from(req(&mut iter, "--generated-dir")?))
+            }
+            "--artifacts-dir" => {
+                artifacts_dir = Some(PathBuf::from(req(&mut iter, "--artifacts-dir")?))
+            }
             "--assignments-dir" => {
                 assignments_dir = Some(PathBuf::from(req(&mut iter, "--assignments-dir")?))
             }
@@ -599,11 +625,15 @@ fn print_usage() {
     eprintln!("  seed-assignments   One-time: freeze today's tables into the assignment lockfiles");
     eprintln!("  check-registry     CI gate: fail if any published key changed meaning");
     eprintln!("  accuracy           Measure % of attested Wiktionary forms the library reproduces");
-    eprintln!("  compact            Data-major release: drop tombstones, close suffix gaps, bump DATA_MAJOR");
+    eprintln!(
+        "  compact            Data-major release: drop tombstones, close suffix gaps, bump DATA_MAJOR"
+    );
     eprintln!("  report-coverage    Show anchor-tier coverage of the lockfiles");
 }
 
 fn print_refresh_data_usage() {
-    eprintln!("Usage: cargo xtask refresh-data --dump /path/to/rawwiki.jsonl [--data-date YYYY-MM-DD] [--with-checks]");
+    eprintln!(
+        "Usage: cargo xtask refresh-data --dump /path/to/rawwiki.jsonl [--data-date YYYY-MM-DD] [--with-checks]"
+    );
     eprintln!("       cargo xtask refresh-data /path/to/rawwiki.jsonl");
 }

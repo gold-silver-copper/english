@@ -31,7 +31,10 @@ fn is_bare(key: &str) -> bool {
 }
 
 fn suffixed_lemmas<'a, T>(entries: &'a [(&'a str, T)]) -> HashSet<&'a str> {
-    entries.iter().filter_map(|(k, _)| split_suffix(k)).collect()
+    entries
+        .iter()
+        .filter_map(|(k, _)| split_suffix(k))
+        .collect()
 }
 
 #[test]
@@ -70,7 +73,9 @@ fn sibling_less_bare_rows_hold_only_what_the_rules_cannot_predict() {
             && EnglishCore::comparative(key) == *comp
             && EnglishCore::superlative(key) == *sup
         {
-            redundant.push(format!("adj {key} -> {comp}/{sup} (rule already predicts it)"));
+            redundant.push(format!(
+                "adj {key} -> {comp}/{sup} (rule already predicts it)"
+            ));
         }
     }
 
