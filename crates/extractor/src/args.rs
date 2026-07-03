@@ -20,6 +20,9 @@ pub struct Config {
     /// Measure accuracy only: filter (or reuse) the dump and run the checks, but
     /// never touch the lockfiles or generated tables.
     pub checks_only: bool,
+    /// Escape hatch: write lockfiles even when the mass-absence reap guard says
+    /// the dump looks partial/corrupt.
+    pub allow_partial_refresh: bool,
 }
 
 pub fn parse_args() -> Result<Config, Box<dyn Error>> {
@@ -40,6 +43,7 @@ where
     let mut data_date = "unknown".to_string();
     let mut run_checks = false;
     let mut checks_only = false;
+    let mut allow_partial_refresh = false;
 
     let mut args = args.into_iter();
     while let Some(arg) = args.next() {
@@ -76,6 +80,9 @@ where
                 run_checks = true;
                 checks_only = true;
             }
+            "--allow-partial-refresh" => {
+                allow_partial_refresh = true;
+            }
             "-h" | "--help" => {
                 print_usage();
                 std::process::exit(0);
@@ -103,6 +110,7 @@ where
         data_date,
         run_checks,
         checks_only,
+        allow_partial_refresh,
     })
 }
 

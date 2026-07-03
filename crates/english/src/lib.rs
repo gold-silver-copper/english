@@ -20,44 +20,35 @@ mod verb_phf {
 }
 use verb_phf::*;
 
-/// Trims trailing ASCII digits — the raw sense-suffix strip. Suffixes are allocated
-/// append-only and may grow past a single digit.
-fn strip_trailing_number(word: &str) -> &str {
-    word.trim_end_matches(|c: char| c.is_ascii_digit())
+/// The base of a sense-suffixed key: sense suffixes are `_<digits>` (underscore
+/// plus a number, e.g. `die_2`). Returns `None` when the word carries no suffix.
+///
+/// The underscore makes this unambiguous: the extractor never emits a lemma
+/// containing `_` (such words fail its character filter), so a trailing
+/// `_<digits>` can ONLY be a sense suffix. Digit-bearing words (`"mp3"`, `"F16"`,
+/// `"F2"`, `"co2"`) have no underscore and are therefore never mangled — no
+/// plausibility heuristics needed.
+fn split_sense_suffix(word: &str) -> Option<&str> {
+    let (base, digits) = word.rsplit_once('_')?;
+    if base.is_empty() || digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    Some(base)
 }
 
-/// Resolve the base lemma for inflection. A trailing-digit run is treated as a
-/// sense-disambiguation suffix **only when it actually resolves to a table key** —
-/// either `word` itself is a key, or stripping the digits yields one. Otherwise the
-/// input is opaque and returned unchanged, so digit-bearing words (`"mp3"`, `"F16"`,
-/// `"co2"`) are never silently corrupted into `"mp"`/`"F"`/`"co"`. Numbered keys are
-/// only ever generated for irregulars (which live in the tables), so a regular word
-/// like `"cat2"` is not a real key and is left opaque rather than stripped to `"cat"`.
+/// Resolve the base lemma for inflection. A `_<digits>` sense suffix is honored
+/// **only when it resolves to a table key** — either `word` itself is a key, or
+/// the base is one. Otherwise the input is opaque and returned unchanged
+/// (`"cat_2"` for a regular lemma is not a real key and pluralizes opaquely).
 ///
 /// Invariant for callers: whenever this strips (returns the base), every code path
 /// must treat the input as that base lemma — table lookups fall back to the base
-/// (`get_*(word)` then `get_*(base)`), so `"child2"` inflects exactly like `"child"`
-/// rather than mixing stripped singulars with regular-rule plurals.
-///
-/// The base-lemma alias fallback additionally requires a *plausible* sense suffix
-/// (a single digit 2..=9, matching how suffixes are allocated): without that
-/// guard, `"F16"` would strip to `"F"` merely because the letter `f` happens to
-/// be a noun table key. A real published key with a bigger suffix is unaffected —
-/// it hits `is_key(word)` directly.
+/// (`get_*(word)` then `get_*(base)`), so `"child_2"` inflects exactly like
+/// `"child"` rather than mixing stripped singulars with regular-rule plurals.
 fn base_lemma<'a>(word: &'a str, is_key: impl Fn(&str) -> bool) -> &'a str {
-    let stripped = strip_trailing_number(word);
-    if stripped == word || stripped.is_empty() {
-        return word;
-    }
-    if is_key(word) {
-        return stripped;
-    }
-    let digits = &word[stripped.len()..];
-    let plausible_suffix = digits.len() == 1 && matches!(digits.as_bytes()[0], b'2'..=b'9');
-    if plausible_suffix && is_key(stripped) {
-        stripped
-    } else {
-        word
+    match split_sense_suffix(word) {
+        Some(base) if is_key(word) || is_key(base) => base,
+        _ => word,
     }
 }
 
@@ -94,6 +85,18 @@ fn restyle(s: String, style: CaseStyle) -> String {
         CaseStyle::AsIs => s,
         CaseStyle::Upper => s.to_uppercase(),
         CaseStyle::Title => English::capitalize_first(&s),
+    }
+}
+
+/// Run a regular-rule fallback with the same case handling table hits get:
+/// Title/ALL-CAPS input is lowercased for the rule and the casing restored on
+/// the output — so `HOT` gives `HOTTER` exactly as `GOOD` gives `BEST` from the
+/// table, instead of the mixed-case `HOTter` the raw rule would produce. Mixed
+/// case runs the rule on the input as-is, unchanged behavior.
+fn rule_with_case(word: &str, rule: impl Fn(&str) -> String) -> String {
+    match case_style(word) {
+        CaseStyle::AsIs => rule(word),
+        style => restyle(rule(&word.to_lowercase()), style),
     }
 }
 
@@ -142,7 +145,7 @@ impl English {
     ///
     /// Handles irregular nouns (e.g., `"child" -> "children"`) and
     /// falls back to regular pluralization rules when no override is found.
-    /// Strips trailing numbers used for sense disambiguation (`"die2" -> "dice"`).
+    /// Strips trailing numbers used for sense disambiguation (`"die_2" -> "dice"`).
     ///
     /// # Examples
     /// ```rust
@@ -150,7 +153,7 @@ impl English {
     ///
     /// assert_eq!(English::noun("cat", &Number::Plural), "cats");
     /// assert_eq!(English::noun("child", &Number::Plural), "children");
-    /// assert_eq!(English::noun("die2", &Number::Plural), "dice");
+    /// assert_eq!(English::noun("die_2", &Number::Plural), "dice");
     /// ```
     pub fn noun(word: &str, number: &Number) -> String {
         let base_word = base_lemma(word, |w| ci_lookup(w, get_plural).is_some());
@@ -163,7 +166,7 @@ impl English {
                 {
                     restyle(x.to_owned(), style)
                 } else {
-                    EnglishCore::noun(base_word, number)
+                    rule_with_case(base_word, |w| EnglishCore::noun(w, number))
                 }
             }
         }
@@ -174,7 +177,7 @@ impl English {
     /// Handles irregular adjectives (e.g., `"good" -> "better"/"best"`)
     /// and falls back to regular periphrastic forms
     /// (e.g., `"fun" -> "more fun"/"most fun"`).
-    /// Strips trailing numbers used for disambiguation (`"bad2"` -> `"badder"`).
+    /// Strips trailing numbers used for disambiguation (`"bad_2"` -> `"badder"`).
     ///
     /// # Examples
     /// ```rust
@@ -194,14 +197,14 @@ impl English {
                 if let Some(((comp, _), style)) = forms {
                     restyle(comp.to_owned(), style)
                 } else {
-                    EnglishCore::comparative(base_word)
+                    rule_with_case(base_word, EnglishCore::comparative)
                 }
             }
             Degree::Superlative => {
                 if let Some(((_, sup), style)) = forms {
                     restyle(sup.to_owned(), style)
                 } else {
-                    EnglishCore::superlative(base_word)
+                    rule_with_case(base_word, EnglishCore::superlative)
                 }
             }
         }
@@ -212,7 +215,7 @@ impl English {
     /// Handles irregular verbs (e.g., `"go" -> "went"`, `"eat" -> "ate"`)
     /// and falls back to regular conjugation rules when no override is found.
     /// Supports sense-numbered keys for homographs (`"lie"` -> `"lied"`,
-    /// `"lie2"` -> `"lay"` in the past finite).
+    /// `"lie_2"` -> `"lay"` in the past finite).
     ///
     /// # Examples
     /// ```rust
@@ -238,7 +241,7 @@ impl English {
     ///
     /// // Homograph senses
     /// assert_eq!(
-    ///     English::verb("lie2", &Person::Third, &Number::Singular, &Tense::Past, &Form::Finite),
+    ///     English::verb("lie_2", &Person::Third, &Number::Singular, &Tense::Past, &Form::Finite),
     ///     "lay"
     /// );
     /// ```
@@ -263,7 +266,9 @@ impl English {
                 (_, _, Tense::Past, Form::Participle) => restyle(wordik.3.to_owned(), style),
                 (_, _, Tense::Past, Form::Finite) => restyle(wordik.1.to_owned(), style),
             },
-            None => EnglishCore::verb(base_word, person, number, tense, form),
+            None => {
+                rule_with_case(base_word, |w| EnglishCore::verb(w, person, number, tense, form))
+            }
         }
     }
     /// Returns the correct English pronoun for the given grammatical features.

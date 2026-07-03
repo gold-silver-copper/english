@@ -64,7 +64,7 @@ fn main() {
     // Regular plurals
     assert_eq!(English::noun("cat", &Number::Plural), "cats");
     // Sense-numbered keys expose homographs and attested variants.
-    assert_eq!(English::noun("die2", &Number::Plural), "dice");
+    assert_eq!(English::noun("die_2", &Number::Plural), "dice");
     // Use count function for better ergonomics if needed
     assert_eq!(count("man", 2), "men");
     // Use count_with_number function to preserve the number
@@ -104,7 +104,7 @@ fn main() {
         "gone"
     );
     // Sense-numbered keys distinguish homographs: "lie" (tell an untruth)
-    // and "lie2" (recline) inflect differently.
+    // and "lie_2" (recline) inflect differently.
     assert_eq!(
         English::verb(
             "lie",
@@ -117,7 +117,7 @@ fn main() {
     );
     assert_eq!(
         English::verb(
-            "lie2",
+            "lie_2",
             &Person::Third,
             &Number::Singular,
             &Tense::Past,
@@ -212,7 +212,7 @@ It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive
 * Uses `english-core` to filter out regular forms, preserving only irregulars
 * Resolves homograph sense numbers against the checked-in assignment lockfiles so keys stay stable across releases
 * Generates the static PHF tables used in `english`
-* Emits every plain attested variant as its own sense-numbered key (`cactus2` → *cacti*, `cactus3` → …), numbered canonical-first by the head template's listing order; each variant key is pinned in the lockfiles like any other
+* Emits every plain attested variant as its own sense-numbered key (`cactus_2` → *cacti*, `cactus_3` → …), numbered canonical-first by the head template's listing order; each variant key is pinned in the lockfiles like any other
 * `cargo xtask accuracy` measures, per part of speech, the share of slots whose plain attested Wiktionary forms the library reproduces, plus the variant gap (attested forms not reachable through any published key) — run it before and after any rule or table change
 
 ---
@@ -237,7 +237,7 @@ To also run the extractor evaluation reports against the current library data, a
 ## 🔒 Deterministic sense numbering
 
 Homographs that inflect differently share a lemma and are disambiguated by a numeric suffix
-(`lie` → *lied*, `lie2` → *lay*; `die2` → *dice*). Historically that suffix was **positional** —
+(`lie` → *lied*, `lie_2` → *lay*; `die_2` → *dice*). Historically that suffix was **positional** —
 assigned by alphabetically sorting whatever forms survived filtering in a given dump — so any
 upstream change could renumber a lemma and silently swap the meaning of a published key.
 
@@ -285,7 +285,7 @@ Performance benchmarks were run on my M2 Macbook.
 Writing benchmarks and tests for such a project is rather difficult and requires opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of words may be inconsistent. This library includes a few uncountable words in its dataset, but not all. Uncountable words require special handling anyway. Take all benchmarks with a pound of salt, write your own tests for your own usecases. Any suggestions to improve the benchmarking are highly appreciated.
 
 ## Disclaimer
-Wiktionary data is often unstable and subject to weird changes. This means that the provided inflections may change unexpectedly. The generated lookup tables in `crates/english/generated/*_phf.rs` are the source of truth for a given revision, and the assignment lockfiles in `data/assignments/*.lock.csv` keep each sense-numbered key (`lie2`, `die2`, …) pointing at the same inflection across revisions — see [Deterministic sense numbering](#-deterministic-sense-numbering).
+Wiktionary data is often unstable and subject to weird changes. This means that the provided inflections may change unexpectedly. The generated lookup tables in `crates/english/generated/*_phf.rs` are the source of truth for a given revision, and the assignment lockfiles in `data/assignments/*.lock.csv` keep each sense-numbered key (`lie_2`, `die_2`, …) pointing at the same inflection across revisions — see [Deterministic sense numbering](#-deterministic-sense-numbering).
 
 ## Inspirations and Thanks
 - Ole in the bevy discord suggested I use ```phf``` instead of sorted arrays, this resulted in up to 40% speedups

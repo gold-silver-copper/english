@@ -144,13 +144,18 @@ impl LockRow {
         self.forms.join("|")
     }
 
-    /// Whether this row's *frozen* identity is its etymology number. Only such rows
-    /// may be re-matched on etym alone: `etymology_number` is a renumberable section
-    /// ordinal, so trusting it for a row whose frozen identity is something else
-    /// (a form signature) would let an upstream etymology reorder silently swap two
-    /// senses' forms. qid/sid are durable and need no such guard.
+    /// Whether this row's *frozen* identity is its BARE etymology number (exactly
+    /// `etym:<n>`, no `#` qualifier). Only such rows may be re-matched on etym
+    /// alone: `etymology_number` is a renumberable section ordinal, so trusting it
+    /// for a row whose frozen identity is something else (a form signature) would
+    /// let an upstream reorder silently swap two senses' forms. Crucially, a
+    /// COMPOSITE anchor (`etym:<n>#sig:...`, `etym:<n>#u<k>`) means several rows
+    /// share that etymology and the qualifier IS part of the identity — matching
+    /// those by etym alone could hand one co-etymology sense another's forms
+    /// without moving any suffix or anchor, which `check_immutability` cannot see.
+    /// qid/sid are durable and need no such guard.
     fn is_etym_frozen(&self) -> bool {
-        self.anchor.starts_with("etym:")
+        self.anchor.starts_with("etym:") && !self.anchor.contains('#')
     }
 
     /// Fold a freshly-matched candidate into this row: refresh the forms, enrich
@@ -815,12 +820,15 @@ pub fn check_immutability(old: &Lock, new: &Lock) -> Vec<String> {
 
 // ----- free helpers -----
 
-/// Suffix 1 emits the bare lemma; >=2 appends the integer.
+/// Suffix 1 emits the bare lemma; >=2 appends `_<n>`. The underscore separator is
+/// unambiguous: extraction filters out any lemma containing `_` (word_is_proper),
+/// so a trailing `_<digits>` can ONLY be a sense suffix — digit-bearing words
+/// (`mp3`, `F16`, `F2`, `co2`) can never collide with a numbered key.
 pub fn make_key(lemma: &str, suffix: u32) -> String {
     if suffix <= 1 {
         lemma.to_string()
     } else {
-        format!("{lemma}{suffix}")
+        format!("{lemma}_{suffix}")
     }
 }
 
@@ -828,7 +836,7 @@ fn suffix_note(suffix: u32) -> String {
     if suffix <= 1 {
         String::new()
     } else {
-        suffix.to_string()
+        format!("_{suffix}")
     }
 }
 
@@ -984,7 +992,7 @@ mod tests {
         let a = lock.resolve("lie", Pos::Verb, vec![untruth, recline], false, "d1");
         let mut by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
         assert_eq!(by_key.remove("lie").unwrap()[1], "lay"); // recline is the bare key
-        assert_eq!(by_key.remove("lie2").unwrap()[1], "lied"); // untruth is lie2
+        assert_eq!(by_key.remove("lie_2").unwrap()[1], "lied"); // untruth is lie2
     }
 
     #[test]
@@ -992,7 +1000,7 @@ mod tests {
         // die: regular plural dropped (had_regular), single irregular -> die2, no bare die.
         let mut lock = Lock::new();
         let a = lock.resolve("die", Pos::Noun, vec![cand(&["dice"])], true, "d1");
-        assert_eq!(keys(&a), vec!["die2".to_string()]);
+        assert_eq!(keys(&a), vec!["die_2".to_string()]);
     }
 
     #[test]
@@ -1030,7 +1038,7 @@ mod tests {
         );
         let by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
         assert_eq!(by_key["lie"][1], "lay", "recline must stay the bare key");
-        assert_eq!(by_key["lie2"][1], "lied", "untruth must stay lie2");
+        assert_eq!(by_key["lie_2"][1], "lied", "untruth must stay lie2");
     }
 
     #[test]
@@ -1051,7 +1059,7 @@ mod tests {
         let a = lock.resolve("lie", Pos::Verb, vec![e2, e1], false, "d2");
         let by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
         assert_eq!(by_key["lie"][3], "layed", "recline kept its key, forms updated");
-        assert_eq!(by_key["lie2"][1], "lied");
+        assert_eq!(by_key["lie_2"][1], "lied");
     }
 
     #[test]
@@ -1069,10 +1077,10 @@ mod tests {
             false,
             "d2",
         );
-        assert_eq!(keys(&a), vec!["run".to_string(), "run2".to_string()]);
+        assert_eq!(keys(&a), vec!["run".to_string(), "run_2".to_string()]);
         let by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
         assert_eq!(by_key["run"][1], "ran", "original sense keeps the bare key");
-        assert_eq!(by_key["run2"][1], "runned", "new sense appended at run2");
+        assert_eq!(by_key["run_2"][1], "runned", "new sense appended at run2");
     }
 
     #[test]
@@ -1088,10 +1096,10 @@ mod tests {
         // d2: xen sense disappears; xes remains; a new sense appears.
         let a = lock.resolve("x", Pos::Noun, vec![cand(&["xes"]), cand(&["xim"])], false, "d2");
         // xen's suffix (1) is retired; xes keeps suffix 2; new sense gets 3 (not 1).
-        assert_eq!(keys(&a), vec!["x2".to_string(), "x3".to_string()]);
+        assert_eq!(keys(&a), vec!["x_2".to_string(), "x_3".to_string()]);
         let by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
-        assert_eq!(by_key["x2"][0], "xes");
-        assert_eq!(by_key["x3"][0], "xim");
+        assert_eq!(by_key["x_2"][0], "xes");
+        assert_eq!(by_key["x_3"][0], "xim");
     }
 
     #[test]
@@ -1106,7 +1114,7 @@ mod tests {
         let a1 = lock.resolve("lie", Pos::Verb, mk(), false, "d1");
         let a2 = lock.resolve("lie", Pos::Verb, mk(), false, "d1");
         assert_eq!(keys(&a1), keys(&a2));
-        assert_eq!(keys(&a1), vec!["lie".to_string(), "lie2".to_string()]);
+        assert_eq!(keys(&a1), vec!["lie".to_string(), "lie_2".to_string()]);
     }
 
     #[test]
@@ -1177,7 +1185,7 @@ mod tests {
         let mut c3 = cand(&["walrusses"]);
         c3.qid = Some("Q40994".into());
         let again = lock.resolve("walrus", Pos::Noun, vec![c1, c2, c3], true, "d2");
-        assert_eq!(keys(&again), vec!["walrus2", "walrus3", "walrus4"]);
+        assert_eq!(keys(&again), vec!["walrus_2", "walrus_3", "walrus_4"]);
         assert!(check_immutability(&lock, &lock).is_empty());
     }
 
@@ -1192,6 +1200,43 @@ mod tests {
         lock.resolve("die", Pos::Noun, vec![c1, c2], false, "d1");
         let anchors: Vec<String> = lock.rows().map(|r| r.anchor.clone()).collect();
         assert!(anchors.iter().all(|a| a.starts_with("etym:2#sig:")), "{anchors:?}");
+    }
+
+    #[test]
+    fn composite_etym_anchors_never_rematch_by_etym_alone() {
+        // Two senses SHARE etym 2 -> composite anchors etym:2#sig:<forms>. If both
+        // forms later drift (and arrive reordered), the drift re-match path must
+        // NOT pair them by the shared etym: the signature is part of these rows'
+        // frozen identity, and an etym-only match could hand one sense the other's
+        // forms without moving any suffix or anchor — a swap check_immutability
+        // cannot see. The safe outcome is tombstone + append.
+        let mut lock = Lock::new();
+        lock.resolve(
+            "x",
+            Pos::Noun,
+            vec![cand_e(&["alpha"], 2), cand_e(&["beta"], 2)],
+            false,
+            "d1",
+        ); // x -> alpha (etym:2#sig:alpha), x_2 -> beta (etym:2#sig:beta)
+
+        // d2: both drift, REVERSED order — the bug would give the alpha row beta2.
+        lock.resolve(
+            "x",
+            Pos::Noun,
+            vec![cand_e(&["beta2"], 2), cand_e(&["alpha2"], 2)],
+            false,
+            "d2",
+        );
+        let by_anchor: BTreeMap<String, &LockRow> =
+            lock.rows().map(|r| (r.anchor.clone(), r)).collect();
+        let a = by_anchor.get("etym:2#sig:alpha").expect("alpha row");
+        let b = by_anchor.get("etym:2#sig:beta").expect("beta row");
+        assert_eq!(a.forms, vec!["alpha".to_string()], "alpha row must not inherit drifted forms");
+        assert_eq!(b.forms, vec!["beta".to_string()]);
+        assert_eq!(a.status, Status::Tombstone, "ambiguous drift tombstones");
+        assert_eq!(b.status, Status::Tombstone);
+        assert!(lock.notes.iter().any(|n| n.contains("AMBIGUOUS")));
+        assert!(check_immutability(&lock, &lock).is_empty());
     }
 
     #[test]
@@ -1237,10 +1282,10 @@ mod tests {
         lock.resolve("y", Pos::Noun, vec![cand_q(&["aaa"], "Q1"), cand_q(&["bbb"], "Q2")], false, "d2");
         // d3: the Q1 sense drifts aaa -> azz; the bare key must hold via qid.
         let asg = lock.resolve("y", Pos::Noun, vec![cand_q(&["azz"], "Q1"), cand_q(&["bbb"], "Q2")], false, "d3");
-        assert_eq!(keys(&asg), vec!["y".to_string(), "y2".to_string()]);
+        assert_eq!(keys(&asg), vec!["y".to_string(), "y_2".to_string()]);
         let by_key: BTreeMap<_, _> = asg.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
         assert_eq!(by_key["y"], vec!["azz".to_string()], "qid Q1 held the bare key through drift");
-        assert_eq!(by_key["y2"], vec!["bbb".to_string()]);
+        assert_eq!(by_key["y_2"], vec!["bbb".to_string()]);
     }
 
     #[test]
@@ -1257,7 +1302,7 @@ mod tests {
         let before = Lock::load(&path).unwrap();
 
         let asg = lock.resolve("z", Pos::Noun, vec![cand(&["p2"]), cand(&["q2"])], false, "d2");
-        assert_eq!(keys(&asg), vec!["z3".to_string(), "z4".to_string()]);
+        assert_eq!(keys(&asg), vec!["z_3".to_string(), "z_4".to_string()]);
         assert!(check_immutability(&before, &lock).is_empty());
         assert!(lock.notes.iter().any(|n| n.contains("AMBIGUOUS")));
     }
@@ -1329,7 +1374,7 @@ mod tests {
         let a = lock.resolve("w", Pos::Noun, vec![e2, e1], false, "d1");
         let by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
         assert_eq!(by_key["w"], vec!["zzz".to_string()], "etym 1 takes the bare key despite larger forms");
-        assert_eq!(by_key["w2"], vec!["aaa".to_string()]);
+        assert_eq!(by_key["w_2"], vec!["aaa".to_string()]);
     }
 
     #[test]
@@ -1374,7 +1419,7 @@ mod tests {
         c2.etym = Some(2);
         let a = lock.resolve("x", Pos::Noun, vec![c2], false, "d3"); // reappears
 
-        assert_eq!(keys(&a), vec!["x2".to_string()], "reappearing sense gets a new suffix");
+        assert_eq!(keys(&a), vec!["x_2".to_string()], "reappearing sense gets a new suffix");
         let anchors: Vec<String> = lock.rows().map(|r| r.anchor.clone()).collect();
         let distinct: std::collections::HashSet<_> = anchors.iter().collect();
         assert_eq!(anchors.len(), distinct.len(), "anchors must stay unique: {anchors:?}");
@@ -1473,7 +1518,7 @@ mod tests {
         let a = lock.resolve("x", Pos::Noun, vec![e1, e2], false, "d2");
         let by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
         assert_eq!(by_key["x"], vec!["azz".to_string()], "etym-frozen row kept its key through drift");
-        assert_eq!(by_key["x2"], vec!["bbb".to_string()]);
+        assert_eq!(by_key["x_2"], vec!["bbb".to_string()]);
         assert!(check_immutability(&lock, &lock).is_empty());
     }
 }

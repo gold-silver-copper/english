@@ -90,7 +90,7 @@ pub fn run_checks(filtered_json_path: &Path, artifacts_dir: &Path) -> Result<(),
 fn numbered_variants(word: &str) -> Vec<String> {
     let mut variants = vec![word.to_string()];
     for i in 2..=15 {
-        variants.push(format!("{word}{i}"));
+        variants.push(format!("{word}_{i}"));
     }
     variants
 }

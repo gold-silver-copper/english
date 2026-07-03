@@ -14,6 +14,7 @@ struct RefreshDataArgs {
     assignments_dir: Option<PathBuf>,
     data_date: Option<String>,
     with_checks: bool,
+    allow_partial_refresh: bool,
 }
 
 fn workspace_root() -> Result<PathBuf, Box<dyn Error>> {
@@ -39,6 +40,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Some("check-registry") => check_registry(),
         Some("accuracy") => accuracy(args.collect()),
         Some("compact") => compact(),
+        Some("regen-tables") => regen_tables(),
         Some("report-coverage") => report_coverage(),
         Some("-h") | Some("--help") | None => {
             print_usage();
@@ -404,6 +406,20 @@ fn parse_data_major(s: &str) -> Option<u32> {
 }
 
 // --------------------------------------------------------------------------
+// regen-tables: dump-free regeneration of the PHF tables from the committed
+// lockfiles (the same path check-registry's sync gate verifies). Useful when
+// only the EMISSION changes (e.g. the key format), not the lock content.
+// --------------------------------------------------------------------------
+fn regen_tables() -> Result<(), Box<dyn Error>> {
+    let assignments_dir = default_assignments_dir()?;
+    let generated_dir = default_generated_dir()?;
+    let (noun, verb, adj) = load_locks(&assignments_dir)?;
+    generate_tables(&noun, &verb, &adj, &generated_dir)?;
+    println!("Regenerated tables in {} from the lockfiles.", generated_dir.display());
+    Ok(())
+}
+
+// --------------------------------------------------------------------------
 // report-coverage: how much of each lock rests on strong vs. weak anchors.
 // --------------------------------------------------------------------------
 fn report_coverage() -> Result<(), Box<dyn Error>> {
@@ -485,6 +501,9 @@ fn refresh_data(args: Vec<String>) -> Result<(), Box<dyn Error>> {
     if parsed.with_checks {
         command.arg("--run-checks");
     }
+    if parsed.allow_partial_refresh {
+        command.arg("--allow-partial-refresh");
+    }
 
     let status = command.status()?;
     if status.success() {
@@ -501,6 +520,7 @@ fn parse_refresh_data_args(args: Vec<String>) -> Result<RefreshDataArgs, Box<dyn
     let mut assignments_dir = None;
     let mut data_date = None;
     let mut with_checks = false;
+    let mut allow_partial_refresh = false;
 
     let mut iter = args.into_iter();
     while let Some(arg) = iter.next() {
@@ -513,6 +533,7 @@ fn parse_refresh_data_args(args: Vec<String>) -> Result<RefreshDataArgs, Box<dyn
             }
             "--data-date" => data_date = Some(req(&mut iter, "--data-date")?),
             "--with-checks" => with_checks = true,
+            "--allow-partial-refresh" => allow_partial_refresh = true,
             "-h" | "--help" => {
                 print_refresh_data_usage();
                 process::exit(0);
@@ -540,6 +561,7 @@ fn parse_refresh_data_args(args: Vec<String>) -> Result<RefreshDataArgs, Box<dyn
         assignments_dir,
         data_date,
         with_checks,
+        allow_partial_refresh,
     })
 }
 

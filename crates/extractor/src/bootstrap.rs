@@ -57,18 +57,24 @@ fn quoted_fields(line: &str) -> Vec<String> {
         .collect()
 }
 
-fn strip_trailing_digits(word: &str) -> (&str, u32) {
-    let base = word.trim_end_matches(|c: char| c.is_ascii_digit());
-    let digits = &word[base.len()..];
-    let suffix = digits.parse::<u32>().unwrap_or(1);
-    (base, suffix)
+/// Split an emitted key into `(lemma, suffix)`: a trailing `_<digits>` is the
+/// sense suffix (see `registry::make_key`); anything else is a bare key.
+fn split_key(key: &str) -> (&str, u32) {
+    if let Some((base, digits)) = key.rsplit_once('_')
+        && !base.is_empty()
+        && !digits.is_empty()
+        && digits.bytes().all(|b| b.is_ascii_digit())
+    {
+        return (base, digits.parse().unwrap_or(1));
+    }
+    (key, 1)
 }
 
 /// Build a lock for one part of speech directly from existing `(key, forms)` pairs.
 pub fn lock_from_pairs(pairs: &[KeyForms], pos: Pos, date: &str) -> Lock {
     let mut lock = Lock::new();
     for (key, forms) in pairs {
-        let (lemma, suffix) = strip_trailing_digits(key);
+        let (lemma, suffix) = split_key(key);
         let anchor = format!("sig:{}", forms.join("|"));
         lock.insert_row(LockRow {
             lemma: lemma.to_string(),

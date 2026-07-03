@@ -2,7 +2,7 @@ use crate::helpers::{
     Entry, Pos, choose_form, entry_is_proper, entry_is_soft, suffix_rule, tag_rank,
     word_is_proper,
 };
-use crate::registry::{Candidate, Lock};
+use crate::registry::{Candidate, Lock, ReapReport};
 use csv::{ReaderBuilder, WriterBuilder};
 use english_core::*;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -165,7 +165,7 @@ pub fn extract_irregular_nouns(
     input_path: impl AsRef<Path>,
     lock: &mut Lock,
     date: &str,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<ReapReport, Box<dyn Error>> {
     let input_path = input_path.as_ref();
     let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
 
@@ -239,17 +239,17 @@ pub fn extract_irregular_nouns(
         lock.resolve(&lemma, Pos::Noun, candidates, had_regular, date);
         resolved.insert(lemma);
     }
-    lock.reap(Pos::Noun, &resolved, date, REAP_MAX_FRACTION);
+    let reap = lock.reap(Pos::Noun, &resolved, date, REAP_MAX_FRACTION);
 
     println!("Resolved irregular nouns into the lock.");
-    Ok(())
+    Ok(reap)
 }
 
 pub fn extract_irregular_adjectives(
     input_path: impl AsRef<Path>,
     lock: &mut Lock,
     date: &str,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<ReapReport, Box<dyn Error>> {
     let input_path = input_path.as_ref();
     let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
     let reader = open_reader(input_path);
@@ -379,17 +379,17 @@ pub fn extract_irregular_adjectives(
         lock.resolve(&lemma, Pos::Adj, candidates, had_regular, date);
         resolved.insert(lemma);
     }
-    lock.reap(Pos::Adj, &resolved, date, REAP_MAX_FRACTION);
+    let reap = lock.reap(Pos::Adj, &resolved, date, REAP_MAX_FRACTION);
 
     println!("Resolved irregular adjectives into the lock.");
-    Ok(())
+    Ok(reap)
 }
 
 pub fn extract_verb_conjugations(
     input_path: impl AsRef<Path>,
     lock: &mut Lock,
     date: &str,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<ReapReport, Box<dyn Error>> {
     let input_path = input_path.as_ref();
     let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
     let reader = open_reader(input_path);
@@ -557,10 +557,10 @@ pub fn extract_verb_conjugations(
         lock.resolve(&lemma, Pos::Verb, candidates, had_regular, date);
         resolved.insert(lemma);
     }
-    lock.reap(Pos::Verb, &resolved, date, REAP_MAX_FRACTION);
+    let reap = lock.reap(Pos::Verb, &resolved, date, REAP_MAX_FRACTION);
 
     println!("Resolved verb conjugations into the lock.");
-    Ok(())
+    Ok(reap)
 }
 
 pub fn filter_english_entries(
@@ -591,8 +591,18 @@ pub fn filter_english_entries(
     Ok(())
 }
 
+/// Strip a `_<digits>` sense suffix from an emitted key (legacy artifact tool).
 pub fn strip_trailing_number(word: &str) -> &str {
-    word.trim_end_matches(|c: char| c.is_ascii_digit())
+    match word.rsplit_once('_') {
+        Some((base, digits))
+            if !base.is_empty()
+                && !digits.is_empty()
+                && digits.bytes().all(|b| b.is_ascii_digit()) =>
+        {
+            base
+        }
+        _ => word,
+    }
 }
 
 #[cfg(test)]
@@ -614,6 +624,44 @@ mod tests {
     }
 
     #[test]
+    fn mass_absence_reap_skip_is_reported_to_the_caller() {
+        // Pre-populate the lock with many pinned lemmas, then extract from a dump
+        // containing almost none of them: the mass-absence guard must refuse to
+        // tombstone AND the skip must reach the caller (the pipeline aborts on it
+        // unless --allow-partial-refresh) — a truncated dump must never produce a
+        // "successful" refresh that leaves stale rows active.
+        let dir = std::env::temp_dir().join("english_extract_policy_tests");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("partial.jsonl");
+        std::fs::write(
+            &path,
+            concat!(
+                r#"{"word":"worda","pos":"noun","lang_code":"en","forms":[{"form":"wordaen","tags":["plural"]}]}"#,
+                "\n"
+            ),
+        )
+        .unwrap();
+
+        let mut lock = Lock::new();
+        for c in 'a'..='t' {
+            lock.resolve(
+                &format!("word{c}"),
+                Pos::Noun,
+                vec![Candidate::new(vec![format!("word{c}en")])],
+                false,
+                "d0",
+            );
+        }
+        let report = extract_irregular_nouns(&path, &mut lock, "d1").unwrap();
+        assert!(report.skipped, "mass absence must be reported as a skipped reap");
+        assert_eq!(report.tombstoned, 0);
+        assert!(
+            lock.rows().all(|r| r.status == crate::registry::Status::Active),
+            "no stale row may be silently tombstoned or altered"
+        );
+    }
+
+    #[test]
     fn soft_tagged_regular_plural_does_not_reserve_the_bare_key() {
         // sheep: canonical plural "sheep" (plain) + "sheeps" attested only with a
         // soft tag. The soft attestation must NOT reserve the bare key for the rule
@@ -624,7 +672,7 @@ mod tests {
             "\n"
         );
         let lock = extract(jsonl, "sheep.jsonl", |p, l| {
-            extract_irregular_nouns(p, l, "d1").unwrap()
+            extract_irregular_nouns(p, l, "d1").unwrap();
         });
         assert_eq!(
             emitted(&lock, Pos::Noun),
@@ -642,11 +690,11 @@ mod tests {
             "\n"
         );
         let lock = extract(jsonl, "die.jsonl", |p, l| {
-            extract_irregular_nouns(p, l, "d1").unwrap()
+            extract_irregular_nouns(p, l, "d1").unwrap();
         });
         assert_eq!(
             emitted(&lock, Pos::Noun),
-            vec![("die2".to_string(), vec!["dice".to_string()])]
+            vec![("die_2".to_string(), vec!["dice".to_string()])]
         );
     }
 
@@ -664,7 +712,7 @@ mod tests {
             "\n"
         );
         let lock = extract(jsonl, "clever.jsonl", |p, l| {
-            extract_irregular_adjectives(p, l, "d1").unwrap()
+            extract_irregular_adjectives(p, l, "d1").unwrap();
         });
         assert_eq!(
             emitted(&lock, Pos::Adj),
@@ -685,7 +733,7 @@ mod tests {
             "\n"
         );
         let lock = extract(jsonl, "fast.jsonl", |p, l| {
-            extract_irregular_adjectives(p, l, "d1").unwrap()
+            extract_irregular_adjectives(p, l, "d1").unwrap();
         });
         assert_eq!(emitted(&lock, Pos::Adj), vec![]);
     }
@@ -701,7 +749,7 @@ mod tests {
             "\n"
         );
         let lock = extract(jsonl, "fun.jsonl", |p, l| {
-            extract_irregular_adjectives(p, l, "d1").unwrap()
+            extract_irregular_adjectives(p, l, "d1").unwrap();
         });
         assert_eq!(
             emitted(&lock, Pos::Adj),
@@ -727,14 +775,14 @@ mod tests {
             "\n"
         );
         let lock = extract(jsonl, "bad.jsonl", |p, l| {
-            extract_irregular_adjectives(p, l, "d1").unwrap()
+            extract_irregular_adjectives(p, l, "d1").unwrap();
         });
         assert_eq!(
             emitted(&lock, Pos::Adj),
             vec![
                 ("bad".to_string(), vec!["worse".to_string(), "worst".to_string()]),
-                ("bad2".to_string(), vec!["badder".to_string(), "baddest".to_string()]),
-                ("bad3".to_string(), vec!["more bad".to_string(), "most bad".to_string()]),
+                ("bad_2".to_string(), vec!["badder".to_string(), "baddest".to_string()]),
+                ("bad_3".to_string(), vec!["more bad".to_string(), "most bad".to_string()]),
             ]
         );
     }
@@ -748,7 +796,7 @@ mod tests {
             "\n"
         );
         let lock = extract(jsonl, "downhill.jsonl", |p, l| {
-            extract_irregular_adjectives(p, l, "d1").unwrap()
+            extract_irregular_adjectives(p, l, "d1").unwrap();
         });
         assert_eq!(
             emitted(&lock, Pos::Adj),
@@ -758,7 +806,7 @@ mod tests {
                     vec!["farther downhill".to_string(), "farthest downhill".to_string()]
                 ),
                 (
-                    "downhill2".to_string(),
+                    "downhill_2".to_string(),
                     vec!["further downhill".to_string(), "furthest downhill".to_string()]
                 ),
             ]
@@ -775,7 +823,7 @@ mod tests {
             "\n"
         );
         let lock = extract(jsonl, "zank.jsonl", |p, l| {
-            extract_irregular_adjectives(p, l, "d1").unwrap()
+            extract_irregular_adjectives(p, l, "d1").unwrap();
         });
         assert_eq!(emitted(&lock, Pos::Adj), vec![]);
     }
@@ -791,12 +839,12 @@ mod tests {
             "\n"
         );
         let lock = extract(jsonl, "thinky.jsonl", |p, l| {
-            extract_irregular_adjectives(p, l, "d1").unwrap()
+            extract_irregular_adjectives(p, l, "d1").unwrap();
         });
         assert_eq!(
             emitted(&lock, Pos::Adj),
             vec![(
-                "thinky2".to_string(),
+                "thinky_2".to_string(),
                 vec!["more thinky".to_string(), "most thinky".to_string()]
             )]
         );
@@ -812,13 +860,13 @@ mod tests {
             "\n"
         );
         let lock = extract(jsonl, "vree.jsonl", |p, l| {
-            extract_irregular_adjectives(p, l, "d1").unwrap()
+            extract_irregular_adjectives(p, l, "d1").unwrap();
         });
         // vreer/vreest equal the one-syllable rule prediction -> dropped, bare key
         // reserved for the rule; the periphrastic variant is the published key.
         assert_eq!(
             emitted(&lock, Pos::Adj),
-            vec![("vree2".to_string(), vec!["more vree".to_string(), "most vree".to_string()])]
+            vec![("vree_2".to_string(), vec!["more vree".to_string(), "most vree".to_string()])]
         );
     }
 
@@ -837,13 +885,13 @@ mod tests {
             "\n"
         );
         let lock = extract(jsonl, "abide.jsonl", |p, l| {
-            extract_verb_conjugations(p, l, "d1").unwrap()
+            extract_verb_conjugations(p, l, "d1").unwrap();
         });
         let emit = emitted(&lock, Pos::Verb);
         assert_eq!(emit.len(), 2, "{emit:?}");
-        assert_eq!(emit[0].0, "abide2", "bare key reserved: the regular conjugation is attested");
+        assert_eq!(emit[0].0, "abide_2", "bare key reserved: the regular conjugation is attested");
         assert_eq!(emit[0].1[1], "abode", "canonical (first-listed) tuple takes the lowest key");
-        assert_eq!(emit[1].0, "abide3");
+        assert_eq!(emit[1].0, "abide_3");
         assert_eq!(emit[1].1[1], "abid", "alternate variant gets the next key");
     }
 
@@ -857,13 +905,13 @@ mod tests {
             "\n"
         );
         let lock = extract(jsonl, "cactus.jsonl", |p, l| {
-            extract_irregular_nouns(p, l, "d1").unwrap()
+            extract_irregular_nouns(p, l, "d1").unwrap();
         });
         assert_eq!(
             emitted(&lock, Pos::Noun),
             vec![
-                ("cactus2".to_string(), vec!["cacti".to_string()]),
-                ("cactus3".to_string(), vec!["cactodes".to_string()]),
+                ("cactus_2".to_string(), vec!["cacti".to_string()]),
+                ("cactus_3".to_string(), vec!["cactodes".to_string()]),
             ],
             "listing order decides numbering; soft form excluded; regular dropped"
         );
@@ -881,7 +929,7 @@ mod tests {
             "\n"
         );
         let lock = extract(jsonl, "zorp.jsonl", |p, l| {
-            extract_verb_conjugations(p, l, "d1").unwrap()
+            extract_verb_conjugations(p, l, "d1").unwrap();
         });
         let emit = emitted(&lock, Pos::Verb);
         assert_eq!(emit.len(), 1, "{emit:?}");

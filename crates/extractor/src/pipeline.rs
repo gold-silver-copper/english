@@ -47,9 +47,29 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
     let (before_noun, before_verb, before_adj) = load_locks(&config.assignments_dir)?;
     let (mut noun_lock, mut verb_lock, mut adj_lock) = load_locks(&config.assignments_dir)?;
 
-    extract_verb_conjugations(&filtered_json_path, &mut verb_lock, &config.data_date)?;
-    extract_irregular_nouns(&filtered_json_path, &mut noun_lock, &config.data_date)?;
-    extract_irregular_adjectives(&filtered_json_path, &mut adj_lock, &config.data_date)?;
+    let verb_reap = extract_verb_conjugations(&filtered_json_path, &mut verb_lock, &config.data_date)?;
+    let noun_reap = extract_irregular_nouns(&filtered_json_path, &mut noun_lock, &config.data_date)?;
+    let adj_reap = extract_irregular_adjectives(&filtered_json_path, &mut adj_lock, &config.data_date)?;
+
+    // A skipped reap means the dump looks partial/corrupt (it would have retired
+    // an implausible share of a part-of-speech). Writing lockfiles from such a
+    // dump would ship a stale/mixed state that check-registry cannot flag (the
+    // absent rows were never tombstoned) — so this is a hard abort, not a note,
+    // unless the operator explicitly accepts it with --allow-partial-refresh.
+    let skipped: Vec<&str> = [("noun", noun_reap), ("verb", verb_reap), ("adj", adj_reap)]
+        .iter()
+        .filter(|(_, r)| r.skipped)
+        .map(|(pos, _)| *pos)
+        .collect();
+    if !skipped.is_empty() && !config.allow_partial_refresh {
+        return Err(format!(
+            "refusing to write lockfiles: the dump looks partial/corrupt (mass-absence reap \
+             guard tripped for: {}). Nothing was written. If this dump is genuinely correct, \
+             re-run with --allow-partial-refresh.",
+            skipped.join(", ")
+        )
+        .into());
+    }
 
     // Surface resolution notes (drift re-matches, tombstones, ambiguities).
     for note in noun_lock

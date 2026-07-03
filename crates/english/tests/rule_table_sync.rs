@@ -20,16 +20,18 @@ use english_core::EnglishCore;
 use english_core::grammar::{Form, Number, Person, Tense};
 use std::collections::HashSet;
 
+fn split_suffix(key: &str) -> Option<&str> {
+    let (base, digits) = key.rsplit_once('_')?;
+    (!base.is_empty() && !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()))
+        .then_some(base)
+}
+
 fn is_bare(key: &str) -> bool {
-    !key.ends_with(|c: char| c.is_ascii_digit())
+    split_suffix(key).is_none()
 }
 
 fn suffixed_lemmas<'a, T>(entries: &'a [(&'a str, T)]) -> HashSet<&'a str> {
-    entries
-        .iter()
-        .filter(|(k, _)| !is_bare(k))
-        .map(|(k, _)| k.trim_end_matches(|c: char| c.is_ascii_digit()))
-        .collect()
+    entries.iter().filter_map(|(k, _)| split_suffix(k)).collect()
 }
 
 #[test]

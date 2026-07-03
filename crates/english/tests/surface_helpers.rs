@@ -55,15 +55,15 @@ fn base_surface_helpers_work() {
     assert_eq!(English::noun("child", &Number::Plural), "children");
     assert_eq!(English::noun("cat", &Number::Plural), "cats");
     // A real suffixed table key strips to its bare lemma for the singular...
-    assert_eq!(English::noun("die2", &Number::Singular), "die");
+    assert_eq!(English::noun("die_2", &Number::Singular), "die");
     // ...but a digit-bearing non-key is opaque (not mangled to "cat").
-    assert_eq!(English::noun("cat2", &Number::Singular), "cat2");
+    assert_eq!(English::noun("cat_2", &Number::Singular), "cat_2");
     assert_eq!(count("man", 2), "men");
     assert_eq!(count_with_number("nickel", 3), "3 nickels");
     assert_eq!(English::adj("bad", &Degree::Comparative), "worse");
     assert_eq!(English::adj("fun", &Degree::Comparative), "more fun");
-    assert_eq!(English::adj("bad2", &Degree::Comparative), "badder"); // slang sense's key
-    assert_eq!(English::adj("bad2", &Degree::Positive), "bad");
+    assert_eq!(English::adj("bad_2", &Degree::Comparative), "badder"); // slang sense's key
+    assert_eq!(English::adj("bad_2", &Degree::Positive), "bad");
     assert_eq!(English::adj("fun", &Degree::Superlative), "most fun");
     assert_eq!(English::adj("fast", &Degree::Comparative), "faster"); // rule engine
     assert_eq!(English::adj("big", &Degree::Superlative), "biggest"); // CVC rule
