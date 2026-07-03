@@ -91,11 +91,10 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
 
     let mut violations = Vec::new();
 
-    // During the pre-release window the sense keys are still being re-keyed freely,
-    // so cross-version immutability is intentionally relaxed via ENGLISH_ALLOW_RELOCK
-    // (set in CI). Internal consistency and lock<->table sync are ALWAYS enforced.
-    // Unset this (the default) when cutting the first gated release to arm the
-    // cross-version immutability guard.
+    // Escape hatch for a *deliberate* re-key: ENGLISH_ALLOW_RELOCK skips the
+    // cross-version immutability comparison. It is never set in CI — using it there
+    // requires a visible, reviewable edit to .github/workflows/ci.yml. Internal
+    // consistency and lock<->table sync are ALWAYS enforced.
     let allow_relock = env::var("ENGLISH_ALLOW_RELOCK")
         .map(|v| !v.is_empty() && v != "0")
         .unwrap_or(false);
@@ -119,6 +118,18 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
                 "note: no baseline ref resolved (origin/main / GITHUB_BASE_REF); running internal + sync checks only."
             ),
         }
+    }
+
+    // Anchor-tier coverage on every gate run: most rows are still frozen on weak
+    // `sig:` anchors (bootstrap legacy), and drift-resilience improves as qid/sid
+    // enrichment lands — keep that visible in CI logs so erosion or stagnation is
+    // noticed, not discovered after a bad refresh.
+    for (name, lock) in [("noun", &noun), ("verb", &verb), ("adj", &adj)] {
+        let c = lock.coverage();
+        println!(
+            "coverage {name:>4}: active={} (qid={} sid={} etym={} sig={})  tombstoned={}",
+            c.active, c.by_qid, c.by_sid, c.by_etym, c.by_sig, c.tombstoned
+        );
     }
 
     for (pos, working) in [(Pos::Noun, &noun), (Pos::Verb, &verb), (Pos::Adj, &adj)] {

@@ -32,12 +32,10 @@ jobs:
   registry:
     name: check-registry
     runs-on: ubuntu-latest
-    # Pre-release relock window: the sense keys are still being re-keyed freely, so
-    # cross-version immutability is intentionally relaxed. Internal consistency and
-    # lock<->table sync ARE still enforced. Delete this `env:` block when cutting the
-    # first gated release to arm cross-version immutability.
-    env:
-      ENGLISH_ALLOW_RELOCK: "1"
+    # Cross-version immutability is ARMED: the checked-in lockfiles are the public
+    # stability boundary, and any PR that moves/drops/revives a published key fails
+    # here. A deliberate re-key would have to set ENGLISH_ALLOW_RELOCK in this job —
+    # a visible, reviewable CI edit — never a silent data change.
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,17 +43,6 @@ jobs:
       - name: Fetch base branch
         if: github.base_ref != ''
         run: git fetch --no-tags --depth=2147483647 origin "${{ github.base_ref }}"
-      # Tripwire: the relock window can't be silently forgotten. Surface it on every
-      # run, and HARD-FAIL after its intended end so cross-version immutability can't
-      # stay disabled past the first gated release.
-      - name: Relock-window tripwire
-        if: ${{ env.ENGLISH_ALLOW_RELOCK != '' }}
-        run: |
-          echo "::warning title=Relock window active::Cross-version immutability is RELAXED (ENGLISH_ALLOW_RELOCK). Delete the env block in .github/workflows/ci.yml before/at the first gated release."
-          if [ "$(date -u +%Y%m%d)" -ge 20260901 ]; then
-            echo "::error title=Relock window expired::Past 2026-09-01 with ENGLISH_ALLOW_RELOCK still set. Remove it to arm cross-version immutability (or move the date deliberately)."
-            exit 1
-          fi
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo run -p xtask -- check-registry
