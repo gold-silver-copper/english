@@ -38,15 +38,95 @@ fn strip_trailing_number(word: &str) -> &str {
 /// must treat the input as that base lemma — table lookups fall back to the base
 /// (`get_*(word)` then `get_*(base)`), so `"child2"` inflects exactly like `"child"`
 /// rather than mixing stripped singulars with regular-rule plurals.
+///
+/// The base-lemma alias fallback additionally requires a *plausible* sense suffix
+/// (a single digit 2..=9, matching how suffixes are allocated): without that
+/// guard, `"F16"` would strip to `"F"` merely because the letter `f` happens to
+/// be a noun table key. A real published key with a bigger suffix is unaffected —
+/// it hits `is_key(word)` directly.
 fn base_lemma<'a>(word: &'a str, is_key: impl Fn(&str) -> bool) -> &'a str {
     let stripped = strip_trailing_number(word);
-    let base = if stripped != word && !stripped.is_empty() && (is_key(word) || is_key(stripped)) {
+    if stripped == word || stripped.is_empty() {
+        return word;
+    }
+    if is_key(word) {
+        return stripped;
+    }
+    let digits = &word[stripped.len()..];
+    let plausible_suffix = digits.len() == 1 && matches!(digits.as_bytes()[0], b'2'..=b'9');
+    if plausible_suffix && is_key(stripped) {
         stripped
     } else {
         word
+    }
+}
+
+/// How a capitalized input's casing is restored onto a lowercase table value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CaseStyle {
+    /// Lowercase / mixed-case input: the table value is returned as-is.
+    AsIs,
+    /// Title-case input (`Child`): capitalize the first letter of the output.
+    Title,
+    /// All-caps input (`CHILD`, more than one letter): uppercase the output.
+    Upper,
+}
+
+fn case_style(word: &str) -> CaseStyle {
+    let Some(first) = word.chars().next() else {
+        return CaseStyle::AsIs;
     };
-    debug_assert!(base.is_empty() == word.is_empty());
-    base
+    if !first.is_uppercase() {
+        return CaseStyle::AsIs;
+    }
+    let letters = word.chars().filter(|c| c.is_alphabetic());
+    if letters.clone().count() > 1 && letters.clone().all(|c| !c.is_lowercase()) {
+        CaseStyle::Upper
+    } else if word.chars().skip(1).all(|c| !c.is_uppercase()) {
+        CaseStyle::Title
+    } else {
+        CaseStyle::AsIs // mixed case ("McDonald"): don't guess, leave table misses to the rule
+    }
+}
+
+fn restyle(s: String, style: CaseStyle) -> String {
+    match style {
+        CaseStyle::AsIs => s,
+        CaseStyle::Upper => s.to_uppercase(),
+        CaseStyle::Title => English::capitalize_first(&s),
+    }
+}
+
+/// Case-insensitive table lookup: the exact key first; for Title/ALL-CAPS input,
+/// fall back to the lowercase key (the tables are all-lowercase) and remember how
+/// to restore the casing onto the value. Regular-rule fallbacks never need this —
+/// they build on the input string and preserve its casing naturally.
+fn ci_lookup<T>(word: &str, get: impl Fn(&str) -> Option<T>) -> Option<(T, CaseStyle)> {
+    if let Some(v) = get(word) {
+        return Some((v, CaseStyle::AsIs));
+    }
+    let style = case_style(word);
+    if style != CaseStyle::AsIs
+        && let Some(v) = get(&word.to_lowercase())
+    {
+        return Some((v, style));
+    }
+    None
+}
+
+/// Test-only visibility into the generated tables (integration tests cannot see
+/// the private generated modules). Not part of the public API.
+#[doc(hidden)]
+pub fn __table_entries() -> (
+    Vec<(&'static str, &'static str)>,
+    Vec<(&'static str, (&'static str, &'static str, &'static str, &'static str))>,
+    Vec<(&'static str, (&'static str, &'static str))>,
+) {
+    (
+        PLURAL_MAP.entries().map(|(k, v)| (*k, *v)).collect(),
+        VERB_MAP.entries().map(|(k, v)| (*k, *v)).collect(),
+        ADJECTIVE_MAP.entries().map(|(k, v)| (*k, *v)).collect(),
+    )
 }
 
 /// Entry point for English inflection and morphology.
@@ -73,13 +153,15 @@ impl English {
     /// assert_eq!(English::noun("die2", &Number::Plural), "dice");
     /// ```
     pub fn noun(word: &str, number: &Number) -> String {
-        let base_word = base_lemma(word, |w| get_plural(w).is_some());
+        let base_word = base_lemma(word, |w| ci_lookup(w, get_plural).is_some());
 
         match number {
             Number::Singular => base_word.to_string(),
             Number::Plural => {
-                if let Some(x) = get_plural(word).or_else(|| get_plural(base_word)) {
-                    x.to_owned()
+                if let Some((x, style)) =
+                    ci_lookup(word, get_plural).or_else(|| ci_lookup(base_word, get_plural))
+                {
+                    restyle(x.to_owned(), style)
                 } else {
                     EnglishCore::noun(base_word, number)
                 }
@@ -103,20 +185,21 @@ impl English {
     /// assert_eq!(English::adj("fun", &Degree::Comparative), "more fun");
     /// ```
     pub fn adj(word: &str, degree: &Degree) -> String {
-        let base_word = base_lemma(word, |w| get_adjective_forms(w).is_some());
-        let forms = get_adjective_forms(word).or_else(|| get_adjective_forms(base_word));
+        let base_word = base_lemma(word, |w| ci_lookup(w, get_adjective_forms).is_some());
+        let forms = ci_lookup(word, get_adjective_forms)
+            .or_else(|| ci_lookup(base_word, get_adjective_forms));
         match degree {
             Degree::Positive => base_word.to_owned(),
             Degree::Comparative => {
-                if let Some((comp, _)) = forms {
-                    comp.to_owned()
+                if let Some(((comp, _), style)) = forms {
+                    restyle(comp.to_owned(), style)
                 } else {
                     EnglishCore::comparative(base_word)
                 }
             }
             Degree::Superlative => {
-                if let Some((_, sup)) = forms {
-                    sup.to_owned()
+                if let Some(((_, sup), style)) = forms {
+                    restyle(sup.to_owned(), style)
                 } else {
                     EnglishCore::superlative(base_word)
                 }
@@ -159,17 +242,19 @@ impl English {
         tense: &Tense,
         form: &Form,
     ) -> String {
-        let base_word = base_lemma(word, |w| get_verb_forms(w).is_some());
-        match get_verb_forms(word).or_else(|| get_verb_forms(base_word)) {
-            Some(wordik) => match (person, number, tense, form) {
+        let base_word = base_lemma(word, |w| ci_lookup(w, get_verb_forms).is_some());
+        match ci_lookup(word, get_verb_forms).or_else(|| ci_lookup(base_word, get_verb_forms)) {
+            Some((wordik, style)) => match (person, number, tense, form) {
+                // Branches that return the lemma itself keep the caller's own
+                // casing; branches that return a table value restore it.
                 (_, _, _, Form::Infinitive) => base_word.to_owned(),
                 (Person::Third, Number::Singular, Tense::Present, Form::Finite) => {
-                    wordik.0.to_string()
+                    restyle(wordik.0.to_string(), style)
                 }
                 (_, _, Tense::Present, Form::Finite) => base_word.to_owned(),
-                (_, _, Tense::Present, Form::Participle) => wordik.2.to_owned(),
-                (_, _, Tense::Past, Form::Participle) => wordik.3.to_owned(),
-                (_, _, Tense::Past, Form::Finite) => wordik.1.to_owned(),
+                (_, _, Tense::Present, Form::Participle) => restyle(wordik.2.to_owned(), style),
+                (_, _, Tense::Past, Form::Participle) => restyle(wordik.3.to_owned(), style),
+                (_, _, Tense::Past, Form::Finite) => restyle(wordik.1.to_owned(), style),
             },
             None => EnglishCore::verb(base_word, person, number, tense, form),
         }

@@ -37,6 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Some("refresh-data") => refresh_data(args.collect()),
         Some("seed-assignments") => seed_assignments(args.collect()),
         Some("check-registry") => check_registry(),
+        Some("accuracy") => accuracy(args.collect()),
         Some("compact") => compact(),
         Some("report-coverage") => report_coverage(),
         Some("-h") | Some("--help") | None => {
@@ -283,6 +284,51 @@ fn git_merge_base(root: &Path, base: &str, head: &str) -> Result<Option<String>,
 }
 
 // --------------------------------------------------------------------------
+// accuracy: measure "% of plain attested Wiktionary forms the library
+// reproduces" per POS, against the CURRENT committed tables + rule engine.
+// Defaults to the cached filtered dataset so it doesn't need the raw 20 GB dump.
+// --------------------------------------------------------------------------
+fn accuracy(args: Vec<String>) -> Result<(), Box<dyn Error>> {
+    let root = workspace_root()?;
+    let mut dump = root.join("data/intermediate/english_filtered.jsonl");
+
+    let mut iter = args.into_iter();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--dump" => dump = PathBuf::from(req(&mut iter, "--dump")?),
+            "-h" | "--help" => {
+                eprintln!("Usage: cargo xtask accuracy [--dump /path/to/rawwiki.jsonl]");
+                eprintln!("Defaults to the cached data/intermediate/english_filtered.jsonl.");
+                return Ok(());
+            }
+            other => return Err(format!("unknown flag for `accuracy`: {other}").into()),
+        }
+    }
+    if !dump.exists() {
+        return Err(format!(
+            "no dump at {} — pass one with `--dump` (the raw Wiktextract JSONL), or run \
+             `cargo xtask refresh-data` once to populate the cached filtered dataset.",
+            dump.display()
+        )
+        .into());
+    }
+
+    let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
+    let status = Command::new(cargo)
+        .current_dir(&root)
+        .args(["run", "-p", "extractor", "--release", "--features", "checks", "--"])
+        .arg("--dump")
+        .arg(&dump)
+        .arg("--checks-only")
+        .status()?;
+    if status.success() {
+        Ok(())
+    } else {
+        process::exit(status.code().unwrap_or(1));
+    }
+}
+
+// --------------------------------------------------------------------------
 // compact: the deliberate cruft-collection for a data-major release. Deletes
 // tombstones, closes suffix gaps, regenerates the tables, and bumps DATA_MAJOR
 // so check-registry treats the renumbering as sanctioned.
@@ -504,6 +550,7 @@ fn print_usage() {
     eprintln!("  refresh-data       Regenerate the Wiktionary-derived lookup tables + lockfiles");
     eprintln!("  seed-assignments   One-time: freeze today's tables into the assignment lockfiles");
     eprintln!("  check-registry     CI gate: fail if any published key changed meaning");
+    eprintln!("  accuracy           Measure % of attested Wiktionary forms the library reproduces");
     eprintln!("  compact            Data-major release: drop tombstones, close suffix gaps, bump DATA_MAJOR");
     eprintln!("  report-coverage    Show anchor-tier coverage of the lockfiles");
 }

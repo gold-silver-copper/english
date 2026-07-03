@@ -1,5 +1,6 @@
 use crate::helpers::{
-    Entry, Pos, choose_form, entry_is_proper, suffix_rule, tag_rank, word_is_proper,
+    Entry, Pos, choose_form, entry_is_proper, entry_is_soft, suffix_rule, tag_rank,
+    word_is_proper,
 };
 use crate::registry::{Candidate, Lock};
 use csv::{ReaderBuilder, WriterBuilder};
@@ -33,11 +34,16 @@ impl LemmaAcc {
     /// for this lemma, attaching the entry's stable anchors. Deduped by the emitted
     /// signature, so two entries merge only when they emit the same forms.
     fn observe(&mut self, forms: Vec<String>, entry: &Entry) {
+        let soft = entry_is_soft(entry);
         let sig = forms.join("|");
+        let is_new = !self.by_sig.contains_key(&sig);
         let c = self
             .by_sig
             .entry(sig)
             .or_insert_with(|| Candidate::new(forms));
+        // Soft only while EVERY contributing entry is soft: one standard sense
+        // sharing the signature makes the candidate standard.
+        c.soft_sense = if is_new { soft } else { c.soft_sense && soft };
         if c.qid.is_none() {
             c.qid = entry.lowest_qid();
         }
@@ -53,11 +59,24 @@ impl LemmaAcc {
     }
 
     /// Drop the pattern that exactly equals the regular prediction; the rule engine
-    /// produces it at runtime, so a table row would add nothing (and `had_regular`
-    /// then reserves the bare key for the rule).
-    fn drop_regular(&mut self, predicted: &[String]) {
+    /// produces it at runtime, so a table row would add nothing.
+    ///
+    /// `soft_reserves` decides whether a dropped candidate whose senses are ALL
+    /// soft still sets `had_regular` (reserving the bare key for the rule):
+    /// - adjectives pass `false`: the suffixal prediction is linguistically
+    ///   informed, and a slang-only sense the rule predicts (`bad` -> `badder`)
+    ///   must not demote a standard suppletive sibling (`worse`) off the bare key;
+    /// - nouns and verbs pass `true`: their predictions are the near-universal
+    ///   defaults, and reserving keeps BOTH attested variants reachable (bare ->
+    ///   regular via rule, irregular at suffix 2). Measured on the real dump, the
+    ///   adjective-style guard cost nouns 1.5k+ reachable attested plurals
+    ///   (soft-sense entries attesting regular AND irregular plurals) for zero
+    ///   accuracy gain.
+    fn drop_regular(&mut self, predicted: &[String], soft_reserves: bool) {
         let sig = predicted.join("|");
-        if self.by_sig.remove(&sig).is_some() {
+        if let Some(c) = self.by_sig.remove(&sig)
+            && (soft_reserves || !c.soft_sense)
+        {
             self.had_regular = true;
         }
     }
@@ -76,6 +95,30 @@ fn open_reader(path: &Path) -> BufReader<File> {
 fn select_slot(forms: &[(String, u8)], predicted: &str, prefer_regular: bool) -> String {
     choose_form(forms, predicted, prefer_regular).unwrap_or_else(|| predicted.to_string())
 }
+
+/// A periphrastic attestation ("more X"/"most X") is only credible when nothing
+/// single-word is plainly attested for the slot. When both appear, the suffixal
+/// form is the canonical one (`badder` beats "more bad", `cleverer` beats "more
+/// clever") — otherwise the anti-prediction preference in `choose_form` would
+/// canonicalize the periphrastic variant for every word whose suffixal form the
+/// rule engine predicts.
+fn drop_periphrastic_if_single_word_attested(forms: &mut Vec<(String, u8)>) {
+    if forms.iter().any(|(f, r)| *r == 0 && !f.contains(' ')) {
+        forms.retain(|(f, _)| !f.contains(' '));
+    }
+}
+
+// NOTE on uncountable nouns (investigated 2026-07, deliberately NOT implemented):
+// marking "strictly uncountable" lemmas (every sense tagged `uncountable`, no
+// plain plural) as invariant plurals sounds like it should fix
+// `noun("information") -> "informations"`. Measured against the real dump it does
+// the opposite: the common mass nouns (information, advice, rice, ...) all carry
+// plainly-attested plurals and `countable` senses in Wiktionary, so no tag
+// heuristic can qualify them — while ~85k tail-jargon entries (chemical names,
+// -isms) DO qualify, quintupling the noun table for words nobody inflects.
+// Treating those attested plurals as correct (Wiktionary itself says `advices`
+// exists) is the more defensible behavior; a curated mass-noun list would be the
+// way to change it, not dump tags.
 
 pub fn extract_irregular_nouns(
     input_path: impl AsRef<Path>,
@@ -120,6 +163,7 @@ pub fn extract_irregular_nouns(
                 plurals.push((entry_form, rank));
             }
         }
+
         if plurals.is_empty() {
             continue;
         }
@@ -157,7 +201,7 @@ pub fn extract_irregular_nouns(
     let mut resolved: HashSet<String> = HashSet::new();
     for (lemma, mut acc) in by_lemma {
         let predicted_plural = EnglishCore::pluralize_noun(&lemma);
-        acc.drop_regular(&[predicted_plural]);
+        acc.drop_regular(&[predicted_plural], true);
         let (candidates, had_regular) = acc.into_candidates();
         if candidates.is_empty() {
             continue;
@@ -194,11 +238,18 @@ pub fn extract_irregular_adjectives(
 
         let mut comp_forms: Vec<(String, u8)> = Vec::new();
         let mut sup_forms: Vec<(String, u8)> = Vec::new();
+        // Periphrastic attestations are multiword ("more fun") and would fail
+        // word_is_proper; they are legitimate — and load-bearing now that the rule
+        // engine predicts suffixal forms for short adjectives ("funner"): the
+        // attested periphrastic must survive as a tabled exception.
+        let periphrastic = [format!("more {lemma}"), format!("most {lemma}")];
         if let Some(forms) = &entry.forms {
             for form in forms {
                 let tags = &form.tags;
                 let entry_form = form.form.to_lowercase();
-                if entry_form == "dubious" || !word_is_proper(&entry_form) {
+                if entry_form == "dubious"
+                    || (!word_is_proper(&entry_form) && !periphrastic.contains(&entry_form))
+                {
                     continue;
                 }
                 let Some(rank) = tag_rank(tags) else {
@@ -212,6 +263,9 @@ pub fn extract_irregular_adjectives(
                 }
             }
         }
+
+        drop_periphrastic_if_single_word_attested(&mut comp_forms);
+        drop_periphrastic_if_single_word_attested(&mut sup_forms);
 
         // An entry with NO plain-attested form in either slot (an uncomparable
         // sense, or one attesting only soft-tagged variants) contributes nothing:
@@ -244,7 +298,7 @@ pub fn extract_irregular_adjectives(
             EnglishCore::comparative(&lemma),
             EnglishCore::superlative(&lemma),
         ];
-        acc.drop_regular(&predicted);
+        acc.drop_regular(&predicted, false);
         let (candidates, had_regular) = acc.into_candidates();
         if candidates.is_empty() {
             continue;
@@ -403,7 +457,7 @@ pub fn extract_verb_conjugations(
                 &Form::Finite,
             ),
         ];
-        acc.drop_regular(&predicted);
+        acc.drop_regular(&predicted, true);
         let (candidates, had_regular) = acc.into_candidates();
         if candidates.is_empty() {
             continue;
@@ -506,31 +560,50 @@ mod tests {
 
     #[test]
     fn formless_adjective_entry_does_not_reserve_the_bare_key() {
-        // fast: the gradable sense attests faster/fastest; a second (uncomparable)
+        // clever: the gradable sense attests cleverer/cleverest (which the rule
+        // engine does NOT predict — two syllables, not -y); a second (uncomparable)
         // sense attests nothing. The formless entry must be skipped, not observed
         // as a synthesized fully-regular candidate — otherwise the bare key emits
-        // "more fast" while faster/fastest sit at fast2.
+        // "more clever" while cleverer/cleverest sit at clever2.
         let jsonl = concat!(
-            r#"{"word":"fast","pos":"adj","lang_code":"en","etymology_number":1,"forms":[{"form":"faster","tags":["comparative"]},{"form":"fastest","tags":["superlative"]}]}"#,
+            r#"{"word":"clever","pos":"adj","lang_code":"en","etymology_number":1,"forms":[{"form":"cleverer","tags":["comparative"]},{"form":"cleverest","tags":["superlative"]}]}"#,
             "\n",
-            r#"{"word":"fast","pos":"adj","lang_code":"en","etymology_number":2}"#,
+            r#"{"word":"clever","pos":"adj","lang_code":"en","etymology_number":2}"#,
+            "\n"
+        );
+        let lock = extract(jsonl, "clever.jsonl", |p, l| {
+            extract_irregular_adjectives(p, l, "d1").unwrap()
+        });
+        assert_eq!(
+            emitted(&lock, Pos::Adj),
+            vec![(
+                "clever".to_string(),
+                vec!["cleverer".to_string(), "cleverest".to_string()]
+            )]
+        );
+    }
+
+    #[test]
+    fn rule_predicted_adjective_forms_are_not_tabled() {
+        // fast: attested faster/fastest now EQUAL the rule prediction, so the
+        // candidate is dropped and the rule engine serves the bare key — no table
+        // row at all, and no bare-key reservation weirdness.
+        let jsonl = concat!(
+            r#"{"word":"fast","pos":"adj","lang_code":"en","forms":[{"form":"faster","tags":["comparative"]},{"form":"fastest","tags":["superlative"]}]}"#,
             "\n"
         );
         let lock = extract(jsonl, "fast.jsonl", |p, l| {
             extract_irregular_adjectives(p, l, "d1").unwrap()
         });
-        assert_eq!(
-            emitted(&lock, Pos::Adj),
-            vec![("fast".to_string(), vec!["faster".to_string(), "fastest".to_string()])]
-        );
+        assert_eq!(emitted(&lock, Pos::Adj), vec![]);
     }
 
     #[test]
-    fn attested_periphrastic_adjective_still_reserves_the_bare_key() {
-        // fun: Wiktionary genuinely lists "more fun"/"most fun" (plain) alongside
-        // the informal "funner"/"funnest". The plain periphrastic attestation
-        // reserves the bare key for the rule engine, and the soft-tagged variants
-        // are never emitted at all.
+    fn attested_periphrastic_adjective_is_tabled_as_an_exception() {
+        // fun: Wiktionary lists "more fun"/"most fun" as the plain forms alongside
+        // the informal "funner"/"funnest". The rule engine predicts the suffixal
+        // forms (one syllable), so the attested periphrastic must survive as a
+        // table row — and the soft-tagged variants are never emitted at all.
         let jsonl = concat!(
             r#"{"word":"fun","pos":"adj","lang_code":"en","forms":[{"form":"more fun","tags":["comparative"]},{"form":"most fun","tags":["superlative"]},{"form":"funner","tags":["comparative","informal"]},{"form":"funnest","tags":["superlative","informal"]}]}"#,
             "\n"
@@ -538,8 +611,38 @@ mod tests {
         let lock = extract(jsonl, "fun.jsonl", |p, l| {
             extract_irregular_adjectives(p, l, "d1").unwrap()
         });
-        assert_eq!(emitted(&lock, Pos::Adj), vec![]);
+        assert_eq!(
+            emitted(&lock, Pos::Adj),
+            vec![("fun".to_string(), vec!["more fun".to_string(), "most fun".to_string()])]
+        );
     }
+
+    #[test]
+    fn soft_sense_regular_equal_candidate_does_not_reserve_the_bare_key() {
+        // The `bad` pattern: the standard entry attests suppletive worse/worst
+        // (plain) with nonstandard badder/"more bad" soft-tagged; a second entry
+        // whose senses are ALL slang attests badder/baddest plainly — which the
+        // CVC rule happens to predict. The slang candidate is dropped as
+        // rule-predictable but must NOT reserve the bare key: standard `worse`
+        // keeps it.
+        let jsonl = concat!(
+            r#"{"word":"bad","pos":"adj","lang_code":"en","etymology_number":1,"forms":[{"form":"worse","tags":["comparative"]},{"form":"badder","tags":["comparative","nonstandard"]},{"form":"worst","tags":["superlative"]},{"form":"baddest","tags":["nonstandard","superlative"]}],"senses":[{"glosses":["of low quality"]}]}"#,
+            "\n",
+            r#"{"word":"bad","pos":"adj","lang_code":"en","etymology_number":1,"forms":[{"form":"badder","tags":["comparative"]},{"form":"more bad","tags":["comparative"]},{"form":"baddest","tags":["superlative"]},{"form":"most bad","tags":["superlative"]}],"senses":[{"tags":["slang"],"glosses":["bold, daring"]}]}"#,
+            "\n"
+        );
+        let lock = extract(jsonl, "bad.jsonl", |p, l| {
+            extract_irregular_adjectives(p, l, "d1").unwrap()
+        });
+        assert_eq!(
+            emitted(&lock, Pos::Adj),
+            vec![("bad".to_string(), vec!["worse".to_string(), "worst".to_string()])]
+        );
+    }
+
+
+
+
 
     #[test]
     fn formless_verb_entry_does_not_reserve_the_bare_key() {

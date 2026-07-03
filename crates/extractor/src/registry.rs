@@ -72,6 +72,10 @@ pub struct Candidate {
     pub forms: Vec<String>,
     /// First gloss, stored in the lockfile as a human review aid.
     pub gloss: Option<String>,
+    /// True when every contributing sense is soft (slang/nonstandard/...): such a
+    /// candidate never reserves the bare key for the rule engine when dropped as
+    /// regular-equal. Extraction-time metadata only; not persisted in the lock.
+    pub soft_sense: bool,
 }
 
 impl Candidate {

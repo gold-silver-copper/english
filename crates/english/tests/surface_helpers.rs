@@ -62,10 +62,11 @@ fn base_surface_helpers_work() {
     assert_eq!(count_with_number("nickel", 3), "3 nickels");
     assert_eq!(English::adj("bad", &Degree::Comparative), "worse");
     assert_eq!(English::adj("fun", &Degree::Comparative), "more fun");
-    assert_eq!(English::adj("bad2", &Degree::Comparative), "badder");
+    assert_eq!(English::adj("bad2", &Degree::Comparative), "worse"); // alias of bad
     assert_eq!(English::adj("bad2", &Degree::Positive), "bad");
     assert_eq!(English::adj("fun", &Degree::Superlative), "most fun");
-    assert_eq!(English::adj("bad2", &Degree::Superlative), "baddest");
+    assert_eq!(English::adj("fast", &Degree::Comparative), "faster"); // rule engine
+    assert_eq!(English::adj("big", &Degree::Superlative), "biggest"); // CVC rule
     assert_eq!(English::capitalize_first(""), "");
     assert_eq!(English::capitalize_first("house"), "House");
 }

@@ -17,6 +17,9 @@ pub struct Config {
     /// only; never affects key assignment).
     pub data_date: String,
     pub run_checks: bool,
+    /// Measure accuracy only: filter (or reuse) the dump and run the checks, but
+    /// never touch the lockfiles or generated tables.
+    pub checks_only: bool,
 }
 
 pub fn parse_args() -> Result<Config, Box<dyn Error>> {
@@ -36,6 +39,7 @@ where
     let mut assignments_dir = repo_root.join(DEFAULT_ASSIGNMENTS_DIR);
     let mut data_date = "unknown".to_string();
     let mut run_checks = false;
+    let mut checks_only = false;
 
     let mut args = args.into_iter();
     while let Some(arg) = args.next() {
@@ -68,6 +72,10 @@ where
             "--run-checks" => {
                 run_checks = true;
             }
+            "--checks-only" => {
+                run_checks = true;
+                checks_only = true;
+            }
             "-h" | "--help" => {
                 print_usage();
                 std::process::exit(0);
@@ -94,6 +102,7 @@ where
         assignments_dir,
         data_date,
         run_checks,
+        checks_only,
     })
 }
 

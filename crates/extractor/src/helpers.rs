@@ -59,6 +59,26 @@ pub static SOFT_TAGS: &[&str] = &[
     "colloquial",
 ];
 
+/// Sense-level softness: a sense carrying any of these (the form-level
+/// exclude/soft sets, plus register tags that only appear on senses) is a
+/// nonstandard sense. An entry whose EVERY sense is soft describes a register
+/// variant of the lemma, not its standard use — such an entry's regular-equal
+/// forms must not reserve the bare key for the rule engine (`bad`: the slang
+/// senses inflect `badder`, but bare `bad` belongs to standard `worse`).
+pub fn sense_is_soft(tags: &[String]) -> bool {
+    tags.iter().any(|t| {
+        EXCLUDE_TAGS.contains(&t.as_str())
+            || SOFT_TAGS.contains(&t.as_str())
+            || matches!(t.as_str(), "slang" | "vulgar" | "derogatory" | "offensive")
+    })
+}
+
+/// Whether every sense of this entry is soft (see [`sense_is_soft`]).
+/// A senseless entry is NOT soft — absence of tags is standard by default.
+pub fn entry_is_soft(entry: &Entry) -> bool {
+    !entry.senses.is_empty() && entry.senses.iter().all(|s| sense_is_soft(&s.tags))
+}
+
 /// Rank a form's tags for selection. Returns `None` if the form is disqualified
 /// (an [`EXCLUDE_TAGS`] match), `Some(0)` for a plain form, and `Some(1)` for a
 /// form carrying only [`SOFT_TAGS`]. Lower is preferred.
@@ -136,6 +156,9 @@ pub struct Sense {
     pub wikidata: Vec<String>,
     #[serde(default)]
     pub glosses: Vec<String>,
+    /// Sense-level grammatical tags (`uncountable`, `countable`, `transitive`, ...).
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]

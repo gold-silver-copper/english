@@ -211,6 +211,7 @@ It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive
 * Uses `english-core` to filter out regular forms, preserving only irregulars
 * Resolves homograph sense numbers against the checked-in assignment lockfiles so keys stay stable across releases
 * Generates the static PHF tables used in `english`
+* `cargo xtask accuracy` measures the share of plain attested Wiktionary forms the library reproduces, per part of speech — run it before and after any rule or table change
 
 ---
 

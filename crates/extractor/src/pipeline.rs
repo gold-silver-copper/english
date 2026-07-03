@@ -15,7 +15,16 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
     fs::create_dir_all(&config.assignments_dir)?;
 
     let filtered_json_path = config.artifacts_dir.join("english_filtered.jsonl");
-    if config.dump_path != filtered_json_path {
+    // Compare canonicalized paths: a relative/absolute spelling of the SAME file
+    // must be detected, or we would truncate the filtered file while reading it.
+    let dump_is_filtered = match (
+        fs::canonicalize(&config.dump_path),
+        fs::canonicalize(&filtered_json_path),
+    ) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => false,
+    };
+    if !dump_is_filtered {
         filter_english_entries(&config.dump_path, &filtered_json_path)?;
     } else {
         println!(
@@ -26,6 +35,10 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
 
     if config.run_checks {
         run_checks(&filtered_json_path, &config.artifacts_dir)?;
+    }
+    if config.checks_only {
+        println!("Checks-only run: lockfiles and generated tables untouched.");
+        return Ok(());
     }
 
     // Load the committed assignment lockfiles (empty on first run). We keep a
