@@ -96,19 +96,22 @@ impl Candidate {
     }
     /// A *deterministic, reproducible* total order for assigning suffixes to the
     /// brand-new identities that co-appear at cold start. It orders by the anchor
-    /// fields (qid, then sid, then etym), then the listing `ordinal` (several
-    /// variant patterns from one entry number canonical-first, per the head
-    /// template's editorial order), and only then the form signature. Note this is
-    /// purely a tiebreak among co-appearing new senses (the result is frozen
-    /// immediately after) — NOT a claim about which sense is "primary": a missing
-    /// qid sorts as the empty string, so a metadata-less sense can sort ahead of a
-    /// metadata-bearing one. The bare-vs-`2` choice among genuine homographs is
-    /// intentionally arbitrary-but-stable.
-    fn order_key(&self) -> (String, String, u32, u8, String) {
+    /// fields (qid, then sid, then etym), then standard-before-soft (a slang-only
+    /// sense must never outrank a standard sibling for a low key), then the
+    /// listing `ordinal` (several variant patterns from one entry number
+    /// canonical-first, per the head template's editorial order), and only then
+    /// the form signature. Note this is purely a tiebreak among co-appearing new
+    /// senses (the result is frozen immediately after) — NOT a claim about which
+    /// sense is "primary": a missing qid sorts as the empty string, so a
+    /// metadata-less sense can sort ahead of a metadata-bearing one. The
+    /// bare-vs-`2` choice among genuine homographs is intentionally
+    /// arbitrary-but-stable.
+    fn order_key(&self) -> (String, String, u32, bool, u8, String) {
         (
             self.qid.clone().unwrap_or_default(),
             self.sid.clone().unwrap_or_default(),
             self.etym.unwrap_or(0),
+            self.soft_sense,
             self.ordinal,
             self.sig(),
         )

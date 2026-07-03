@@ -16,6 +16,11 @@
 //! not counted: by policy the library never emits them. Run
 //! `cargo xtask accuracy` before and after any rule/table change so the change
 //! carries a number, not an anecdote. Misses are written to per-POS CSVs.
+//!
+//! Known residual (accepted): adjectives whose periphrastic uses a DIALECTAL
+//! degree word ("mair reet"/"maist reet" — Scots) are not admitted as forms, so
+//! those slots miss; standard degree words (more/most, farther/further/-est,
+//! better/best) are admitted.
 
 #[cfg(feature = "checks")]
 use crate::helpers::{Entry, base_setup, entry_is_proper, tag_rank, word_is_proper};

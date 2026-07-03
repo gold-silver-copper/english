@@ -62,26 +62,52 @@ impl LemmaAcc {
     }
 
     /// Drop the pattern that exactly equals the regular prediction; the rule engine
-    /// produces it at runtime, so a table row would add nothing.
+    /// produces it at runtime, so a table row would add nothing — PROVIDED the rule
+    /// is actually reachable for those forms.
     ///
-    /// `soft_reserves` decides whether a dropped candidate whose senses are ALL
-    /// soft still sets `had_regular` (reserving the bare key for the rule):
-    /// - adjectives pass `false`: the suffixal prediction is linguistically
-    ///   informed, and a slang-only sense the rule predicts (`bad` -> `badder`)
-    ///   must not demote a standard suppletive sibling (`worse`) off the bare key;
-    /// - nouns and verbs pass `true`: their predictions are the near-universal
-    ///   defaults, and reserving keeps BOTH attested variants reachable (bare ->
-    ///   regular via rule, irregular at suffix 2). Measured on the real dump, the
-    ///   adjective-style guard cost nouns 1.5k+ reachable attested plurals
-    ///   (soft-sense entries attesting regular AND irregular plurals) for zero
-    ///   accuracy gain.
+    /// `soft_reserves` decides how a rule-equal candidate whose senses are ALL soft
+    /// is treated:
+    /// - nouns and verbs pass `true`: any rule-equal candidate is dropped and
+    ///   reserves the bare key (`had_regular`) — their predictions are the
+    ///   near-universal defaults, and reserving keeps every attested variant
+    ///   reachable (bare -> regular via rule, irregulars at numbered keys).
+    ///   Measured on the real dump, the stricter guard cost nouns 1.5k+ reachable
+    ///   attested plurals for zero accuracy gain.
+    /// - adjectives pass `false`: a standard-sense rule-equal candidate drops and
+    ///   reserves as usual, but a SOFT-sense one (the slang `bad` -> `badder`,
+    ///   which the CVC rule predicts) must not demote a standard suppletive
+    ///   sibling (`worse`) off the bare key. And since that sibling then OCCUPIES
+    ///   the bare key, the rule never fires for this lemma — so the soft
+    ///   candidate's attested forms would be unreachable if dropped. It is
+    ///   therefore KEPT and published at a numbered key, unless it is the lemma's
+    ///   sole candidate (then the bare key does fall through to the rule and the
+    ///   row really would be redundant).
     fn drop_regular(&mut self, predicted: &[String], soft_reserves: bool) {
         let sig = predicted.join("|");
-        if let Some(c) = self.by_sig.remove(&sig)
-            && (soft_reserves || !c.soft_sense)
-        {
+        let Some(c) = self.by_sig.get(&sig) else {
+            return;
+        };
+        if soft_reserves || !c.soft_sense {
+            self.by_sig.remove(&sig);
+            self.had_regular = true;
+            return;
+        }
+        // Soft rule-equal candidate. Reserving is only harmful when it would
+        // demote a STANDARD sibling off the bare key (bad: worse must keep it).
+        // With no standard sibling there is nothing to demote: reserve the bare
+        // key for the rule (identical output, no redundant bare row) and let the
+        // remaining soft variants take numbered keys.
+        let others_all_soft = self
+            .by_sig
+            .iter()
+            .filter(|(s, _)| **s != sig)
+            .all(|(_, other)| other.soft_sense);
+        if others_all_soft {
+            self.by_sig.remove(&sig);
             self.had_regular = true;
         }
+        // else: keep — the standard sibling will hold the bare key, so the rule
+        // can never serve these attested forms; publish them at a numbered key.
     }
 
     fn into_candidates(self) -> (Vec<Candidate>, bool) {
@@ -245,8 +271,23 @@ pub fn extract_irregular_adjectives(
         // Periphrastic attestations are multiword ("more fun") and would fail
         // word_is_proper; they are legitimate — and load-bearing now that the rule
         // engine predicts suffixal forms for short adjectives ("funner"): the
-        // attested periphrastic must survive as a tabled exception.
-        let periphrastic = [format!("more {lemma}"), format!("most {lemma}")];
+        // attested periphrastic must survive as a tabled exception. Locational
+        // adjectives (downhill, downstream) inflect with farther/further, which
+        // must be admitted too or those entries look formless and fall through to
+        // a wrong "more downhill" from the rule.
+        // Participial adjectives inflect with better/best ("better known").
+        // NOT admitted: dialectal degree words ("mair reet" — Scots), the one
+        // known residual class; see the accuracy harness docs.
+        let periphrastic = [
+            format!("more {lemma}"),
+            format!("most {lemma}"),
+            format!("farther {lemma}"),
+            format!("further {lemma}"),
+            format!("farthest {lemma}"),
+            format!("furthest {lemma}"),
+            format!("better {lemma}"),
+            format!("best {lemma}"),
+        ];
         if let Some(forms) = &entry.forms {
             for form in forms {
                 let tags = &form.tags;
@@ -268,6 +309,12 @@ pub fn extract_irregular_adjectives(
             }
         }
 
+        // Snapshot the full plain pools BEFORE the periphrastic-credibility filter:
+        // the filter decides only which form is CANONICAL (freer beats "more free"
+        // for the lowest key) — a filtered periphrastic is still a plain attested
+        // variant and gets its own numbered key (`free2` -> "more free"/"most free").
+        let all_comp = comp_forms.clone();
+        let all_sup = sup_forms.clone();
         drop_periphrastic_if_single_word_attested(&mut comp_forms);
         drop_periphrastic_if_single_word_attested(&mut sup_forms);
 
@@ -293,11 +340,18 @@ pub fn extract_irregular_adjectives(
         // The canonical pattern plus one candidate per alternate rank: attested
         // variants get their own numbered keys, alternates aligned by rank across
         // the two slots (a slot without a k-th alternate keeps its canonical form).
+        // Alternates come from the UNFILTERED pools so filtered periphrastics are
+        // still published. Consequence handled deliberately: for lemmas whose rule
+        // prediction is periphrastic (clever, simple), the re-admitted "more X"
+        // variant tuple equals the prediction, is dropped by drop_regular, and —
+        // when standard-sense — reserves the bare key for the rule engine, moving
+        // the suffixal form to suffix 2. That is the same attested-regular-reserves
+        // policy as die/die2 and abide/abide2.
         let acc = by_lemma.entry(lemma).or_default();
         acc.observe(vec![comparative.clone(), superlative.clone()], 0, &entry);
         let alt = [
-            slot_alternates(&comp_forms, &comparative),
-            slot_alternates(&sup_forms, &superlative),
+            slot_alternates(&all_comp, &comparative),
+            slot_alternates(&all_sup, &superlative),
         ];
         for k in 0..alt.iter().map(|v| v.len()).max().unwrap_or(0) {
             acc.observe(
@@ -659,10 +713,13 @@ mod tests {
     fn soft_sense_regular_equal_candidate_does_not_reserve_the_bare_key() {
         // The `bad` pattern: the standard entry attests suppletive worse/worst
         // (plain) with nonstandard badder/"more bad" soft-tagged; a second entry
-        // whose senses are ALL slang attests badder/baddest plainly — which the
-        // CVC rule happens to predict. The slang candidate is dropped as
-        // rule-predictable but must NOT reserve the bare key: standard `worse`
-        // keeps it.
+        // whose senses are ALL slang attests badder/"more bad" plainly. The slang
+        // canonical (badder — single-word beats periphrastic) equals the CVC rule
+        // prediction, and being all-slang it must NOT reserve the bare key —
+        // standard `worse` keeps it (standard sorts before soft at cold start).
+        // Because `worse` occupies the bare key, the rule can never serve badder,
+        // so the rule-equal soft candidate is KEPT and published as a numbered key
+        // rather than dropped; the periphrastic variant follows it.
         let jsonl = concat!(
             r#"{"word":"bad","pos":"adj","lang_code":"en","etymology_number":1,"forms":[{"form":"worse","tags":["comparative"]},{"form":"badder","tags":["comparative","nonstandard"]},{"form":"worst","tags":["superlative"]},{"form":"baddest","tags":["nonstandard","superlative"]}],"senses":[{"glosses":["of low quality"]}]}"#,
             "\n",
@@ -674,7 +731,94 @@ mod tests {
         });
         assert_eq!(
             emitted(&lock, Pos::Adj),
-            vec![("bad".to_string(), vec!["worse".to_string(), "worst".to_string()])]
+            vec![
+                ("bad".to_string(), vec!["worse".to_string(), "worst".to_string()]),
+                ("bad2".to_string(), vec!["badder".to_string(), "baddest".to_string()]),
+                ("bad3".to_string(), vec!["more bad".to_string(), "most bad".to_string()]),
+            ]
+        );
+    }
+
+    #[test]
+    fn farther_further_periphrastics_are_admitted() {
+        // Locational adjectives inflect with farther/further, listed first in the
+        // head template; both attested patterns are published, canonical first.
+        let jsonl = concat!(
+            r#"{"word":"downhill","pos":"adj","lang_code":"en","forms":[{"form":"farther downhill","tags":["comparative"]},{"form":"further downhill","tags":["comparative"]},{"form":"farthest downhill","tags":["superlative"]},{"form":"furthest downhill","tags":["superlative"]}]}"#,
+            "\n"
+        );
+        let lock = extract(jsonl, "downhill.jsonl", |p, l| {
+            extract_irregular_adjectives(p, l, "d1").unwrap()
+        });
+        assert_eq!(
+            emitted(&lock, Pos::Adj),
+            vec![
+                (
+                    "downhill".to_string(),
+                    vec!["farther downhill".to_string(), "farthest downhill".to_string()]
+                ),
+                (
+                    "downhill2".to_string(),
+                    vec!["further downhill".to_string(), "furthest downhill".to_string()]
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn sole_soft_rule_equal_candidate_is_truly_redundant_and_dropped() {
+        // A slang-only lemma whose only attested pattern equals the rule
+        // prediction: no standard sibling to demote, so the bare key is reserved
+        // for the rule and no row is emitted — identical output, no dead weight.
+        let jsonl = concat!(
+            r#"{"word":"zank","pos":"adj","lang_code":"en","forms":[{"form":"zanker","tags":["comparative"]},{"form":"zankest","tags":["superlative"]}],"senses":[{"tags":["slang"]}]}"#,
+            "\n"
+        );
+        let lock = extract(jsonl, "zank.jsonl", |p, l| {
+            extract_irregular_adjectives(p, l, "d1").unwrap()
+        });
+        assert_eq!(emitted(&lock, Pos::Adj), vec![]);
+    }
+
+    #[test]
+    fn all_soft_lemma_reserves_bare_and_publishes_variants_at_numbered_keys() {
+        // thinky-class: ALL senses soft, attesting the rule-equal suffixal forms
+        // AND a periphrastic variant. The rule-equal candidate is dropped and
+        // reserves the bare key (the rule serves thinkier there — a bare row
+        // would be redundant); the variant is published at the next numbered key.
+        let jsonl = concat!(
+            r#"{"word":"thinky","pos":"adj","lang_code":"en","forms":[{"form":"thinkier","tags":["comparative"]},{"form":"more thinky","tags":["comparative"]},{"form":"thinkiest","tags":["superlative"]},{"form":"most thinky","tags":["superlative"]}],"senses":[{"tags":["informal"]}]}"#,
+            "\n"
+        );
+        let lock = extract(jsonl, "thinky.jsonl", |p, l| {
+            extract_irregular_adjectives(p, l, "d1").unwrap()
+        });
+        assert_eq!(
+            emitted(&lock, Pos::Adj),
+            vec![(
+                "thinky2".to_string(),
+                vec!["more thinky".to_string(), "most thinky".to_string()]
+            )]
+        );
+    }
+
+    #[test]
+    fn filtered_periphrastic_is_still_published_as_a_numbered_key() {
+        // free-like: freer/freest canonical (single-word beats periphrastic for
+        // the lowest key), but the plainly-attested periphrastic still gets its
+        // own numbered key rather than vanishing.
+        let jsonl = concat!(
+            r#"{"word":"vree","pos":"adj","lang_code":"en","forms":[{"form":"vreer","tags":["comparative"]},{"form":"more vree","tags":["comparative"]},{"form":"vreest","tags":["superlative"]},{"form":"most vree","tags":["superlative"]}]}"#,
+            "\n"
+        );
+        let lock = extract(jsonl, "vree.jsonl", |p, l| {
+            extract_irregular_adjectives(p, l, "d1").unwrap()
+        });
+        // vreer/vreest equal the one-syllable rule prediction -> dropped, bare key
+        // reserved for the rule; the periphrastic variant is the published key.
+        assert_eq!(
+            emitted(&lock, Pos::Adj),
+            vec![("vree2".to_string(), vec!["more vree".to_string(), "most vree".to_string()])]
         );
     }
 

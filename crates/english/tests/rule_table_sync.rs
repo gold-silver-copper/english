@@ -1,49 +1,73 @@
 //! Guard on the layering contract between `english-core`'s regular rules and the
-//! generated tables: the tables hold only what the rules CANNOT predict.
+//! generated tables: a BARE key's row must hold something the rules cannot
+//! predict — a bare row equal to the rule's output is dead weight, and its
+//! appearance means a core rule changed without regenerating the tables.
 //!
-//! The extractor drops any candidate whose forms equal the rule prediction
-//! (`drop_regular`), so after a regeneration this holds by construction. If a rule
-//! in `english-core` changes without regenerating the tables, rows the new rule
-//! now predicts become redundant and this fails — forcing the regeneration instead
-//! of shipping a core/table drift.
+//! Two exemptions, both about rows that are load-bearing despite rule-equal
+//! content:
+//! - Numbered keys: a suffixed row may equal the base lemma's rule prediction
+//!   (slang `bad2` -> badder) because the bare key holds a different irregular
+//!   (`worse`), so the rule is unreachable — the row is the only way to publish
+//!   the forms.
+//! - Bare keys WITH numbered siblings: a rule-equal bare row (`ditsy` ->
+//!   ditsier, with the periphrastic sense at `ditsy2`) anchors the bare key —
+//!   deleting it would let the sibling's forms migrate onto the bare key.
+//! A rule-equal bare row with NO siblings has neither excuse: it is dead weight
+//! and means a core rule changed without regenerating.
 
 use english::__table_entries;
-use english_core::grammar::{Form, Number, Person, Tense};
 use english_core::EnglishCore;
+use english_core::grammar::{Form, Number, Person, Tense};
+use std::collections::HashSet;
 
-fn strip_suffix_digits(key: &str) -> &str {
-    key.trim_end_matches(|c: char| c.is_ascii_digit())
+fn is_bare(key: &str) -> bool {
+    !key.ends_with(|c: char| c.is_ascii_digit())
+}
+
+fn suffixed_lemmas<'a, T>(entries: &'a [(&'a str, T)]) -> HashSet<&'a str> {
+    entries
+        .iter()
+        .filter(|(k, _)| !is_bare(k))
+        .map(|(k, _)| k.trim_end_matches(|c: char| c.is_ascii_digit()))
+        .collect()
 }
 
 #[test]
-fn tables_hold_only_what_the_rules_cannot_predict() {
+fn sibling_less_bare_rows_hold_only_what_the_rules_cannot_predict() {
     let (nouns, verbs, adjs) = __table_entries();
     let mut redundant = Vec::new();
 
-    for (key, plural) in nouns {
-        let lemma = strip_suffix_digits(key);
-        if EnglishCore::pluralize_noun(lemma) == plural {
+    let noun_sib = suffixed_lemmas(&nouns);
+    for (key, plural) in &nouns {
+        if is_bare(key) && !noun_sib.contains(key) && EnglishCore::pluralize_noun(key) == *plural {
             redundant.push(format!("noun {key} -> {plural} (rule already predicts it)"));
         }
     }
 
-    for (key, (third, past, pres_part, past_part)) in verbs {
-        let lemma = strip_suffix_digits(key);
+    let verb_sib = suffixed_lemmas(&verbs);
+    for (key, (third, past, pres_part, past_part)) in &verbs {
+        if !is_bare(key) || verb_sib.contains(key) {
+            continue;
+        }
         let p = |tense: &Tense, form: &Form| {
-            EnglishCore::verb(lemma, &Person::Third, &Number::Singular, tense, form)
+            EnglishCore::verb(key, &Person::Third, &Number::Singular, tense, form)
         };
-        if p(&Tense::Present, &Form::Finite) == third
-            && p(&Tense::Past, &Form::Finite) == past
-            && p(&Tense::Present, &Form::Participle) == pres_part
-            && p(&Tense::Past, &Form::Participle) == past_part
+        if p(&Tense::Present, &Form::Finite) == *third
+            && p(&Tense::Past, &Form::Finite) == *past
+            && p(&Tense::Present, &Form::Participle) == *pres_part
+            && p(&Tense::Past, &Form::Participle) == *past_part
         {
             redundant.push(format!("verb {key} (rule already predicts all four forms)"));
         }
     }
 
-    for (key, (comp, sup)) in adjs {
-        let lemma = strip_suffix_digits(key);
-        if EnglishCore::comparative(lemma) == comp && EnglishCore::superlative(lemma) == sup {
+    let adj_sib = suffixed_lemmas(&adjs);
+    for (key, (comp, sup)) in &adjs {
+        if is_bare(key)
+            && !adj_sib.contains(key)
+            && EnglishCore::comparative(key) == *comp
+            && EnglishCore::superlative(key) == *sup
+        {
             redundant.push(format!("adj {key} -> {comp}/{sup} (rule already predicts it)"));
         }
     }
