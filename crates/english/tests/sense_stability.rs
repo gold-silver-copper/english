@@ -33,12 +33,32 @@ fn noun_die_homograph_is_pinned() {
 
 #[test]
 fn adjective_bad_homographs_are_pinned() {
-    // Both senses stay distinct: "bad2" (standard) -> worse/worst ; "bad3" (slang)
-    // -> badder/baddest. Ordered by the senseid anchor, not the form spelling.
-    assert_eq!(English::adj("bad2", &Degree::Comparative), "worse");
-    assert_eq!(English::adj("bad2", &Degree::Superlative), "worst");
-    assert_eq!(English::adj("bad3", &Degree::Comparative), "badder");
-    assert_eq!(English::adj("bad3", &Degree::Superlative), "baddest");
+    // Both senses stay distinct: bare "bad" (standard) -> worse/worst ; "bad2"
+    // (slang) -> badder/baddest. The standard sense holds the bare key because
+    // "more bad" is never plainly attested — only plain-tagged regular attestations
+    // reserve the bare key for the rule engine.
+    assert_eq!(English::adj("bad", &Degree::Comparative), "worse");
+    assert_eq!(English::adj("bad", &Degree::Superlative), "worst");
+    assert_eq!(English::adj("bad2", &Degree::Comparative), "badder");
+    assert_eq!(English::adj("bad2", &Degree::Superlative), "baddest");
+}
+
+#[test]
+fn bare_keys_serve_the_canonical_irregular() {
+    // The words that motivated the plain-only reservation policy: a soft-tagged
+    // regular ("sheeps") or a formless uncomparable sense must not demote the
+    // canonical irregular off the bare key.
+    assert_eq!(English::noun("sheep", &Number::Plural), "sheep");
+    assert_eq!(English::adj("fast", &Degree::Comparative), "faster");
+    assert_eq!(English::adj("fast", &Degree::Superlative), "fastest");
+    assert_eq!(English::adj("hot", &Degree::Comparative), "hotter");
+    assert_eq!(English::adj("good", &Degree::Superlative), "best");
+    // ...while a plainly-attested regular still reserves the bare key: the bare
+    // "die" stays regular ("dies") and the irregular sense lives at die2.
+    assert_eq!(English::noun("die", &Number::Plural), "dies");
+    assert_eq!(English::noun("die2", &Number::Plural), "dice");
+    // A genuinely periphrastic adjective keeps rule output on the bare key.
+    assert_eq!(English::adj("fun", &Degree::Comparative), "more fun");
 }
 
 #[test]
@@ -47,6 +67,8 @@ fn trailing_digits_strip_only_for_real_table_keys() {
     // Known suffixed keys strip and resolve; their bare form is the stripped lemma.
     assert_eq!(English::noun("die2", &Number::Plural), "dice");
     assert_eq!(English::noun("die2", &Number::Singular), "die");
+    // "good2" is no longer a published key (good holds the bare key), but as a
+    // suffixed alias of a bare irregular key it resolves through the base lemma.
     assert_eq!(English::adj("good2", &Degree::Superlative), "best");
 
     // Digit-bearing words that are NOT table keys are opaque — never corrupted into

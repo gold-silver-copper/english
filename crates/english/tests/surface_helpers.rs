@@ -60,12 +60,12 @@ fn base_surface_helpers_work() {
     assert_eq!(English::noun("cat2", &Number::Singular), "cat2");
     assert_eq!(count("man", 2), "men");
     assert_eq!(count_with_number("nickel", 3), "3 nickels");
-    assert_eq!(English::adj("bad", &Degree::Comparative), "more bad");
+    assert_eq!(English::adj("bad", &Degree::Comparative), "worse");
     assert_eq!(English::adj("fun", &Degree::Comparative), "more fun");
-    assert_eq!(English::adj("bad2", &Degree::Comparative), "worse");
-    assert_eq!(English::adj("bad3", &Degree::Positive), "bad");
+    assert_eq!(English::adj("bad2", &Degree::Comparative), "badder");
+    assert_eq!(English::adj("bad2", &Degree::Positive), "bad");
     assert_eq!(English::adj("fun", &Degree::Superlative), "most fun");
-    assert_eq!(English::adj("bad3", &Degree::Superlative), "baddest");
+    assert_eq!(English::adj("bad2", &Degree::Superlative), "baddest");
     assert_eq!(English::capitalize_first(""), "");
     assert_eq!(English::capitalize_first("house"), "House");
 }

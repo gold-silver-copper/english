@@ -216,7 +216,7 @@ It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive
 
 ## 📦 Obtaining Wiktionary Data & Running the Extractor
 
-This project relies on raw data extracted from Wiktionary. Current version built with data from 2026-06-19.
+This project relies on raw data extracted from Wiktionary. Current version built with data from 2026-07-02.
 
 - [Wiktextract (GitHub)](https://github.com/tatuylonen/wiktextract)
 - [Kaikki.org raw data](https://kaikki.org/dictionary/rawdata.html)

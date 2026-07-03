@@ -125,15 +125,19 @@ pub fn extract_irregular_nouns(
         }
 
         let predicted = EnglishCore::pluralize_noun(&lemma);
-        // If Wiktionary attests the regular plural for this sense, the bare lemma
-        // key is reserved for the rule engine (had_regular) and any genuine
-        // irregular variant is emitted at a higher suffix — never letting a
+        // If Wiktionary attests the regular plural for this sense AS A PLAIN FORM,
+        // the bare lemma key is reserved for the rule engine (had_regular) and any
+        // genuine irregular variant is emitted at a higher suffix — never letting a
         // nonstandard plural (`busses`) hijack the bare key. Only when the regular
-        // form is *not* attested does the irregular become the bare key
-        // (`child` -> `children`, since `childs` never appears).
-        // had_regular is tag-invariant: a regular plural counts whether or not it
-        // carries a soft tag, so toggling such a tag never flips the bare-key reservation.
-        let has_regular = plurals.iter().any(|(f, _rank)| *f == predicted);
+        // form is not plainly attested does the irregular become the bare key
+        // (`child` -> `children`, since `childs` never appears; `sheep` -> `sheep`,
+        // since `sheeps` appears only soft-tagged). Soft-tagged regulars must NOT
+        // reserve: that would demote the canonical irregular to suffix 2 and serve
+        // rule output (`sheeps`) on the key everyone actually calls. A soft-tag
+        // toggle CAN therefore flip the bare key across refreshes — but that flip
+        // is exactly what `check-registry` turns into a hard, reviewable failure,
+        // so accuracy no longer has to pay for tag-invariance.
+        let has_regular = plurals.iter().any(|(f, rank)| *rank == 0 && *f == predicted);
         // Conscious narrowing: a single entry emits ONE plural. If the entry lists
         // several distinct irregular plurals for the same sense (e.g. cacti AND
         // cactusses), only the chosen primary is emitted; the alternates are dropped
@@ -207,6 +211,20 @@ pub fn extract_irregular_adjectives(
                     sup_forms.push((entry_form, rank));
                 }
             }
+        }
+
+        // An entry with NO plain-attested form in either slot (an uncomparable
+        // sense, or one attesting only soft-tagged variants) contributes nothing:
+        // observing it would fabricate a fully-predicted candidate, which
+        // drop_regular then counts as a regular attestation — reserving the bare
+        // key and demoting a genuine irregular sibling to suffix 2 (`fast` used to
+        // emit "more fast" while faster/fastest sat at `fast2`). Reservation must
+        // come from attested plain forms (`fun` really lists "more fun"), never
+        // from a synthesized prediction.
+        let attests_plain =
+            comp_forms.iter().chain(sup_forms.iter()).any(|(_, rank)| *rank == 0);
+        if !attests_plain {
+            continue;
         }
 
         let predicted_comp = EnglishCore::comparative(&lemma);
@@ -297,6 +315,19 @@ pub fn extract_verb_conjugations(
                     past_part_forms.push((entry_form, rank));
                 }
             }
+        }
+
+        // Same rule as adjectives: an entry with NO plain-attested form in ANY slot
+        // must not fabricate a fully-predicted candidate (which drop_regular would
+        // count as a regular attestation, reserving the bare key against a genuine
+        // irregular sibling). The slot synthesis below is for entries that attest
+        // SOME slots — e.g. an irregular past with the 3sg omitted — not for
+        // entries that attest nothing at all.
+        let attests_plain = [&third_forms, &past_forms, &pres_part_forms, &past_part_forms]
+            .iter()
+            .any(|slot| slot.iter().any(|(_, rank)| *rank == 0));
+        if !attests_plain {
+            continue;
         }
 
         let predicted_third = EnglishCore::verb(
@@ -416,6 +447,120 @@ pub fn filter_english_entries(
 
 pub fn strip_trailing_number(word: &str) -> &str {
     word.trim_end_matches(|c: char| c.is_ascii_digit())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn extract(jsonl: &str, name: &str, f: impl Fn(&Path, &mut Lock)) -> Lock {
+        let dir = std::env::temp_dir().join("english_extract_policy_tests");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join(name);
+        std::fs::write(&path, jsonl).unwrap();
+        let mut lock = Lock::new();
+        f(&path, &mut lock);
+        lock
+    }
+
+    fn emitted(lock: &Lock, pos: Pos) -> Vec<(String, Vec<String>)> {
+        lock.emittable(pos)
+    }
+
+    #[test]
+    fn soft_tagged_regular_plural_does_not_reserve_the_bare_key() {
+        // sheep: canonical plural "sheep" (plain) + "sheeps" attested only with a
+        // soft tag. The soft attestation must NOT reserve the bare key for the rule
+        // engine — the irregular takes the bare key ("sheep" -> "sheep", not
+        // "sheep2" -> "sheep" with the bare key emitting "sheeps").
+        let jsonl = concat!(
+            r#"{"word":"sheep","pos":"noun","lang_code":"en","forms":[{"form":"sheep","tags":["plural"]},{"form":"sheeps","tags":["plural","nonstandard"]}]}"#,
+            "\n"
+        );
+        let lock = extract(jsonl, "sheep.jsonl", |p, l| {
+            extract_irregular_nouns(p, l, "d1").unwrap()
+        });
+        assert_eq!(
+            emitted(&lock, Pos::Noun),
+            vec![("sheep".to_string(), vec!["sheep".to_string()])]
+        );
+    }
+
+    #[test]
+    fn plain_regular_plural_still_reserves_the_bare_key() {
+        // die: both "dies" (regular, plain) and "dice" (irregular, plain) attested.
+        // The plain regular attestation reserves the bare key for the rule engine;
+        // the irregular is emitted at suffix 2.
+        let jsonl = concat!(
+            r#"{"word":"die","pos":"noun","lang_code":"en","forms":[{"form":"dies","tags":["plural"]},{"form":"dice","tags":["plural"]}]}"#,
+            "\n"
+        );
+        let lock = extract(jsonl, "die.jsonl", |p, l| {
+            extract_irregular_nouns(p, l, "d1").unwrap()
+        });
+        assert_eq!(
+            emitted(&lock, Pos::Noun),
+            vec![("die2".to_string(), vec!["dice".to_string()])]
+        );
+    }
+
+    #[test]
+    fn formless_adjective_entry_does_not_reserve_the_bare_key() {
+        // fast: the gradable sense attests faster/fastest; a second (uncomparable)
+        // sense attests nothing. The formless entry must be skipped, not observed
+        // as a synthesized fully-regular candidate — otherwise the bare key emits
+        // "more fast" while faster/fastest sit at fast2.
+        let jsonl = concat!(
+            r#"{"word":"fast","pos":"adj","lang_code":"en","etymology_number":1,"forms":[{"form":"faster","tags":["comparative"]},{"form":"fastest","tags":["superlative"]}]}"#,
+            "\n",
+            r#"{"word":"fast","pos":"adj","lang_code":"en","etymology_number":2}"#,
+            "\n"
+        );
+        let lock = extract(jsonl, "fast.jsonl", |p, l| {
+            extract_irregular_adjectives(p, l, "d1").unwrap()
+        });
+        assert_eq!(
+            emitted(&lock, Pos::Adj),
+            vec![("fast".to_string(), vec!["faster".to_string(), "fastest".to_string()])]
+        );
+    }
+
+    #[test]
+    fn attested_periphrastic_adjective_still_reserves_the_bare_key() {
+        // fun: Wiktionary genuinely lists "more fun"/"most fun" (plain) alongside
+        // the informal "funner"/"funnest". The plain periphrastic attestation
+        // reserves the bare key for the rule engine, and the soft-tagged variants
+        // are never emitted at all.
+        let jsonl = concat!(
+            r#"{"word":"fun","pos":"adj","lang_code":"en","forms":[{"form":"more fun","tags":["comparative"]},{"form":"most fun","tags":["superlative"]},{"form":"funner","tags":["comparative","informal"]},{"form":"funnest","tags":["superlative","informal"]}]}"#,
+            "\n"
+        );
+        let lock = extract(jsonl, "fun.jsonl", |p, l| {
+            extract_irregular_adjectives(p, l, "d1").unwrap()
+        });
+        assert_eq!(emitted(&lock, Pos::Adj), vec![]);
+    }
+
+    #[test]
+    fn formless_verb_entry_does_not_reserve_the_bare_key() {
+        // One entry attests an irregular past (3sg omitted -> synthesized); a second
+        // entry attests nothing and must be skipped rather than fabricating a
+        // fully-regular candidate that would demote the irregular to suffix 2.
+        let jsonl = concat!(
+            r#"{"word":"zorp","pos":"verb","lang_code":"en","etymology_number":1,"forms":[{"form":"zarp","tags":["past"]},{"form":"zorping","tags":["participle","present"]},{"form":"zarpen","tags":["participle","past"]}]}"#,
+            "\n",
+            r#"{"word":"zorp","pos":"verb","lang_code":"en","etymology_number":2}"#,
+            "\n"
+        );
+        let lock = extract(jsonl, "zorp.jsonl", |p, l| {
+            extract_verb_conjugations(p, l, "d1").unwrap()
+        });
+        let emit = emitted(&lock, Pos::Verb);
+        assert_eq!(emit.len(), 1, "{emit:?}");
+        assert_eq!(emit[0].0, "zorp", "irregular takes the bare key");
+        assert_eq!(emit[0].1[1], "zarp");
+        assert_eq!(emit[0].1[0], "zorps", "3sg synthesized from the regular rule");
+    }
 }
 
 pub fn analyze_and_write_suffix_rules(

@@ -92,14 +92,14 @@ impl English {
     /// Handles irregular adjectives (e.g., `"good" -> "better"/"best"`)
     /// and falls back to regular periphrastic forms
     /// (e.g., `"fun" -> "more fun"/"most fun"`).
-    /// Strips trailing numbers used for disambiguation (`"bad3"` -> `"worse"`).
+    /// Strips trailing numbers used for disambiguation (`"bad2"` -> `"badder"`).
     ///
     /// # Examples
     /// ```rust
     /// use english::{Degree, English};
     ///
-    /// assert_eq!(English::adj("fast", &Degree::Comparative), "more fast");
-    /// assert_eq!(English::adj("good2", &Degree::Superlative), "best");
+    /// assert_eq!(English::adj("fast", &Degree::Comparative), "faster");
+    /// assert_eq!(English::adj("good", &Degree::Superlative), "best");
     /// assert_eq!(English::adj("fun", &Degree::Comparative), "more fun");
     /// ```
     pub fn adj(word: &str, degree: &Degree) -> String {
