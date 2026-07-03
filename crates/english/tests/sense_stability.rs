@@ -64,3 +64,18 @@ fn trailing_digits_strip_only_for_real_table_keys() {
     // treated opaquely rather than stripped to the bare lemma.
     assert_eq!(English::noun("cat2", &Number::Plural), "cat2s");
 }
+
+#[test]
+fn suffixed_alias_of_bare_irregular_key_inflects_as_the_base_lemma() {
+    // When stripping applies because the STRIPPED form is a table key (the word
+    // itself is not), every inflection must agree that the input denotes that base
+    // lemma. Regression: the singular/infinitive used to strip while the
+    // plural/past fell through to the regular rule ("childs", "goed").
+    assert_eq!(English::noun("child2", &Number::Singular), "child");
+    assert_eq!(English::noun("child2", &Number::Plural), "children");
+    assert_eq!(past_finite("go7"), "went");
+    assert_eq!(
+        English::verb("go7", &Person::Third, &Number::Singular, &Tense::Present, &Form::Infinitive),
+        "go"
+    );
+}

@@ -33,6 +33,11 @@ fn strip_trailing_number(word: &str) -> &str {
 /// `"co2"`) are never silently corrupted into `"mp"`/`"F"`/`"co"`. Numbered keys are
 /// only ever generated for irregulars (which live in the tables), so a regular word
 /// like `"cat2"` is not a real key and is left opaque rather than stripped to `"cat"`.
+///
+/// Invariant for callers: whenever this strips (returns the base), every code path
+/// must treat the input as that base lemma — table lookups fall back to the base
+/// (`get_*(word)` then `get_*(base)`), so `"child2"` inflects exactly like `"child"`
+/// rather than mixing stripped singulars with regular-rule plurals.
 fn base_lemma<'a>(word: &'a str, is_key: impl Fn(&str) -> bool) -> &'a str {
     let stripped = strip_trailing_number(word);
     let base = if stripped != word && !stripped.is_empty() && (is_key(word) || is_key(stripped)) {
@@ -73,7 +78,7 @@ impl English {
         match number {
             Number::Singular => base_word.to_string(),
             Number::Plural => {
-                if let Some(x) = get_plural(word) {
+                if let Some(x) = get_plural(word).or_else(|| get_plural(base_word)) {
                     x.to_owned()
                 } else {
                     EnglishCore::noun(base_word, number)
@@ -99,17 +104,18 @@ impl English {
     /// ```
     pub fn adj(word: &str, degree: &Degree) -> String {
         let base_word = base_lemma(word, |w| get_adjective_forms(w).is_some());
+        let forms = get_adjective_forms(word).or_else(|| get_adjective_forms(base_word));
         match degree {
             Degree::Positive => base_word.to_owned(),
             Degree::Comparative => {
-                if let Some((comp, _)) = get_adjective_forms(word) {
+                if let Some((comp, _)) = forms {
                     comp.to_owned()
                 } else {
                     EnglishCore::comparative(base_word)
                 }
             }
             Degree::Superlative => {
-                if let Some((_, sup)) = get_adjective_forms(word) {
+                if let Some((_, sup)) = forms {
                     sup.to_owned()
                 } else {
                     EnglishCore::superlative(base_word)
@@ -154,7 +160,7 @@ impl English {
         form: &Form,
     ) -> String {
         let base_word = base_lemma(word, |w| get_verb_forms(w).is_some());
-        match get_verb_forms(word) {
+        match get_verb_forms(word).or_else(|| get_verb_forms(base_word)) {
             Some(wordik) => match (person, number, tense, form) {
                 (_, _, _, Form::Infinitive) => base_word.to_owned(),
                 (Person::Third, Number::Singular, Tense::Present, Form::Finite) => {
