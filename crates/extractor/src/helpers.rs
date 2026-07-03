@@ -1,3 +1,15 @@
+//! Dump schema (the wiktextract fields we deserialize), form/sense tag policy,
+//! and the eligibility filters everything upstream relies on.
+//!
+//! The tag taxonomy is the heart of the emission policy:
+//! - [`EXCLUDE_TAGS`]: dead forms, never usable for anything;
+//! - [`SOFT_TAGS`]: real but nonstandard variants — kept in candidate pools so
+//!   they can inform decisions, but NEVER emitted as output;
+//! - plain (no tag from either set): the only forms the library publishes.
+//! [`tag_rank`] encodes this as None/Some(1)/Some(0); `EXCLUDE ∪ SOFT` must
+//! equal the legacy `BAD_TAGS` set (asserted by a test) so the emitted-form
+//! pool never silently widens or narrows relative to the published crate.
+
 use csv::Writer;
 use serde::{Deserialize, Deserializer};
 use std::fs::File;
@@ -129,7 +141,9 @@ pub fn choose_form(candidates: &[(String, u8)], regular: &str, prefer_regular: b
         .map(|(_, (form, _))| form.clone())
 }
 
-/// Returns true if the input contains any non-alphabetic character.
+/// Returns true if the input contains any non-alphabetic character. The
+/// explicit [`BAD_CHARS`] list predates the general `is_alphabetic` check and
+/// is kept for the early-exit hot path on huge dumps.
 pub fn contains_bad_chars(input: &str) -> bool {
     for x in BAD_CHARS.iter() {
         if input.contains(x) {
@@ -198,8 +212,9 @@ where
     })
 }
 
-/// The three parts of speech this crate tracks. Used as a stable key component in
-/// the assignment lockfiles.
+/// The three parts of speech this crate tracks. The string forms (`as_str`)
+/// are a stable serialization component of the assignment lockfiles — renaming
+/// one is a lockfile format change.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Pos {
     Adj,
@@ -274,6 +289,10 @@ pub struct VerbParts {
     pub past_part: String,
 }
 
+/// Whether a dump entry participates in extraction at all: English, the right
+/// part of speech, and a proper single-word lemma. Rejected entries are
+/// invisible to every policy downstream — including bare-key reservation — so
+/// widening this filter is a data-model change, not a tweak.
 pub fn entry_is_proper(entry: &Entry, pos: &str) -> bool {
     if entry.lang_code != "en" {
         return false;
@@ -285,6 +304,15 @@ pub fn entry_is_proper(entry: &Entry, pos: &str) -> bool {
     true
 }
 
+/// The lemma/form character policy: ASCII-alphabetic single tokens only (no
+/// digits, punctuation, or whitespace — periphrastic adjective forms are the
+/// one deliberate exception, admitted explicitly at their call site).
+///
+/// INVARIANT the public API depends on: because this rejects `_`, no emitted
+/// lemma ever contains an underscore, which is what makes the `_<n>` sense
+/// suffix in `registry::make_key` unambiguous — `English::noun("F2")` can never
+/// be confused with a numbered key. Admitting underscores here would break
+/// suffix parsing across the `english` crate.
 pub fn word_is_proper(word: &str) -> bool {
     if contains_bad_chars(&word) || !word.is_ascii() || contains_number(&word) {
         return false;
@@ -302,7 +330,7 @@ pub fn base_setup(
     (reader, writer)
 }
 
-/// Find the longest common prefix length
+/// Longest common prefix length (legacy suffix-rule analysis tooling).
 pub fn common_prefix_len(a: &str, b: &str) -> usize {
     a.chars()
         .zip(b.chars())
@@ -310,7 +338,10 @@ pub fn common_prefix_len(a: &str, b: &str) -> usize {
         .count()
 }
 
-/// Given singular & plural, extract their suffix transformation
+/// Given singular & plural, extract their suffix transformation. Only used by
+/// the offline rule-mining artifact (`analyze_and_write_suffix_rules`) that
+/// informs which suffix classes are worth adding to `english-core` — never in
+/// the emission path.
 pub fn suffix_rule(singular: &str, plural: &str) -> (String, String) {
     let prefix_len = common_prefix_len(singular, plural);
     let (singular_suffix, plural_suffix) = if prefix_len > 0 {

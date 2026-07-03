@@ -1,3 +1,31 @@
+//! Dump scanning and candidate policy — the editorial layer of the pipeline.
+//!
+//! All three part-of-speech extractors share one shape:
+//!
+//! 1. stream the filtered dump, one JSON entry per line, keeping only proper
+//!    entries ([`crate::helpers::entry_is_proper`]);
+//! 2. gather the entry's eligible forms per inflection slot IN LISTING ORDER
+//!    (order is editorial data: head templates put the canonical form first);
+//! 3. choose one CANONICAL pattern per entry ([`crate::helpers::choose_form`])
+//!    and emit every remaining plain attested pattern as an additional
+//!    candidate — each variant becomes its own `_<n>` key downstream;
+//! 4. per lemma, drop the candidate that equals the regular-rule prediction
+//!    ([`LemmaAcc::drop_regular`] — the rule engine serves it at runtime) and
+//!    hand the survivors to [`Lock::resolve`] for stable key assignment;
+//! 5. [`Lock::reap`] lemmas absent from the dump, with a mass-absence guard
+//!    whose skip is a HARD ERROR upstream (see `pipeline`) — a truncated dump
+//!    must never silently produce a "successful" refresh.
+//!
+//! The policy invariants (each pinned by a fixture test at the bottom):
+//! - only PLAIN forms are ever emitted; soft-tagged variants
+//!   (nonstandard/dialectal/...) never become output, and soft-SENSE entries
+//!   never demote a standard sibling off the bare key;
+//! - a plainly-attested regular reserves the bare key for the rule engine, so
+//!   bare keys degrade to the rule rather than to an arbitrary irregular;
+//! - periphrastic adjective attestations are admissible ("more fun",
+//!   "farther downhill", "better known") but only CANONICAL when no
+//!   single-word plain form exists for the slot.
+
 use crate::helpers::{
     Entry, Pos, choose_form, entry_is_proper, entry_is_soft, suffix_rule, tag_rank,
     word_is_proper,
@@ -161,6 +189,11 @@ fn drop_periphrastic_if_single_word_attested(forms: &mut Vec<(String, u8)>) {
 // exists) is the more defensible behavior; a curated mass-noun list would be the
 // way to change it, not dump tags.
 
+/// Scan noun entries and resolve their plural patterns into `lock`.
+///
+/// Nouns have a single inflection slot, so every distinct plain attested
+/// plural is simply its own candidate (no tuple alignment needed). Returns the
+/// reap report — the caller MUST honor `skipped` (see the module docs).
 pub fn extract_irregular_nouns(
     input_path: impl AsRef<Path>,
     lock: &mut Lock,
@@ -245,6 +278,14 @@ pub fn extract_irregular_nouns(
     Ok(reap)
 }
 
+/// Scan adjective entries and resolve their (comparative, superlative)
+/// patterns into `lock`.
+///
+/// Adjectives carry the subtlest policy in the extractor because the rule
+/// engine's prediction is linguistically informed (suffixal for short words,
+/// periphrastic otherwise) and Wiktionary often attests BOTH shapes — see the
+/// inline comments at the periphrastic filter and `drop_regular` call for the
+/// full decision table. Returns the reap report; `skipped` must be honored.
 pub fn extract_irregular_adjectives(
     input_path: impl AsRef<Path>,
     lock: &mut Lock,
@@ -385,6 +426,16 @@ pub fn extract_irregular_adjectives(
     Ok(reap)
 }
 
+/// Scan verb entries and resolve their (3sg, past, present participle, past
+/// participle) tuples into `lock`.
+///
+/// Missing slots are synthesized from the rule prediction (an entry attesting
+/// only an irregular past must not vanish because the dump omitted its 3sg),
+/// EXCEPT for entries attesting nothing at all, which are skipped outright —
+/// a fully synthesized tuple would masquerade as a regular attestation and
+/// wrongly reserve the bare key. `be` is skipped entirely: its suppletive
+/// paradigm lives in `english-core`. Returns the reap report; `skipped` must
+/// be honored.
 pub fn extract_verb_conjugations(
     input_path: impl AsRef<Path>,
     lock: &mut Lock,
@@ -563,6 +614,10 @@ pub fn extract_verb_conjugations(
     Ok(reap)
 }
 
+/// One-time reduction of the raw multi-language Wiktextract dump (~20 GB) to
+/// English-only lines (~2 GB), cached in `data/intermediate/` so subsequent
+/// passes (three extractors + the accuracy harness) each scan a tenth of the
+/// data. Lines are copied verbatim — no parsing decisions happen here.
 pub fn filter_english_entries(
     input_path: impl AsRef<Path>,
     output_path: impl AsRef<Path>,

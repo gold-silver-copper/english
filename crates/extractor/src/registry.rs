@@ -8,7 +8,8 @@
 //!
 //! This module replaces that with a checked-in *assignment lockfile* (one per
 //! part of speech). Each emitted key is pinned to a **frozen identity anchor** and
-//! a **frozen suffix**. On every refresh, [`Lock::resolve`] matches the dump's
+//! a **frozen suffix** (emitted as `lemma` for suffix 1, `lemma_<n>` otherwise —
+//! see [`make_key`]). On every refresh, [`Lock::resolve`] matches the dump's
 //! candidate senses to existing lock rows by stable anchors, reuses their pinned
 //! suffixes (updating only the stored forms), allocates strictly-higher suffixes
 //! for genuinely new senses, and tombstones senses that disappeared (their suffix
@@ -23,6 +24,35 @@
 //!    signature breaks the tie (the only place forms enter identity).
 //! 5. `sig:<forms>` — last-resort content anchor (used for rows bootstrapped from
 //!    the pre-existing tables, where no dump metadata was available).
+//!
+//! # How [`Lock::resolve`] proceeds (and why each phase is shaped as it is)
+//!
+//! - **Phase A** — exact anchor match ([`anchor_exact_match`]), rows in suffix
+//!   order. A strong anchor shared by several candidates in one batch is only
+//!   trusted together with a signature match ([`BatchUniq`]).
+//! - **Phase B(a)** — drift re-match by etymology, ONLY for rows frozen on a
+//!   BARE `etym:<n>` anchor AND only when that etym is unique in the batch:
+//!   both guards exist because an etym-only match on ambiguous input could
+//!   hand a pinned suffix a sibling sense's forms with no anchor/suffix change
+//!   — a swap [`check_immutability`] is structurally unable to see.
+//! - **Phase B(b)** — the sole-remaining-sense re-match: allowed only for a
+//!   lemma that has ALWAYS been single-sense, where 1-out/1-in is almost
+//!   certainly a form correction. Polysemous ambiguity always falls through.
+//! - **Phase C** — append-only allocation for new identities, ordered by
+//!   [`Candidate::order_key`] (anchors, then standard-before-soft, then the
+//!   dump's listing ordinal, then signature) so cold-start numbering is
+//!   deterministic AND canonical-first. Anchors stay unique per (lemma, pos)
+//!   even against tombstones (`#u<suffix>` disambiguator).
+//! - **Phase D** — tombstone what didn't match; suffixes are never reused.
+//!
+//! The guiding principle across all phases: WHEN IN DOUBT, TOMBSTONE AND
+//! APPEND. A wrongly-retired key costs an extra suffix; a wrongly-matched key
+//! silently changes published behavior, which is the one unrecoverable failure.
+//!
+//! Cruft is bounded, not eternal: [`Lock::compact`] (via `cargo xtask compact`)
+//! drops tombstones and renumbers at a deliberate DATA_MAJOR bump — the
+//! versioned, reviewable alternative to letting append-only debris accumulate
+//! forever.
 
 use crate::helpers::Pos;
 use csv::{ReaderBuilder, WriterBuilder};
@@ -46,6 +76,11 @@ const LOCK_HEADER: &[&str] = &[
     "glosses",
 ];
 
+/// Row lifecycle. `Tombstone` is a permanent grave marker, not a deletion:
+/// the row stays in the lockfile so its suffix can never be reallocated and
+/// its anchor can never be silently re-created with a different meaning
+/// ([`check_immutability`] checks both). Tombstones are only ever removed by a
+/// sanctioned [`Lock::compact`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
     Active,
@@ -180,7 +215,9 @@ impl LockRow {
     }
 }
 
-/// The output of resolving one lemma: a stable key plus the forms to emit under it.
+/// The output of resolving one lemma: a stable emitted key (already through
+/// [`make_key`]) plus the forms to publish under it. Purely informational for
+/// callers — the authoritative state lives in the mutated [`Lock`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Assignment {
     pub key: String,
@@ -201,7 +238,9 @@ impl Lock {
         Lock::default()
     }
 
-    /// Insert a fully-formed row (used by the bootstrap path).
+    /// Insert a fully-formed row (bootstrap/test path — normal refreshes only
+    /// create rows through [`Lock::resolve`]). Keeps the bucket suffix-sorted,
+    /// which [`Lock::save`] and Phase A's suffix-order iteration rely on.
     pub fn insert_row(&mut self, row: LockRow) {
         let key = (row.lemma.clone(), row.pos.as_str().to_string());
         let bucket = self.map.entry(key).or_default();
@@ -532,6 +571,11 @@ impl Lock {
         report
     }
 
+    /// Load a lockfile; a missing file is an EMPTY lock (first run), while a
+    /// malformed row is a hard error — silent coercion once turned a corrupted
+    /// suffix into 0, which aliases the bare key. Columns are positional
+    /// (see `LOCK_HEADER`); appending columns is backward-compatible,
+    /// reordering is not.
     pub fn load(path: impl AsRef<Path>) -> Result<Lock, Box<dyn Error>> {
         let path = path.as_ref();
         let mut lock = Lock::new();
@@ -576,6 +620,10 @@ impl Lock {
         Ok(lock)
     }
 
+    /// Write the lockfile deterministically: (lemma, pos) buckets in BTreeMap
+    /// order, rows within a bucket by suffix. Byte-stable output matters —
+    /// lock diffs are the human review surface for every refresh, and
+    /// `check-registry` parses committed lockfiles straight out of git.
     pub fn save(&self, path: impl AsRef<Path>) -> Result<(), Box<dyn Error>> {
         let mut wtr = WriterBuilder::new().from_path(path)?;
         wtr.write_record(LOCK_HEADER)?;

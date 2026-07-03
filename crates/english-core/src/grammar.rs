@@ -1,3 +1,10 @@
+//! The grammatical feature enums that parameterize every inflection query.
+//!
+//! These are deliberately minimal — only distinctions English morphology
+//! actually realizes are present (no Future tense variant: English futures are
+//! periphrastic "will + infinitive", the caller's composition job). All enums
+//! are `Copy` and passed by reference for historical API-stability reasons.
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Number {
     Singular,

@@ -1,3 +1,11 @@
+//! CLI contract for the extractor binary (normally invoked via
+//! `cargo xtask refresh-data`, which forwards these flags verbatim).
+//!
+//! Paths default to the workspace-relative layout (committed tables in
+//! `crates/english/generated`, lockfiles in `data/assignments`, cache in
+//! `data/intermediate`) and are overridable individually — the cross-dump
+//! stability audit relies on redirecting all three to a scratch directory.
+
 use std::env;
 use std::error::Error;
 use std::path::PathBuf;

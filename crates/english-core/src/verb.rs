@@ -1,6 +1,19 @@
+//! Regular verb conjugation.
+//!
+//! The query space is (person, number, tense, form); the rules only truly vary
+//! along four output slots — 3rd-singular present, past finite, present
+//! participle, past participle — which is also exactly the tuple shape the
+//! generated verb table stores. `be` is fully suppletive and handled by a
+//! dedicated table ([`EnglishCore::to_be`]) rather than the suffix rules; the
+//! extractor deliberately skips `be` for the same reason.
+
 use crate::EnglishCore;
 use crate::grammar::*;
 impl EnglishCore {
+    /// Conjugate a verb by rule. The past participle intentionally reuses the
+    /// past-finite rule (`-ed` serves both for every regular verb); genuinely
+    /// distinct participles (`gone`, `eaten`) are irregular and live in the
+    /// `english` crate's tables, not here.
     pub fn verb(
         word: &str,
         person: &Person,
@@ -43,6 +56,8 @@ impl EnglishCore {
             }
         }
     }
+    /// The fully suppletive paradigm of `be` — the only English verb whose
+    /// finite forms vary by person AND number, hence a lookup rather than rules.
     pub fn to_be(person: &Person, number: &Number, tense: &Tense, form: &Form) -> &'static str {
         match (tense, form) {
             (_, Form::Infinitive) => "be",

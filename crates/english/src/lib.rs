@@ -1,3 +1,41 @@
+//! English inflection backed by Wiktionary-derived lookup tables with a
+//! rule-engine fallback.
+//!
+//! # Architecture
+//!
+//! Every query follows the same two-tier shape: consult the generated PHF
+//! tables (`generated/*_phf.rs`, compiled in via `include!`) for an attested
+//! exception first, and fall back to [`EnglishCore`]'s regular rules otherwise.
+//! The tables and the rules are NOT independent: the extractor drops any
+//! candidate the rules already predict, so the tables hold exactly the
+//! attested exceptions and nothing else. Changing a rule in `english-core`
+//! therefore requires regenerating the tables — the `rule_table_sync`
+//! integration test fails loudly if that is forgotten.
+//!
+//! # Sense-numbered keys
+//!
+//! Homograph senses and attested variants are published as `_<n>`-suffixed
+//! keys (`lie` -> *lied*, `lie_2` -> *lay*; `die_2` -> *dice*). The underscore
+//! is unambiguous: the extractor never admits a lemma containing `_`, so a
+//! trailing `_<digits>` can only be a sense suffix — digit-bearing words
+//! (`mp3`, `F16`, `F2`) can never collide with one. Key-to-sense assignments
+//! are pinned in `data/assignments/*.lock.csv` (see `extractor::registry`) and
+//! are immutable within a data-major version; the form VALUES may update in
+//! place as Wiktionary is edited.
+//!
+//! # Lookup semantics (invariants shared by [`English::noun`]/[`English::verb`]/[`English::adj`])
+//!
+//! 1. Case-insensitive: Title-case and ALL-CAPS input hit the all-lowercase
+//!    tables with the casing restored on the value; regular-rule fallbacks get
+//!    the identical treatment via [`rule_with_case`], so `HOT -> HOTTER`
+//!    exactly as `GOOD -> BEST`. Mixed case is never guessed at.
+//! 2. Base-lemma agreement: when a `_<n>` suffix strips (the word or its base
+//!    is a table key), EVERY code path treats the input as that base lemma —
+//!    lookups fall back `get_*(word)` then `get_*(base)` so `child_2` inflects
+//!    exactly like `child` instead of mixing table singulars with rule plurals.
+//! 3. Opaqueness: input that resolves to no key inflects by rule on the whole
+//!    string, unchanged (`cat_2` -> `cat_2s`).
+
 use english_core::EnglishCore;
 pub use english_core::grammar::*;
 

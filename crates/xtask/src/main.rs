@@ -1,3 +1,29 @@
+//! Workspace task runner (`cargo xtask <command>`), and the home of the
+//! project's stability machinery:
+//!
+//! - `refresh-data`   — full dump-driven regeneration (delegates to the
+//!                      extractor binary in release mode);
+//! - `check-registry` — THE CI gate: internal lock consistency, cross-version
+//!                      key immutability against the PR's merge-base, and a
+//!                      dump-free byte comparison of the committed tables
+//!                      against what the lockfiles regenerate;
+//! - `regen-tables`   — dump-free table emission from the lockfiles (use when
+//!                      only the emission format changed, not the data);
+//! - `compact`        — the sanctioned data-major cruft collection: drops
+//!                      tombstones, closes suffix gaps, bumps DATA_MAJOR
+//!                      (which is what makes check-registry accept the
+//!                      renumbering);
+//! - `accuracy`       — dump-driven measurement of rules+tables together;
+//! - `seed-assignments` / `report-coverage` — one-time bootstrap and anchor
+//!                      telemetry.
+//!
+//! Stability model in one paragraph: published `_<n>` sense keys never change
+//! meaning within a data-major version — check-registry fails any PR that
+//! moves/drops/revives one. A deliberate re-key ships as a DATA_MAJOR bump
+//! (visible in the diff, waives cross-version checks for exactly that PR) and
+//! a semver-major crate release. ENGLISH_ALLOW_RELOCK exists as a local
+//! development escape hatch only and is never set in CI.
+
 use extractor::bootstrap::{generate_tables, load_locks, save_locks, seed};
 use extractor::helpers::Pos;
 use extractor::registry::{CompactReport, Lock, check_immutability};

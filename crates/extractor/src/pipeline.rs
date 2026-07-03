@@ -1,3 +1,22 @@
+//! Refresh orchestration: filter -> extract -> resolve -> validate -> write.
+//!
+//! The ordering of the guard rails is the point of this module. Everything
+//! that can reject a refresh does so BEFORE `save_locks`/`generate_tables`
+//! touch the working tree:
+//!
+//! 1. partial-dump abort — a skipped mass-absence reap means the dump is
+//!    suspect; writing would leave stale rows active that `check-registry`
+//!    could never flag (they were never tombstoned). Overridable only by the
+//!    explicit `--allow-partial-refresh` flag.
+//! 2. structural validation (`Lock::validate`) — a malformed lock is never
+//!    written, full stop.
+//!
+//! Immutability violations vs. the committed lock are deliberately only a
+//! WARNING here: the refresh must be able to produce a diff a human then
+//! reviews, and `cargo xtask check-registry` is the hard gate that keeps such
+//! a diff from merging. Failing the refresh itself would make legitimate
+//! relocks impossible to even generate.
+
 use crate::args::Config;
 use crate::bootstrap::{generate_tables, load_locks, save_locks};
 use crate::checks::run_checks;
@@ -9,6 +28,9 @@ use crate::registry::check_immutability;
 use std::error::Error;
 use std::fs;
 
+/// Run one full data refresh. See the module docs for the guard-rail ordering;
+/// on success the lockfiles and all generated tables are consistent with each
+/// other by construction (same in-memory locks feed both writers).
 pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
     fs::create_dir_all(&config.generated_dir)?;
     fs::create_dir_all(&config.artifacts_dir)?;
