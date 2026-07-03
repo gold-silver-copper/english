@@ -350,6 +350,12 @@ impl Lock {
             // Only for rows whose FROZEN identity is the etym; a sig-frozen row that
             // merely got an etym enriched onto it must not be re-paired on etym alone
             // (an etymology renumber could otherwise hand it a different sense's forms).
+            // AND only when that etym value is UNIQUE among this batch's candidates —
+            // the same guard anchor_exact_match applies. If a formerly single-sense
+            // etymology has since split into several candidates, matching "the first
+            // one with that etym" would hand the pinned suffix an arbitrary sibling's
+            // forms with no anchor or suffix change, which check_immutability cannot
+            // see. Ambiguous duplicate-etym drift must tombstone + append instead.
             for ri in 0..original_len {
                 if matched[ri] || rows[ri].status != Status::Active {
                     continue;
@@ -358,6 +364,9 @@ impl Lock {
                     continue;
                 }
                 let Some(etym) = rows[ri].etym else { continue };
+                if !uniq.etym_unique(etym) {
+                    continue;
+                }
                 if let Some(ci) = remaining.iter().position(|c| c.etym == Some(etym)) {
                     let c = remaining.remove(ci);
                     notes.push(format!(
@@ -1200,6 +1209,35 @@ mod tests {
         lock.resolve("die", Pos::Noun, vec![c1, c2], false, "d1");
         let anchors: Vec<String> = lock.rows().map(|r| r.anchor.clone()).collect();
         assert!(anchors.iter().all(|a| a.starts_with("etym:2#sig:")), "{anchors:?}");
+    }
+
+    #[test]
+    fn etym_split_with_drift_does_not_guess_which_sibling_inherits_the_key() {
+        // A single-sense lemma frozen on a BARE etym anchor (etym:1). A later dump
+        // SPLITS that etymology into two candidates (both etym=1) and the original
+        // forms have drifted away. Phase B(a) must NOT hand the pinned suffix
+        // whichever sibling happens to come first — the frozen anchor and suffix
+        // would stay identical, so check_immutability could never see the swap.
+        // The safe outcome: tombstone the old row, append both siblings.
+        let mut lock = Lock::new();
+        lock.resolve("x", Pos::Noun, vec![cand_e(&["alpha"], 1)], false, "d1");
+        let row = lock.rows().next().unwrap();
+        assert_eq!(row.anchor, "etym:1", "single sense freezes on the bare etym");
+
+        // d2: etym 1 split into two senses, original forms gone; adversarial order
+        // puts the WRONG sibling first (the one the old code would have grabbed).
+        let a = lock.resolve(
+            "x",
+            Pos::Noun,
+            vec![cand_e(&["unrelated"], 1), cand_e(&["alphaish"], 1)],
+            false,
+            "d2",
+        );
+        let old = lock.rows().find(|r| r.anchor == "etym:1").unwrap();
+        assert_eq!(old.status, Status::Tombstone, "ambiguous split must tombstone");
+        assert_eq!(old.forms, vec!["alpha".to_string()], "pinned forms never overwritten by a guess");
+        assert_eq!(keys(&a), vec!["x_2".to_string(), "x_3".to_string()], "both siblings appended");
+        assert!(check_immutability(&lock, &lock).is_empty());
     }
 
     #[test]
