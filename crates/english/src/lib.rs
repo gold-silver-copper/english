@@ -211,7 +211,8 @@ impl English {
     ///
     /// Handles irregular verbs (e.g., `"go" -> "went"`, `"eat" -> "ate"`)
     /// and falls back to regular conjugation rules when no override is found.
-    /// Strips trailing numbers used for sense disambiguation (`"lie2"` -> `"lied"`).
+    /// Supports sense-numbered keys for homographs (`"lie"` -> `"lied"`,
+    /// `"lie2"` -> `"lay"` in the past finite).
     ///
     /// # Examples
     /// ```rust
@@ -233,6 +234,12 @@ impl English {
     /// assert_eq!(
     ///     English::verb("go", &Person::Third, &Number::Plural, &Tense::Past, &Form::Participle),
     ///     "gone"
+    /// );
+    ///
+    /// // Homograph senses
+    /// assert_eq!(
+    ///     English::verb("lie2", &Person::Third, &Number::Singular, &Tense::Past, &Form::Finite),
+    ///     "lay"
     /// );
     /// ```
     pub fn verb(

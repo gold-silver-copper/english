@@ -1,12 +1,16 @@
 //! One-time bootstrap and shared table generation.
 //!
-//! The library ships with pre-generated PHF tables but no lockfile. [`seed`]
-//! parses those committed tables and freezes today's exact keys into the
-//! assignment lockfiles, so every previously-published key (`lie2`, `die2`,
-//! `bad3`, ...) is grandfathered byte-for-byte. Because no Wiktionary dump is
-//! consulted here, bootstrapped rows are anchored on their form signature
-//! (`sig:<forms>`); later `refresh-data` runs enrich them with the stronger
-//! etymology / senseid / QID anchors as those become available.
+//! [`seed`] can bootstrap assignment lockfiles from an existing set of committed
+//! PHF tables: it parses those tables and freezes their exact keys into locks.
+//! Because no Wiktionary dump is consulted in that mode, bootstrapped rows are
+//! anchored on their form signature (`sig:<forms>`); later `refresh-data` runs
+//! enrich them with stronger etymology / senseid / QID anchors as those become
+//! available.
+//!
+//! The current checked-in locks were established during the initial pre-merge
+//! determinism work after extractor policy fixes, so that first migration may
+//! intentionally re-key the old generated tables. Once the locks land on `main`,
+//! they become the baseline that `check-registry` protects.
 //!
 //! [`generate_tables`] is the single lock -> PHF path, shared by both `seed`
 //! (round-trips the existing tables, proving losslessness) and the refresh

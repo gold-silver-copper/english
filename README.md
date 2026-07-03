@@ -10,13 +10,13 @@
 
 ## ⚡ Speed and Accuracy
 
-Evaluation of the English inflector (`extractor/main.rs/check_*`) and performance benchmarking (`examples/speedmark.rs`) shows:
+Evaluation of the English inflector (`cargo xtask accuracy`, using the 2026-07-02 Wiktionary dump) and performance benchmarking (`examples/speedmark.rs`) shows:
 
-| Part of Speech | Correct / Total | Accuracy  | Throughput (calls/sec) | Time per Call |
-|----------------|----------------|-----------|-----------------------|---------------|
-| **Nouns**      | 243495 / 244001 | 99.79%   | 7,499,749             | 133 ns        |
-| **Verbs**      | 161215 / 165457 | 97.44%   | 12,423,891            | 80 ns         |
-| **Adjectives** | 121512 / 121719 | 99.83%   | 15,607,807            | 64 ns         |
+| Part of Speech | Correct / Total | Accuracy  | Variant Gap | Throughput (calls/sec) | Time per Call |
+|----------------|----------------|-----------|-------------|-----------------------|---------------|
+| **Nouns**      | 225900 / 225900 | 100.00%  | 0           | 7,499,749             | 133 ns        |
+| **Verbs**      | 151540 / 151540 | 100.00%  | 0           | 12,423,891            | 80 ns         |
+| **Adjectives** | 121548 / 121550 | 100.00%  | 8           | 15,607,807            | 64 ns         |
 
 *Note: Benchmarking was done under a worst-case scenario; typical real-world usage is 50~ nanoseconds faster.*
 
@@ -63,7 +63,7 @@ fn main() {
     );
     // Regular plurals
     assert_eq!(English::noun("cat", &Number::Plural), "cats");
-    // Add a number 2-9 to the end of the word to try different forms.
+    // Sense-numbered keys expose homographs and attested variants.
     assert_eq!(English::noun("die2", &Number::Plural), "dice");
     // Use count function for better ergonomics if needed
     assert_eq!(count("man", 2), "men");
@@ -103,7 +103,8 @@ fn main() {
         ),
         "gone"
     );
-    // Add a number 2-9 to the end of the word to try different forms.
+    // Sense-numbered keys distinguish homographs: "lie" (tell an untruth)
+    // and "lie2" (recline) inflect differently.
     assert_eq!(
         English::verb(
             "lie",
@@ -112,7 +113,7 @@ fn main() {
             &Tense::Past,
             &Form::Finite
         ),
-        "lay"
+        "lied"
     );
     assert_eq!(
         English::verb(
@@ -122,7 +123,7 @@ fn main() {
             &Tense::Past,
             &Form::Finite
         ),
-        "lied"
+        "lay"
     );
     // "to be" has the most verb forms in english and requires using verb()
     assert_eq!(
@@ -137,13 +138,13 @@ fn main() {
     );
 
     // --- Adjectives ---
-    // Add a number 2-9 to the end of the word to try different forms. (Bad has the most forms at 3)
-    assert_eq!(English::adj("bad", &Degree::Comparative), "more bad");
-    assert_eq!(English::adj("bad", &Degree::Superlative), "most bad");
+    // Numbered adjective keys expose standard, slang, and periphrastic variants.
+    assert_eq!(English::adj("bad", &Degree::Comparative), "worse");
+    assert_eq!(English::adj("bad", &Degree::Superlative), "worst");
     assert_eq!(English::adj("bad2", &Degree::Comparative), "badder");
     assert_eq!(English::adj("bad2", &Degree::Superlative), "baddest");
-    assert_eq!(English::adj("bad3", &Degree::Comparative), "worse");
-    assert_eq!(English::adj("bad3", &Degree::Superlative), "worst");
+    assert_eq!(English::adj("bad3", &Degree::Comparative), "more bad");
+    assert_eq!(English::adj("bad3", &Degree::Superlative), "most bad");
     assert_eq!(English::adj("bad3", &Degree::Positive), "bad");
 
     // --- Pronouns ---
@@ -251,8 +252,9 @@ the data equivalent of `Cargo.lock`:
 * `cargo xtask check-registry` fails the build if any previously-committed key changed meaning.
 * `cargo xtask report-coverage` shows how much of each lockfile rests on strong vs. weak anchors.
 
-The lockfiles were originally seeded from the shipped tables with `cargo xtask seed-assignments`
-(a one-time bootstrap); you should not need to run it again.
+These initial lockfiles were generated during the pre-merge determinism work after fixing the extractor/table policy bugs. That means the first PR is allowed to re-key the previously generated tables: `origin/main` had no assignment lockfiles yet, so the checked-in locks in this change become the first stability baseline. After they land, ordinary refreshes must preserve key meanings within the same `DATA_MAJOR`.
+
+`cargo xtask seed-assignments` remains available as a one-time bootstrap command for freezing an existing set of committed PHF tables into lockfiles, but it is not part of the normal refresh flow.
 
 ### Stability policy: immutable within a data-major, compacted across them
 
