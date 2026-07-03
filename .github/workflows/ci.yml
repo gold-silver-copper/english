@@ -34,8 +34,9 @@ jobs:
     runs-on: ubuntu-latest
     # Cross-version immutability is ARMED: the checked-in lockfiles are the public
     # stability boundary, and any PR that moves/drops/revives a published key fails
-    # here. A deliberate re-key would have to set ENGLISH_ALLOW_RELOCK in this job —
-    # a visible, reviewable CI edit — never a silent data change.
+    # here. The sanctioned way to renumber is `cargo xtask compact`, which bumps
+    # data/assignments/DATA_MAJOR — check-registry waives cross-version immutability
+    # for exactly that (visible, reviewable) bump. Never a silent data change.
     steps:
       - uses: actions/checkout@v4
         with:

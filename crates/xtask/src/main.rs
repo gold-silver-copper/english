@@ -1,6 +1,6 @@
-use extractor::bootstrap::{generate_tables, load_locks, seed};
+use extractor::bootstrap::{generate_tables, load_locks, save_locks, seed};
 use extractor::helpers::Pos;
-use extractor::registry::{Lock, check_immutability};
+use extractor::registry::{CompactReport, Lock, check_immutability};
 use std::env;
 use std::error::Error;
 use std::fs;
@@ -37,6 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Some("refresh-data") => refresh_data(args.collect()),
         Some("seed-assignments") => seed_assignments(args.collect()),
         Some("check-registry") => check_registry(),
+        Some("compact") => compact(),
         Some("report-coverage") => report_coverage(),
         Some("-h") | Some("--help") | None => {
             print_usage();
@@ -105,11 +106,11 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
     // arrives inside a PR would slip through. We use the merge-base with the PR base
     // ref (GITHUB_BASE_REF on GitHub, else origin/main), which needs full history
     // (actions/checkout with fetch-depth: 0).
-    let baseline = if allow_relock { None } else { resolve_baseline(&root)? };
+    let mut baseline = if allow_relock { None } else { resolve_baseline(&root)? };
     if allow_relock {
         println!(
             "check-registry: ENGLISH_ALLOW_RELOCK set — cross-version immutability SKIPPED \
-             (pre-release relock window); internal consistency + table sync still enforced."
+             (local relock escape hatch); internal consistency + table sync still enforced."
         );
     } else {
         match &baseline {
@@ -117,6 +118,32 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
             None => println!(
                 "note: no baseline ref resolved (origin/main / GITHUB_BASE_REF); running internal + sync checks only."
             ),
+        }
+    }
+
+    // Stability policy: published keys are immutable WITHIN a data-major version.
+    // A PR that bumps data/assignments/DATA_MAJOR is a sanctioned compaction /
+    // re-key release (`cargo xtask compact`): cross-version immutability is waived
+    // for exactly that PR, loudly. The bump itself is what reviewers sign off on —
+    // it is the versioned, visible replacement for silently mutating keys.
+    let working_major = read_data_major_file(&assignments_dir.join("DATA_MAJOR"))?;
+    if let Some(rev) = &baseline {
+        let base_major = match git_show(&root, &format!("{rev}:data/assignments/DATA_MAJOR"))? {
+            Some(s) => parse_data_major(&s)
+                .ok_or_else(|| format!("unparseable DATA_MAJOR at baseline {rev}: {s:?}"))?,
+            None => 1, // file predates the policy -> data-major 1
+        };
+        if working_major > base_major {
+            println!(
+                "check-registry: DATA_MAJOR bump {base_major} -> {working_major}: SANCTIONED \
+                 compaction/re-key release — cross-version immutability waived for this change; \
+                 internal consistency + table sync still enforced."
+            );
+            baseline = None;
+        } else if working_major < base_major {
+            violations.push(format!(
+                "DATA_MAJOR went backwards ({base_major} -> {working_major}); the data-major version is append-only"
+            ));
         }
     }
 
@@ -253,6 +280,81 @@ fn git_merge_base(root: &Path, base: &str, head: &str) -> Result<Option<String>,
     } else {
         Ok(None)
     }
+}
+
+// --------------------------------------------------------------------------
+// compact: the deliberate cruft-collection for a data-major release. Deletes
+// tombstones, closes suffix gaps, regenerates the tables, and bumps DATA_MAJOR
+// so check-registry treats the renumbering as sanctioned.
+// --------------------------------------------------------------------------
+fn compact() -> Result<(), Box<dyn Error>> {
+    let assignments_dir = default_assignments_dir()?;
+    let generated_dir = default_generated_dir()?;
+    let major_path = assignments_dir.join("DATA_MAJOR");
+    let (mut noun, mut verb, mut adj) = load_locks(&assignments_dir)?;
+
+    let mut total = CompactReport::default();
+    for (name, lock) in [("noun", &mut noun), ("verb", &mut verb), ("adj", &mut adj)] {
+        let r = lock.compact();
+        println!(
+            "compact {name:>4}: dropped {} tombstone(s), renumbered {} key(s)",
+            r.tombstones_dropped, r.renumbered
+        );
+        total.tombstones_dropped += r.tombstones_dropped;
+        total.renumbered += r.renumbered;
+    }
+
+    if total.is_noop() {
+        println!("compact: nothing to do — no tombstones, no suffix gaps. DATA_MAJOR unchanged.");
+        return Ok(());
+    }
+
+    // A compacted lock must still be structurally valid before anything is written.
+    let invalid: Vec<String> = noun
+        .validate()
+        .into_iter()
+        .chain(verb.validate())
+        .chain(adj.validate())
+        .collect();
+    if !invalid.is_empty() {
+        return Err(format!(
+            "refusing to write compacted lockfiles — {} structural violation(s):\n  - {}",
+            invalid.len(),
+            invalid.join("\n  - ")
+        )
+        .into());
+    }
+
+    save_locks(&assignments_dir, &noun, &verb, &adj)?;
+    generate_tables(&noun, &verb, &adj, &generated_dir)?;
+
+    let old_major = read_data_major_file(&major_path)?;
+    let new_major = old_major + 1;
+    fs::write(&major_path, format!("{new_major}\n"))?;
+
+    println!(
+        "compact: dropped {} tombstone(s), renumbered {} published key(s); DATA_MAJOR {old_major} -> {new_major}.",
+        total.tombstones_dropped, total.renumbered
+    );
+    println!(
+        "This is a BREAKING data change: ship it as a semver-major release and call out the \
+         renumbered keys in the changelog. check-registry accepts it because of the DATA_MAJOR bump."
+    );
+    Ok(())
+}
+
+/// Read `data/assignments/DATA_MAJOR`; a missing file means data-major 1 (the
+/// policy's epoch). An unparseable file is a hard error, never a silent default.
+fn read_data_major_file(path: &Path) -> Result<u32, Box<dyn Error>> {
+    if !path.exists() {
+        return Ok(1);
+    }
+    let s = fs::read_to_string(path)?;
+    parse_data_major(&s).ok_or_else(|| format!("unparseable DATA_MAJOR file {path:?}: {s:?}").into())
+}
+
+fn parse_data_major(s: &str) -> Option<u32> {
+    s.trim().parse::<u32>().ok()
 }
 
 // --------------------------------------------------------------------------
@@ -402,6 +504,7 @@ fn print_usage() {
     eprintln!("  refresh-data       Regenerate the Wiktionary-derived lookup tables + lockfiles");
     eprintln!("  seed-assignments   One-time: freeze today's tables into the assignment lockfiles");
     eprintln!("  check-registry     CI gate: fail if any published key changed meaning");
+    eprintln!("  compact            Data-major release: drop tombstones, close suffix gaps, bump DATA_MAJOR");
     eprintln!("  report-coverage    Show anchor-tier coverage of the lockfiles");
 }
 

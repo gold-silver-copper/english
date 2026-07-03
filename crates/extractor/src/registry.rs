@@ -462,6 +462,47 @@ impl Lock {
         assignments
     }
 
+    /// Compact the lock for a **data-major release**: delete every tombstone and
+    /// close the suffix gaps they (and ambiguous-drift appends) left behind, so the
+    /// published keys become dense again (`x2`,`x5`,`x7` -> `x2`,`x3`,`x4`).
+    ///
+    /// This RENUMBERS published keys — the one operation the lock otherwise exists
+    /// to prevent — so it must only ever land together with a `DATA_MAJOR` bump
+    /// (`cargo xtask compact` does both; `check-registry` only waives cross-version
+    /// immutability for a PR that bumps the major).
+    ///
+    /// Two invariants survive compaction:
+    /// - relative suffix order is preserved (a lower-numbered sense stays lower);
+    /// - the bare slot (suffix 1) is never *newly* occupied: whether it was reserved
+    ///   for the rule engine at cold start (`had_regular`) is not recorded in the
+    ///   lock, so promoting a row into it would be a guess that could shadow a
+    ///   regular inflection.
+    pub fn compact(&mut self) -> CompactReport {
+        let mut report = CompactReport::default();
+        for rows in self.map.values_mut() {
+            let before = rows.len();
+            rows.retain(|r| r.status == Status::Active);
+            report.tombstones_dropped += before - rows.len();
+            rows.sort_by_key(|r| r.suffix);
+            let mut next = 2;
+            for r in rows.iter_mut() {
+                let new = if r.suffix == 1 {
+                    1
+                } else {
+                    let n = next;
+                    next += 1;
+                    n
+                };
+                if new != r.suffix {
+                    report.renumbered += 1;
+                }
+                r.suffix = new;
+            }
+        }
+        self.map.retain(|_, rows| !rows.is_empty());
+        report
+    }
+
     pub fn load(path: impl AsRef<Path>) -> Result<Lock, Box<dyn Error>> {
         let path = path.as_ref();
         let mut lock = Lock::new();
@@ -637,6 +678,19 @@ impl Lock {
 pub struct ReapReport {
     pub tombstoned: usize,
     pub skipped: bool,
+}
+
+/// Summary of a [`Lock::compact`] pass.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct CompactReport {
+    pub tombstones_dropped: usize,
+    pub renumbered: usize,
+}
+
+impl CompactReport {
+    pub fn is_noop(&self) -> bool {
+        self.tombstones_dropped == 0 && self.renumbered == 0
+    }
 }
 
 #[derive(Debug, Default)]
@@ -1337,6 +1391,51 @@ mod tests {
         let rep = over.reap(Pos::Noun, &resolved, "d2", 0.10);
         assert!(rep.skipped, "25% over the 0.10 ceiling must be refused");
         assert_eq!(rep.tombstoned, 0);
+    }
+
+    #[test]
+    fn compact_drops_tombstones_and_closes_gaps_in_order() {
+        // Build cruft: x -> suffixes 1..4, tombstone 1 and 3 by vanishing them.
+        let mut lock = Lock::new();
+        lock.resolve(
+            "x",
+            Pos::Noun,
+            vec![cand(&["a"]), cand(&["b"]), cand(&["c"]), cand(&["d"])],
+            false,
+            "d1",
+        ); // a=1, b=2, c=3, d=4 (alphabetical cold start)
+        lock.resolve("x", Pos::Noun, vec![cand(&["b"]), cand(&["d"])], false, "d2"); // 1,3 tombstoned
+
+        let report = lock.compact();
+        assert_eq!(report.tombstones_dropped, 2);
+        let rows: Vec<(u32, String)> = lock.rows().map(|r| (r.suffix, r.sig())).collect();
+        // b (was 2) and d (was 4) survive; gaps close to 2,3 — but suffix 1 is NOT
+        // re-occupied (bare-slot reservation is unknowable after the fact).
+        assert_eq!(rows, vec![(2, "b".to_string()), (3, "d".to_string())]);
+        assert!(lock.validate().is_empty());
+        // Renumbering is exactly what check_immutability flags — compaction is only
+        // sanctioned behind a DATA_MAJOR bump.
+        assert!(check_immutability(&lock, &lock).is_empty());
+    }
+
+    #[test]
+    fn compact_keeps_existing_bare_key_and_is_noop_on_dense_lock() {
+        let mut lock = Lock::new();
+        lock.resolve("y", Pos::Noun, vec![cand(&["p"]), cand(&["q"])], false, "d1"); // p=1, q=2
+        let report = lock.compact();
+        assert!(report.is_noop(), "{report:?}");
+        let rows: Vec<u32> = lock.rows().map(|r| r.suffix).collect();
+        assert_eq!(rows, vec![1, 2], "an already-dense lock is untouched");
+    }
+
+    #[test]
+    fn compact_removes_fully_tombstoned_lemmas() {
+        let mut lock = Lock::new();
+        lock.resolve("z", Pos::Noun, vec![cand(&["zz"])], false, "d1");
+        lock.resolve("z", Pos::Noun, vec![], false, "d2"); // vanished -> tombstone
+        let report = lock.compact();
+        assert_eq!(report.tombstones_dropped, 1);
+        assert_eq!(lock.rows().count(), 0, "empty bucket must be dropped entirely");
     }
 
     #[test]

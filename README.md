@@ -234,7 +234,7 @@ To also run the extractor evaluation reports against the current library data, a
 ## 🔒 Deterministic sense numbering
 
 Homographs that inflect differently share a lemma and are disambiguated by a numeric suffix
-(`lie` → *lay*, `lie2` → *lied*; `die2` → *dice*). Historically that suffix was **positional** —
+(`lie` → *lied*, `lie2` → *lay*; `die2` → *dice*). Historically that suffix was **positional** —
 assigned by alphabetically sorting whatever forms survived filtering in a given dump — so any
 upstream change could renumber a lemma and silently swap the meaning of a published key.
 
@@ -251,6 +251,25 @@ the data equivalent of `Cargo.lock`:
 
 The lockfiles were originally seeded from the shipped tables with `cargo xtask seed-assignments`
 (a one-time bootstrap); you should not need to run it again.
+
+### Stability policy: immutable within a data-major, compacted across them
+
+Left alone forever, an append-only registry accumulates cruft: tombstoned rows, suffix gaps
+from ambiguous drift, ever-higher numbers for new senses. The policy that bounds this is
+versioned like semver:
+
+* **Within a data-major version** (tracked in `data/assignments/DATA_MAJOR`): published keys
+  never change meaning. Refreshes may update forms in place, append new suffixes, and
+  tombstone vanished senses — `cargo xtask check-registry` hard-fails anything else.
+* **At a data-major release**: run `cargo xtask compact`. It deletes all tombstones, closes
+  suffix gaps (preserving relative order; the bare slot is never newly occupied), regenerates
+  the tables, and bumps `DATA_MAJOR`. `check-registry` recognizes the bump and waives
+  cross-version immutability for exactly that PR — the bump in the diff *is* the reviewable
+  declaration of a breaking data change. Ship it as a **semver-major** crate release and list
+  the renumbered keys in the changelog.
+
+So sense keys are stable for as long as you stay on a crate major version, and cruft is
+bounded by the compaction cadence instead of growing forever.
 
 ## Benchmarks
 Performance benchmarks were run on my M2 Macbook.
