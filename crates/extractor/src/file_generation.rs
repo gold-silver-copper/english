@@ -1,9 +1,9 @@
-//! PHF table emission. BYTE STABILITY IS LOAD-BEARING here: `check-registry`
-//! regenerates these files from the lockfiles and byte-compares them against
-//! the committed copies, and the bootstrap round-trip test does the same — any
-//! formatting change (whitespace, ordering, headers) must be committed
-//! together with regenerated tables (`cargo xtask regen-tables`). Entries are
-//! sorted by key before writing so output is independent of input order.
+//! PHF table emission. BYTE STABILITY IS LOAD-BEARING here: the
+//! `tables_round_trip_committed_output` test parses the committed tables and
+//! re-emits them, requiring a byte-identical result — any formatting change
+//! (whitespace, ordering, headers) must be committed together with regenerated
+//! tables (`cargo xtask refresh-data`). Entries are sorted by key before writing
+//! so output is independent of input order.
 
 use std::fs::File;
 use std::io::Write;

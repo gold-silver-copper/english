@@ -17,5 +17,5 @@ data/intermediate/
 crates/extractor/english_filtered.jsonl
 
 # Raw Wiktextract dumps (~20 GB) — never commit these; keep only the derived
-# tables (crates/english/generated) and lockfiles (data/assignments).
+# tables (crates/english/generated).
 *.jsonl

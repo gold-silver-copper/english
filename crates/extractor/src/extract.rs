@@ -11,10 +11,10 @@
 //!    candidate — each variant becomes its own `_<n>` key downstream;
 //! 4. per lemma, drop the candidate that equals the regular-rule prediction
 //!    ([`LemmaAcc::drop_regular`] — the rule engine serves it at runtime) and
-//!    hand the survivors to [`Lock::resolve`] for stable key assignment;
-//! 5. [`Lock::reap`] lemmas absent from the dump, with a mass-absence guard
-//!    whose skip is a HARD ERROR upstream (see `pipeline`) — a truncated dump
-//!    must never silently produce a "successful" refresh.
+//!    number the survivors into deterministic `_<n>` keys via [`crate::assign`].
+//!
+//! Each refresh regenerates every table from the dump alone — there is no
+//! lockfile, carry-forward state, or cross-dump reconciliation.
 //!
 //! The policy invariants (each pinned by a fixture test at the bottom):
 //! - only PLAIN forms are ever emitted; soft-tagged variants
@@ -26,44 +26,66 @@
 //!   "farther downhill", "better known") but only CANONICAL when no
 //!   single-word plain form exists for the slot.
 
+use crate::assign::{Candidate, assign, forms_sig, split_key};
 use crate::helpers::{
-    Entry, Pos, choose_form, entry_is_proper, entry_is_soft, suffix_rule, tag_rank, word_is_proper,
+    Entry, choose_form, entry_is_proper, entry_is_soft, suffix_rule, tag_rank, word_is_proper,
 };
-use crate::registry::{Candidate, Lock, ReapReport, forms_sig, split_key};
 use csv::{ReaderBuilder, WriterBuilder};
 use english_core::*;
-use std::collections::{BTreeMap, HashMap, HashSet};
-
-/// A refresh that would retire more than this fraction of a part-of-speech's active
-/// lock rows as "absent" is treated as a bad/partial dump: reaping is skipped and
-/// reported rather than silently gutting the lockfile. Legitimate cross-dump churn
-/// is far below this.
-const REAP_MAX_FRACTION: f64 = 0.10;
+use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
+
+/// One part-of-speech's emitted table: `(key, forms)` rows, ready for the PHF
+/// generator. Built fresh from the dump on every refresh — there is no persisted
+/// state to reconcile against.
+pub type Table = Vec<(String, Vec<String>)>;
+
+/// Drop each lemma's regular-predicted pattern (so the rule serves it at runtime)
+/// and number the survivors into deterministic keys. `predict` returns the
+/// regular prediction for a lemma; `soft_reserves` is passed through to
+/// [`LemmaAcc::drop_regular`] (see its docs — `true` for nouns/verbs, `false` for
+/// adjectives).
+fn finalize(
+    by_lemma: BTreeMap<String, LemmaAcc>,
+    predict: impl Fn(&str) -> Vec<String>,
+    soft_reserves: bool,
+) -> Table {
+    let mut table = Table::new();
+    for (lemma, mut acc) in by_lemma {
+        acc.drop_regular(&predict(&lemma), soft_reserves);
+        let (candidates, had_regular) = acc.into_candidates();
+        if candidates.is_empty() {
+            continue;
+        }
+        for a in assign(&lemma, candidates, had_regular) {
+            table.push((a.key, a.forms));
+        }
+    }
+    table
+}
 
 /// Per-lemma accumulator while scanning the dump: distinct inflection patterns
 /// (keyed by their form signature so duplicates merge) plus whether a
 /// regular-prediction-equal pattern was seen (and dropped as a runtime fall-through).
 #[derive(Default)]
 struct LemmaAcc {
-    /// emitted-form signature -> candidate (anchors enriched across the entries that
-    /// share it). Keyed by `registry::forms_sig` (the same encoding `Candidate::sig`
-    /// and `drop_regular` use), so two entries merge only when they emit identical
-    /// forms.
+    /// emitted-form signature -> candidate. Keyed by `assign::forms_sig` (the same
+    /// encoding `drop_regular` uses), so two entries merge only when they emit
+    /// identical forms.
     by_sig: BTreeMap<String, Candidate>,
     had_regular: bool,
 }
 
 impl LemmaAcc {
     /// Record one observed inflection pattern (the plain-preferred emitted columns)
-    /// for this lemma, attaching the entry's stable anchors and its listing
-    /// `ordinal` (0 = the entry's canonical pattern, higher = alternate variants,
-    /// used only as the cold-start numbering tiebreak). Deduped by the emitted
-    /// signature, so two entries merge only when they emit the same forms.
-    fn observe(&mut self, forms: Vec<String>, ordinal: u8, entry: &Entry) {
+    /// for this lemma. Deduped by the emitted signature, so two entries merge only
+    /// when they emit the same forms. The only carried metadata is softness — a
+    /// candidate is soft only while EVERY contributing entry is soft, so one
+    /// standard sense sharing the signature makes the candidate standard.
+    fn observe(&mut self, forms: Vec<String>, entry: &Entry) {
         let soft = entry_is_soft(entry);
         let sig = forms_sig(&forms);
         let is_new = !self.by_sig.contains_key(&sig);
@@ -71,27 +93,7 @@ impl LemmaAcc {
             .by_sig
             .entry(sig)
             .or_insert_with(|| Candidate::new(forms));
-        c.ordinal = if is_new {
-            ordinal
-        } else {
-            c.ordinal.min(ordinal)
-        };
-        // Soft only while EVERY contributing entry is soft: one standard sense
-        // sharing the signature makes the candidate standard.
         c.soft_sense = if is_new { soft } else { c.soft_sense && soft };
-        // Anchor fields merge as the MINIMUM across all contributing entries —
-        // never first-writer-wins, which would make the selected anchor depend
-        // on upstream entry order (a reorder could then change a new row's
-        // frozen identity). min() is order-independent and matches the
-        // "lowest/stablest" convention of Entry::lowest_qid.
-        merge_min(&mut c.qid, entry.lowest_qid());
-        merge_min(&mut c.sid, entry.lowest_senseid());
-        merge_min(&mut c.etym, entry.etymology_number);
-        // The gloss is only a human review aid, but it is PERSISTED in the
-        // lockfile — first-writer-wins would make the committed CSV depend on
-        // dump entry order, producing spurious lock diffs on an upstream
-        // reorder. min() keeps it order-independent like the anchors.
-        merge_min(&mut c.gloss, entry.first_gloss());
     }
 
     /// Drop the pattern that exactly equals the regular prediction; the rule engine
@@ -148,32 +150,19 @@ impl LemmaAcc {
     }
 }
 
-/// Keep the smaller of the existing and incoming value (absent = no opinion).
-/// Order-independent by construction: any permutation of contributors yields
-/// the same result, unlike set-if-None.
-fn merge_min<T: Ord>(slot: &mut Option<T>, incoming: Option<T>) {
-    if let Some(new) = incoming {
-        match slot {
-            Some(cur) if *cur <= new => {}
-            _ => *slot = Some(new),
-        }
-    }
-}
-
 fn open_reader(path: &Path) -> BufReader<File> {
     BufReader::new(File::open(path).unwrap())
 }
 
 /// A dump pass may tolerate at most this fraction of JSONL lines failing to
 /// deserialize. A healthy dump parses ~100%; a spike means wiktextract changed
-/// its schema (it has before — see `de_etym_number` in helpers.rs), and the
-/// affected lemmas would otherwise silently vanish from the scan and be reaped
-/// as "absent from dump" with nothing pointing at the real cause.
+/// its schema, and the affected lemmas would otherwise silently vanish from the
+/// scan (and from the generated tables) with nothing pointing at the real cause.
 const MAX_PARSE_FAILURE_FRACTION: f64 = 0.001;
 
 /// Counts parse failures across one dump pass so they are REPORTED, never
-/// silent: below the threshold a summary line still prints (the reap notes
-/// misattribute such losses to absence otherwise), above it the pass hard-errors.
+/// silent: below the threshold a summary line still prints, above it the pass
+/// hard-errors.
 #[derive(Default)]
 struct ParseTally {
     lines: usize,
@@ -201,7 +190,7 @@ impl ParseTally {
             return Err(format!(
                 "{pass}: {} of {} lines ({:.2}%) failed to deserialize — likely a wiktextract \
                  schema change; refusing to continue (the affected lemmas would be silently \
-                 reaped as absent). Fix the Entry schema in helpers.rs first.",
+                 dropped from the tables). Fix the Entry schema in helpers.rs first.",
                 self.failures,
                 self.lines,
                 100.0 * fraction
@@ -261,16 +250,11 @@ fn drop_periphrastic_if_single_word_attested(forms: &mut Vec<(String, u8)>) {
 // exists) is the more defensible behavior; a curated mass-noun list would be the
 // way to change it, not dump tags.
 
-/// Scan noun entries and resolve their plural patterns into `lock`.
+/// Scan noun entries and number their plural patterns into a table.
 ///
 /// Nouns have a single inflection slot, so every distinct plain attested
-/// plural is simply its own candidate (no tuple alignment needed). Returns the
-/// reap report — the caller MUST honor `skipped` (see the module docs).
-pub fn extract_irregular_nouns(
-    input_path: impl AsRef<Path>,
-    lock: &mut Lock,
-    date: &str,
-) -> Result<ReapReport, Box<dyn Error>> {
+/// plural is simply its own candidate (no tuple alignment needed).
+pub fn extract_irregular_nouns(input_path: impl AsRef<Path>) -> Result<Table, Box<dyn Error>> {
     let input_path = input_path.as_ref();
     let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
 
@@ -329,41 +313,29 @@ pub fn extract_irregular_nouns(
                 continue;
             }
             seen.push(form);
-            acc.observe(vec![form.clone()], (seen.len() - 1) as u8, &entry);
+            acc.observe(vec![form.clone()], &entry);
         }
     }
     tally.finish("extract_irregular_nouns")?;
 
-    let mut resolved: HashSet<String> = HashSet::new();
-    for (lemma, mut acc) in by_lemma {
-        let predicted_plural = EnglishCore::pluralize_noun(&lemma);
-        acc.drop_regular(&[predicted_plural], true);
-        let (candidates, had_regular) = acc.into_candidates();
-        if candidates.is_empty() {
-            continue;
-        }
-        lock.resolve(&lemma, Pos::Noun, candidates, had_regular, date)?;
-        resolved.insert(lemma);
-    }
-    let reap = lock.reap(Pos::Noun, &resolved, date, REAP_MAX_FRACTION);
-
-    println!("Resolved irregular nouns into the lock.");
-    Ok(reap)
+    let table = finalize(
+        by_lemma,
+        |lemma| vec![EnglishCore::pluralize_noun(lemma)],
+        true,
+    );
+    println!("Numbered {} irregular noun key(s).", table.len());
+    Ok(table)
 }
 
-/// Scan adjective entries and resolve their (comparative, superlative)
-/// patterns into `lock`.
+/// Scan adjective entries and number their (comparative, superlative) patterns
+/// into a table.
 ///
 /// Adjectives carry the subtlest policy in the extractor because the rule
 /// engine's prediction is linguistically informed (suffixal for short words,
 /// periphrastic otherwise) and Wiktionary often attests BOTH shapes — see the
 /// inline comments at the periphrastic filter and `drop_regular` call for the
-/// full decision table. Returns the reap report; `skipped` must be honored.
-pub fn extract_irregular_adjectives(
-    input_path: impl AsRef<Path>,
-    lock: &mut Lock,
-    date: &str,
-) -> Result<ReapReport, Box<dyn Error>> {
+/// full decision table.
+pub fn extract_irregular_adjectives(input_path: impl AsRef<Path>) -> Result<Table, Box<dyn Error>> {
     let input_path = input_path.as_ref();
     let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
     let reader = open_reader(input_path);
@@ -464,7 +436,7 @@ pub fn extract_irregular_adjectives(
         // the suffixal form to suffix 2. That is the same attested-regular-reserves
         // policy as die/die_2 and abide/abide_2.
         let acc = by_lemma.entry(lemma).or_default();
-        acc.observe(vec![comparative.clone(), superlative.clone()], 0, &entry);
+        acc.observe(vec![comparative.clone(), superlative.clone()], &entry);
         let alt = [
             slot_alternates(&all_comp, &comparative),
             slot_alternates(&all_sup, &superlative),
@@ -481,48 +453,36 @@ pub fn extract_irregular_adjectives(
                         .cloned()
                         .unwrap_or_else(|| superlative.clone()),
                 ],
-                (k + 1).min(u8::MAX as usize) as u8,
                 &entry,
             );
         }
     }
     tally.finish("extract_irregular_adjectives")?;
 
-    let mut resolved: HashSet<String> = HashSet::new();
-    for (lemma, mut acc) in by_lemma {
-        let predicted = [
-            EnglishCore::comparative(&lemma),
-            EnglishCore::superlative(&lemma),
-        ];
-        acc.drop_regular(&predicted, false);
-        let (candidates, had_regular) = acc.into_candidates();
-        if candidates.is_empty() {
-            continue;
-        }
-        lock.resolve(&lemma, Pos::Adj, candidates, had_regular, date)?;
-        resolved.insert(lemma);
-    }
-    let reap = lock.reap(Pos::Adj, &resolved, date, REAP_MAX_FRACTION);
-
-    println!("Resolved irregular adjectives into the lock.");
-    Ok(reap)
+    let table = finalize(
+        by_lemma,
+        |lemma| {
+            vec![
+                EnglishCore::comparative(lemma),
+                EnglishCore::superlative(lemma),
+            ]
+        },
+        false,
+    );
+    println!("Numbered {} irregular adjective key(s).", table.len());
+    Ok(table)
 }
 
-/// Scan verb entries and resolve their (3sg, past, present participle, past
-/// participle) tuples into `lock`.
+/// Scan verb entries and number their (3sg, past, present participle, past
+/// participle) tuples into a table.
 ///
 /// Missing slots are synthesized from the rule prediction (an entry attesting
 /// only an irregular past must not vanish because the dump omitted its 3sg),
 /// EXCEPT for entries attesting nothing at all, which are skipped outright —
 /// a fully synthesized tuple would masquerade as a regular attestation and
 /// wrongly reserve the bare key. `be` is skipped entirely: its suppletive
-/// paradigm lives in `english-core`. Returns the reap report; `skipped` must
-/// be honored.
-pub fn extract_verb_conjugations(
-    input_path: impl AsRef<Path>,
-    lock: &mut Lock,
-    date: &str,
-) -> Result<ReapReport, Box<dyn Error>> {
+/// paradigm lives in `english-core`.
+pub fn extract_verb_conjugations(input_path: impl AsRef<Path>) -> Result<Table, Box<dyn Error>> {
     let input_path = input_path.as_ref();
     let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
     let reader = open_reader(input_path);
@@ -645,7 +605,7 @@ pub fn extract_verb_conjugations(
             present_part.clone(),
             past_part.clone(),
         ];
-        acc.observe(canonical.clone(), 0, &entry);
+        acc.observe(canonical.clone(), &entry);
         let alt = [
             slot_alternates(&third_forms, &third),
             slot_alternates(&past_forms, &past),
@@ -661,55 +621,25 @@ pub fn extract_verb_conjugations(
                         .unwrap_or_else(|| canonical[i].clone())
                 })
                 .collect();
-            acc.observe(tuple, (k + 1).min(u8::MAX as usize) as u8, &entry);
+            acc.observe(tuple, &entry);
         }
     }
     tally.finish("extract_verb_conjugations")?;
 
-    let mut resolved: HashSet<String> = HashSet::new();
-    for (lemma, mut acc) in by_lemma {
-        let predicted = [
-            EnglishCore::verb(
-                &lemma,
-                &Person::Third,
-                &Number::Singular,
-                &Tense::Present,
-                &Form::Finite,
-            ),
-            EnglishCore::verb(
-                &lemma,
-                &Person::Third,
-                &Number::Singular,
-                &Tense::Past,
-                &Form::Finite,
-            ),
-            EnglishCore::verb(
-                &lemma,
-                &Person::Third,
-                &Number::Singular,
-                &Tense::Present,
-                &Form::Participle,
-            ),
-            EnglishCore::verb(
-                &lemma,
-                &Person::Third,
-                &Number::Singular,
-                &Tense::Past,
-                &Form::Finite,
-            ),
-        ];
-        acc.drop_regular(&predicted, true);
-        let (candidates, had_regular) = acc.into_candidates();
-        if candidates.is_empty() {
-            continue;
-        }
-        lock.resolve(&lemma, Pos::Verb, candidates, had_regular, date)?;
-        resolved.insert(lemma);
-    }
-    let reap = lock.reap(Pos::Verb, &resolved, date, REAP_MAX_FRACTION);
-
-    println!("Resolved verb conjugations into the lock.");
-    Ok(reap)
+    let predict_verb = |lemma: &str| {
+        let slot = |tense: &Tense, form: &Form| {
+            EnglishCore::verb(lemma, &Person::Third, &Number::Singular, tense, form)
+        };
+        vec![
+            slot(&Tense::Present, &Form::Finite),
+            slot(&Tense::Past, &Form::Finite),
+            slot(&Tense::Present, &Form::Participle),
+            slot(&Tense::Past, &Form::Finite),
+        ]
+    };
+    let table = finalize(by_lemma, predict_verb, true);
+    println!("Numbered {} irregular verb key(s).", table.len());
+    Ok(table)
 }
 
 /// One-time reduction of the raw multi-language Wiktextract dump (~20 GB) to
@@ -746,7 +676,7 @@ pub fn filter_english_entries(
 }
 
 /// Strip a `_<digits>` sense suffix from an emitted key (legacy artifact tool).
-/// Thin wrapper over `registry::split_key`, the one decoder for the key format.
+/// Thin wrapper over `assign::split_key`, the one decoder for the key format.
 pub fn strip_trailing_number(word: &str) -> &str {
     split_key(word).map(|(base, _)| base).unwrap_or(word)
 }
@@ -793,61 +723,21 @@ pub fn analyze_and_write_suffix_rules(
 mod tests {
     use super::*;
 
-    fn extract(jsonl: &str, name: &str, f: impl Fn(&Path, &mut Lock)) -> Lock {
+    /// Write `jsonl` to a temp file, run one extractor over it, and return its
+    /// emitted table sorted by key (the deterministic generator has no state, so
+    /// this is the whole pipeline for one POS).
+    fn run_extract(
+        jsonl: &str,
+        name: &str,
+        f: impl Fn(&Path) -> Result<Table, Box<dyn Error>>,
+    ) -> Table {
         let dir = std::env::temp_dir().join("english_extract_policy_tests");
         let _ = std::fs::create_dir_all(&dir);
         let path = dir.join(name);
         std::fs::write(&path, jsonl).unwrap();
-        let mut lock = Lock::new();
-        f(&path, &mut lock);
-        lock
-    }
-
-    fn emitted(lock: &Lock, pos: Pos) -> Vec<(String, Vec<String>)> {
-        lock.emittable(pos)
-    }
-
-    #[test]
-    fn mass_absence_reap_skip_is_reported_to_the_caller() {
-        // Pre-populate the lock with many pinned lemmas, then extract from a dump
-        // containing almost none of them: the mass-absence guard must refuse to
-        // tombstone AND the skip must reach the caller (the pipeline aborts on it
-        // unless --allow-partial-refresh) — a truncated dump must never produce a
-        // "successful" refresh that leaves stale rows active.
-        let dir = std::env::temp_dir().join("english_extract_policy_tests");
-        let _ = std::fs::create_dir_all(&dir);
-        let path = dir.join("partial.jsonl");
-        std::fs::write(
-            &path,
-            concat!(
-                r#"{"word":"worda","pos":"noun","lang_code":"en","forms":[{"form":"wordaen","tags":["plural"]}]}"#,
-                "\n"
-            ),
-        )
-        .unwrap();
-
-        let mut lock = Lock::new();
-        for c in 'a'..='t' {
-            lock.resolve(
-                &format!("word{c}"),
-                Pos::Noun,
-                vec![Candidate::new(vec![format!("word{c}en")])],
-                false,
-                "d0",
-            )
-            .unwrap();
-        }
-        let report = extract_irregular_nouns(&path, &mut lock, "d1").unwrap();
-        assert!(
-            report.skipped,
-            "mass absence must be reported as a skipped reap"
-        );
-        assert_eq!(report.tombstoned, 0);
-        assert!(
-            lock.rows()
-                .all(|r| r.status == crate::registry::Status::Active),
-            "no stale row may be silently tombstoned or altered"
-        );
+        let mut table = f(&path).unwrap();
+        table.sort_by(|a, b| a.0.cmp(&b.0));
+        table
     }
 
     #[test]
@@ -860,11 +750,9 @@ mod tests {
             r#"{"word":"sheep","pos":"noun","lang_code":"en","forms":[{"form":"sheep","tags":["plural"]},{"form":"sheeps","tags":["plural","nonstandard"]}]}"#,
             "\n"
         );
-        let lock = extract(jsonl, "sheep.jsonl", |p, l| {
-            extract_irregular_nouns(p, l, "d1").unwrap();
-        });
+        let table = run_extract(jsonl, "sheep.jsonl", |p| extract_irregular_nouns(p));
         assert_eq!(
-            emitted(&lock, Pos::Noun),
+            table,
             vec![("sheep".to_string(), vec!["sheep".to_string()])]
         );
     }
@@ -878,13 +766,8 @@ mod tests {
             r#"{"word":"die","pos":"noun","lang_code":"en","forms":[{"form":"dies","tags":["plural"]},{"form":"dice","tags":["plural"]}]}"#,
             "\n"
         );
-        let lock = extract(jsonl, "die.jsonl", |p, l| {
-            extract_irregular_nouns(p, l, "d1").unwrap();
-        });
-        assert_eq!(
-            emitted(&lock, Pos::Noun),
-            vec![("die_2".to_string(), vec!["dice".to_string()])]
-        );
+        let table = run_extract(jsonl, "die.jsonl", |p| extract_irregular_nouns(p));
+        assert_eq!(table, vec![("die_2".to_string(), vec!["dice".to_string()])]);
     }
 
     #[test]
@@ -900,11 +783,9 @@ mod tests {
             r#"{"word":"clever","pos":"adj","lang_code":"en","etymology_number":2}"#,
             "\n"
         );
-        let lock = extract(jsonl, "clever.jsonl", |p, l| {
-            extract_irregular_adjectives(p, l, "d1").unwrap();
-        });
+        let table = run_extract(jsonl, "clever.jsonl", |p| extract_irregular_adjectives(p));
         assert_eq!(
-            emitted(&lock, Pos::Adj),
+            table,
             vec![(
                 "clever".to_string(),
                 vec!["cleverer".to_string(), "cleverest".to_string()]
@@ -921,10 +802,8 @@ mod tests {
             r#"{"word":"fast","pos":"adj","lang_code":"en","forms":[{"form":"faster","tags":["comparative"]},{"form":"fastest","tags":["superlative"]}]}"#,
             "\n"
         );
-        let lock = extract(jsonl, "fast.jsonl", |p, l| {
-            extract_irregular_adjectives(p, l, "d1").unwrap();
-        });
-        assert_eq!(emitted(&lock, Pos::Adj), vec![]);
+        let table = run_extract(jsonl, "fast.jsonl", |p| extract_irregular_adjectives(p));
+        assert_eq!(table, vec![]);
     }
 
     #[test]
@@ -937,11 +816,9 @@ mod tests {
             r#"{"word":"fun","pos":"adj","lang_code":"en","forms":[{"form":"more fun","tags":["comparative"]},{"form":"most fun","tags":["superlative"]},{"form":"funner","tags":["comparative","informal"]},{"form":"funnest","tags":["superlative","informal"]}]}"#,
             "\n"
         );
-        let lock = extract(jsonl, "fun.jsonl", |p, l| {
-            extract_irregular_adjectives(p, l, "d1").unwrap();
-        });
+        let table = run_extract(jsonl, "fun.jsonl", |p| extract_irregular_adjectives(p));
         assert_eq!(
-            emitted(&lock, Pos::Adj),
+            table,
             vec![(
                 "fun".to_string(),
                 vec!["more fun".to_string(), "most fun".to_string()]
@@ -966,11 +843,9 @@ mod tests {
             r#"{"word":"bad","pos":"adj","lang_code":"en","etymology_number":1,"forms":[{"form":"badder","tags":["comparative"]},{"form":"more bad","tags":["comparative"]},{"form":"baddest","tags":["superlative"]},{"form":"most bad","tags":["superlative"]}],"senses":[{"tags":["slang"],"glosses":["bold, daring"]}]}"#,
             "\n"
         );
-        let lock = extract(jsonl, "bad.jsonl", |p, l| {
-            extract_irregular_adjectives(p, l, "d1").unwrap();
-        });
+        let table = run_extract(jsonl, "bad.jsonl", |p| extract_irregular_adjectives(p));
         assert_eq!(
-            emitted(&lock, Pos::Adj),
+            table,
             vec![
                 (
                     "bad".to_string(),
@@ -996,11 +871,9 @@ mod tests {
             r#"{"word":"downhill","pos":"adj","lang_code":"en","forms":[{"form":"farther downhill","tags":["comparative"]},{"form":"further downhill","tags":["comparative"]},{"form":"farthest downhill","tags":["superlative"]},{"form":"furthest downhill","tags":["superlative"]}]}"#,
             "\n"
         );
-        let lock = extract(jsonl, "downhill.jsonl", |p, l| {
-            extract_irregular_adjectives(p, l, "d1").unwrap();
-        });
+        let table = run_extract(jsonl, "downhill.jsonl", |p| extract_irregular_adjectives(p));
         assert_eq!(
-            emitted(&lock, Pos::Adj),
+            table,
             vec![
                 (
                     "downhill".to_string(),
@@ -1029,10 +902,8 @@ mod tests {
             r#"{"word":"zank","pos":"adj","lang_code":"en","forms":[{"form":"zanker","tags":["comparative"]},{"form":"zankest","tags":["superlative"]}],"senses":[{"tags":["slang"]}]}"#,
             "\n"
         );
-        let lock = extract(jsonl, "zank.jsonl", |p, l| {
-            extract_irregular_adjectives(p, l, "d1").unwrap();
-        });
-        assert_eq!(emitted(&lock, Pos::Adj), vec![]);
+        let table = run_extract(jsonl, "zank.jsonl", |p| extract_irregular_adjectives(p));
+        assert_eq!(table, vec![]);
     }
 
     #[test]
@@ -1045,11 +916,9 @@ mod tests {
             r#"{"word":"thinky","pos":"adj","lang_code":"en","forms":[{"form":"thinkier","tags":["comparative"]},{"form":"more thinky","tags":["comparative"]},{"form":"thinkiest","tags":["superlative"]},{"form":"most thinky","tags":["superlative"]}],"senses":[{"tags":["informal"]}]}"#,
             "\n"
         );
-        let lock = extract(jsonl, "thinky.jsonl", |p, l| {
-            extract_irregular_adjectives(p, l, "d1").unwrap();
-        });
+        let table = run_extract(jsonl, "thinky.jsonl", |p| extract_irregular_adjectives(p));
         assert_eq!(
-            emitted(&lock, Pos::Adj),
+            table,
             vec![(
                 "thinky_2".to_string(),
                 vec!["more thinky".to_string(), "most thinky".to_string()]
@@ -1066,13 +935,11 @@ mod tests {
             r#"{"word":"vree","pos":"adj","lang_code":"en","forms":[{"form":"vreer","tags":["comparative"]},{"form":"more vree","tags":["comparative"]},{"form":"vreest","tags":["superlative"]},{"form":"most vree","tags":["superlative"]}]}"#,
             "\n"
         );
-        let lock = extract(jsonl, "vree.jsonl", |p, l| {
-            extract_irregular_adjectives(p, l, "d1").unwrap();
-        });
+        let table = run_extract(jsonl, "vree.jsonl", |p| extract_irregular_adjectives(p));
         // vreer/vreest equal the one-syllable rule prediction -> dropped, bare key
         // reserved for the rule; the periphrastic variant is the published key.
         assert_eq!(
-            emitted(&lock, Pos::Adj),
+            table,
             vec![(
                 "vree_2".to_string(),
                 vec!["more vree".to_string(), "most vree".to_string()]
@@ -1082,29 +949,24 @@ mod tests {
 
     #[test]
     fn verb_variant_conjugations_get_their_own_numbered_keys() {
-        // abide-like: three plain pasts/participles attested, "abode" listed FIRST.
-        // The canonical tuple takes the lowest key by listing order; the fully
-        // regular variant (abided) is dropped and reserves the bare key for the
-        // rule engine; the remaining variant (abid) gets the next key.
+        // abide-like: three plain pasts/participles attested (abode, abided, abid).
+        // The fully regular variant (abided) is dropped and reserves the bare key
+        // for the rule engine; the remaining two variants take numbered keys in
+        // deterministic FORM-SIGNATURE order (not listing order): "abid" < "abode",
+        // so abid is abide_2 and abode is abide_3.
         let jsonl = concat!(
             r#"{"word":"abide","pos":"verb","lang_code":"en","forms":[{"form":"abides","tags":["third-person","singular","present"]},{"form":"abiding","tags":["participle","present"]},{"form":"abode","tags":["past"]},{"form":"abided","tags":["past"]},{"form":"abid","tags":["past"]},{"form":"abode","tags":["participle","past"]},{"form":"abided","tags":["participle","past"]},{"form":"abid","tags":["participle","past"]}]}"#,
             "\n"
         );
-        let lock = extract(jsonl, "abide.jsonl", |p, l| {
-            extract_verb_conjugations(p, l, "d1").unwrap();
-        });
-        let emit = emitted(&lock, Pos::Verb);
+        let emit = run_extract(jsonl, "abide.jsonl", |p| extract_verb_conjugations(p));
         assert_eq!(emit.len(), 2, "{emit:?}");
         assert_eq!(
             emit[0].0, "abide_2",
             "bare key reserved: the regular conjugation is attested"
         );
-        assert_eq!(
-            emit[0].1[1], "abode",
-            "canonical (first-listed) tuple takes the lowest key"
-        );
+        assert_eq!(emit[0].1[1], "abid", "abid sorts first (abid < abode)");
         assert_eq!(emit[1].0, "abide_3");
-        assert_eq!(emit[1].1[1], "abid", "alternate variant gets the next key");
+        assert_eq!(emit[1].1[1], "abode", "abode gets the next key");
     }
 
     #[test]
@@ -1116,11 +978,9 @@ mod tests {
             r#"{"word":"cactus","pos":"noun","lang_code":"en","forms":[{"form":"cacti","tags":["plural"]},{"form":"cactodes","tags":["plural"]},{"form":"cactuses","tags":["plural"]},{"form":"cactusses","tags":["plural","nonstandard"]}]}"#,
             "\n"
         );
-        let lock = extract(jsonl, "cactus.jsonl", |p, l| {
-            extract_irregular_nouns(p, l, "d1").unwrap();
-        });
+        let table = run_extract(jsonl, "cactus.jsonl", |p| extract_irregular_nouns(p));
         assert_eq!(
-            emitted(&lock, Pos::Noun),
+            table,
             vec![
                 ("cactus_2".to_string(), vec!["cacti".to_string()]),
                 ("cactus_3".to_string(), vec!["cactodes".to_string()]),
@@ -1140,10 +1000,8 @@ mod tests {
             r#"{"word":"zorp","pos":"verb","lang_code":"en","etymology_number":2}"#,
             "\n"
         );
-        let lock = extract(jsonl, "zorp.jsonl", |p, l| {
-            extract_verb_conjugations(p, l, "d1").unwrap();
-        });
-        let emit = emitted(&lock, Pos::Verb);
+        let table = run_extract(jsonl, "zorp.jsonl", |p| extract_verb_conjugations(p));
+        let emit = table;
         assert_eq!(emit.len(), 1, "{emit:?}");
         assert_eq!(emit[0].0, "zorp", "irregular takes the bare key");
         assert_eq!(emit[0].1[1], "zarp");

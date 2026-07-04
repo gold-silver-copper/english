@@ -110,8 +110,8 @@ fn published_keys(table_keys: &[String]) -> std::collections::BTreeMap<String, V
         std::collections::BTreeMap::new();
     for key in table_keys {
         let key = key.as_str();
-        // The one shared decoder for the emitted-key format (see registry::split_key).
-        let lemma = crate::registry::split_key(key)
+        // The one shared decoder for the emitted-key format (see assign::split_key).
+        let lemma = crate::assign::split_key(key)
             .map(|(base, _)| base)
             .unwrap_or(key);
         by_lemma

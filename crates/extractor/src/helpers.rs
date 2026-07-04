@@ -12,7 +12,7 @@
 //! either set alters an emitted form is caught by check-registry's byte-lock.
 
 use csv::Writer;
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
@@ -26,13 +26,11 @@ pub static BAD_CHARS: &[&str] = &[
 pub static EXCLUDE_TAGS: &[&str] = &["obsolete", "archaic", "error-unknown-tag"];
 
 /// Editorially-*soft* tags: a form carrying one of these is a real but nonstandard
-/// variant (dialectal/rare/jocular/etc.). We keep these forms in the candidate pool
-/// — so a later, anchor-based identity pass can expose them as variants — but they
-/// are never chosen as the canonical emitted form: a nonstandard spelling must not
-/// shadow the regular rule (e.g. never emit `busses`/`dangerouser`/`ageing`).
-/// Emitted forms are drawn only from the (plain) pool carrying neither
-/// `EXCLUDE_TAGS` nor `SOFT_TAGS`; only the selection within it is now
-/// deterministic.
+/// variant (dialectal/rare/jocular/etc.). Soft forms are never emitted — only
+/// PLAIN forms (carrying neither `EXCLUDE_TAGS` nor `SOFT_TAGS`) become output, so
+/// a nonstandard spelling can never shadow the regular rule (e.g. never emit
+/// `busses`/`dangerouser`/`ageing`). The tag also feeds the sense-level softness
+/// check ([`entry_is_soft`]) that keeps a slang sense off the bare key.
 pub static SOFT_TAGS: &[&str] = &[
     "dialectal",
     "alternative",
@@ -103,11 +101,10 @@ pub fn tag_rank(tags: &[String]) -> Option<u8> {
 ///    editorial data (`abode` before `abid`, `crowed` before `crew`), unlike the
 ///    lexicographic tiebreak this replaces, which picked whatever sorted first.
 ///
-/// Determinism: within one dump the listing order is fixed, so generation is
-/// reproducible. Across dumps, an upstream reorder updates a key's FORMS in place
-/// (visible in the lock diff, like any form edit) but can never swap keys — the
-/// registry pins identity by anchor, not by forms. That containment is why listing
-/// order is safe to trust now and was not under the old positional numbering.
+/// Determinism: listing order is a property of a single entry, so it is fixed for
+/// a given dump and only chooses which attested form is the slot's CANONICAL one.
+/// Final key numbers come from a signature sort in [`crate::assign`], not from
+/// listing order, so reordering the dump's entries can never change the output.
 pub fn choose_form(
     candidates: &[(String, u8)],
     regular: &str,
@@ -145,18 +142,13 @@ pub struct Forms {
 }
 
 /// A single Wiktionary sense as emitted by wiktextract. We only deserialize the
-/// fields that can anchor a *stable* identity for a homograph across dumps:
-/// author-authored `senseid`s (durable by Wiktionary convention), Wikidata QIDs,
-/// and the gloss text (kept only as a human review aid).
+/// sense-level `tags` — the sole per-sense signal the deterministic generator
+/// uses (to tell a soft/slang sense from a standard one). Identity fields
+/// (senseid, wikidata, gloss) are no longer read: keys are numbered by form
+/// signature, not by sense identity.
 #[derive(Debug, Deserialize, Default, Clone)]
 pub struct Sense {
-    #[serde(default)]
-    pub senseid: Vec<String>,
-    #[serde(default)]
-    pub wikidata: Vec<String>,
-    #[serde(default)]
-    pub glosses: Vec<String>,
-    /// Sense-level grammatical tags (`uncountable`, `countable`, `transitive`, ...).
+    /// Sense-level grammatical/register tags (`uncountable`, `slang`, ...).
     #[serde(default)]
     pub tags: Vec<String>,
 }
@@ -167,34 +159,11 @@ pub struct Entry {
     pub pos: String,
     pub forms: Option<Vec<Forms>>,
     pub lang_code: String,
-    /// Ordinal of the numbered Etymology section this entry sits under. Distinct
-    /// numbered etymologies arrive as *separate* top-level entries, so this is the
-    /// single best per-entry signal of "which homograph" this is. wiktextract
-    /// serialized it as an int historically and as a string after ~2026, so we
-    /// accept either (or absent).
-    #[serde(default, deserialize_with = "de_etym_number")]
-    pub etymology_number: Option<u32>,
     #[serde(default)]
     pub senses: Vec<Sense>,
 }
 
-/// Accept `etymology_number` as a JSON integer, a JSON string, or absent/null.
-fn de_etym_number<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    use serde_json::Value;
-    let value = Value::deserialize(deserializer)?;
-    Ok(match value {
-        Value::Number(n) => n.as_u64().and_then(|x| u32::try_from(x).ok()),
-        Value::String(s) => s.trim().parse::<u32>().ok(),
-        _ => None,
-    })
-}
-
-/// The three parts of speech this crate tracks. The string forms (`as_str`)
-/// are a stable serialization component of the assignment lockfiles — renaming
-/// one is a lockfile format change.
+/// The three parts of speech this crate tracks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Pos {
     Adj,
@@ -218,44 +187,6 @@ impl Pos {
             "verb" => Some(Pos::Verb),
             _ => None,
         }
-    }
-}
-
-impl Entry {
-    /// Deterministic, stablest QID an editor attached to any of this entry's senses.
-    pub fn lowest_qid(&self) -> Option<String> {
-        self.senses
-            .iter()
-            .flat_map(|s| s.wikidata.iter())
-            .filter(|q| !q.is_empty())
-            .min()
-            .cloned()
-    }
-
-    /// Deterministic, stablest author-authored senseid (e.g. `en:to_rest`).
-    ///
-    /// Senseids containing `#` are rejected: `#` is the reserved delimiter of the
-    /// anchor grammar (`#sig:` / `#u<n>`), and a raw `#` in a senseid (real dump
-    /// data has e.g. `en:totality#English`) would otherwise be truncated or
-    /// mis-parsed when embedded in a `sid:` anchor. Dropping such a senseid falls
-    /// the sense back to a content (`sig:`) anchor instead of corrupting identity.
-    pub fn lowest_senseid(&self) -> Option<String> {
-        self.senses
-            .iter()
-            .flat_map(|s| s.senseid.iter())
-            .filter(|s| !s.is_empty() && !s.contains('#'))
-            .min()
-            .cloned()
-    }
-
-    /// Deterministic non-empty gloss, kept purely as a review aid in the lockfile.
-    pub fn first_gloss(&self) -> Option<String> {
-        self.senses
-            .iter()
-            .flat_map(|s| s.glosses.iter())
-            .filter(|g| !g.is_empty())
-            .min()
-            .cloned()
     }
 }
 
@@ -390,52 +321,22 @@ mod tests {
     }
 
     #[test]
-    fn persisted_gloss_is_order_independent() {
-        let entry = Entry {
+    fn entry_is_soft_only_when_every_sense_is_soft() {
+        let soft = |t: &str| Sense {
+            tags: vec![t.to_string()],
+        };
+        let mk = |senses: Vec<Sense>| Entry {
             word: "w".into(),
-            pos: "noun".into(),
+            pos: "adj".into(),
             forms: None,
             lang_code: "en".into(),
-            etymology_number: None,
-            senses: vec![
-                Sense {
-                    glosses: vec!["z gloss".into()],
-                    ..Sense::default()
-                },
-                Sense {
-                    glosses: vec!["a gloss".into()],
-                    ..Sense::default()
-                },
-            ],
+            senses,
         };
-        assert_eq!(entry.first_gloss(), Some("a gloss".into()));
-    }
-
-    #[test]
-    fn senseid_with_reserved_hash_is_dropped_at_ingest() {
-        // `#` is the reserved anchor delimiter; a senseid carrying it (real dump
-        // data: `en:totality#English`) must not become an anchor. Ingest drops it,
-        // falling the sense back to a content anchor instead of corrupting identity.
-        let with_hash = Entry {
-            word: "w".into(),
-            pos: "noun".into(),
-            forms: None,
-            lang_code: "en".into(),
-            etymology_number: None,
-            senses: vec![Sense {
-                senseid: vec!["en:totality#English".into()],
-                ..Sense::default()
-            }],
-        };
-        assert_eq!(with_hash.lowest_senseid(), None);
-        // A clean senseid is still kept.
-        let clean = Entry {
-            senses: vec![Sense {
-                senseid: vec!["en:muscle".into()],
-                ..Sense::default()
-            }],
-            ..with_hash
-        };
-        assert_eq!(clean.lowest_senseid(), Some("en:muscle".into()));
+        // Every sense soft -> soft entry.
+        assert!(entry_is_soft(&mk(vec![soft("slang"), soft("nonstandard")])));
+        // One standard sense makes the whole entry standard.
+        assert!(!entry_is_soft(&mk(vec![soft("slang"), Sense::default()])));
+        // A senseless entry is standard by default.
+        assert!(!entry_is_soft(&mk(vec![])));
     }
 }

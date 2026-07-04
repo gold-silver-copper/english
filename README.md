@@ -110,8 +110,8 @@ fn main() {
         ),
         "gone"
     );
-    // Sense-numbered keys distinguish homographs: "lie" (tell an untruth)
-    // and "lie_2" (recline) inflect differently.
+    // Sense-numbered keys distinguish homographs: "lie" (recline) and "lie_2"
+    // (tell an untruth) inflect differently.
     assert_eq!(
         English::verb(
             "lie",
@@ -120,7 +120,7 @@ fn main() {
             &Tense::Past,
             &Form::Finite
         ),
-        "lied"
+        "lay"
     );
     assert_eq!(
         English::verb(
@@ -130,7 +130,7 @@ fn main() {
             &Tense::Past,
             &Form::Finite
         ),
-        "lay"
+        "lied"
     );
     // "to be" has the most verb forms in english and requires using verb()
     assert_eq!(
@@ -217,9 +217,9 @@ It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive
 * Parses large English Wiktionary dumps
 * Extracts all verb, noun, and adjective forms
 * Uses `english-core` to filter out regular forms, preserving only irregulars
-* Resolves homograph sense numbers against the checked-in assignment lockfiles so keys stay stable across releases
+* Numbers homograph senses **deterministically** by a pure sort of their emitted forms (no lockfile, no identity, no human review — see below)
 * Generates the static PHF tables used in `english`
-* Emits every plain attested variant as its own sense-numbered key (`cactus_2` → *cacti*, `cactus_3` → …), numbered canonical-first by the head template's listing order; each variant key is pinned in the lockfiles like any other
+* Emits every plain attested variant as its own sense-numbered key (`cactus_2` → *cacti*, `cactus_3` → …), numbered in form-signature order
 * `cargo xtask accuracy` measures, per part of speech, the share of slots whose plain attested Wiktionary forms the library reproduces, plus the variant gap (attested forms not reachable through any published key) — run it before and after any rule or table change. It needs dump data: either the cached `data/intermediate/english_filtered.jsonl` (gitignored; produced by a prior `cargo xtask refresh-data`) or an explicit `--dump /path/to/raw-wiktextract.jsonl`
 
 ---
@@ -235,68 +235,42 @@ This project relies on raw data extracted from Wiktionary. Current version built
 
 1. Download the **raw Wiktextract JSONL dump** (~20 GB) from [Kaikki.org](https://kaikki.org/dictionary/rawdata.html).
 2. Place the file somewhere accessible (e.g. `../rawwiki.jsonl`).
-3. From the repository root, run: `cargo xtask refresh-data --dump ../rawwiki.jsonl --data-date YYYY-MM-DD` (use the dump's date)
-4. The generated Rust tables are written to `/crates/english/generated`, the assignment lockfiles to `/data/assignments`, and intermediate CSV/JSONL artifacts to `/data/intermediate`.
-5. Review `git diff data/assignments/` like a `Cargo.lock` diff, then run `cargo xtask check-registry` before committing.
+3. From the repository root, run: `cargo xtask refresh-data --dump ../rawwiki.jsonl`
+4. The generated Rust tables are written to `/crates/english/generated`; intermediate CSV/JSONL artifacts to `/data/intermediate`.
+5. Review `git diff crates/english/generated/`, then run `cargo xtask check-registry` before committing.
 
 To also run the extractor evaluation reports against the current library data, add `--with-checks`.
 
-## 🔒 Deterministic sense numbering
+## Deterministic sense numbering
 
 Homographs that inflect differently share a lemma and are disambiguated by a numeric suffix
-(`lie` → *lied*, `lie_2` → *lay*; `die_2` → *dice*). Historically that suffix was **positional** —
-assigned by alphabetically sorting whatever forms survived filtering in a given dump — so any
-upstream change could renumber a lemma and silently swap the meaning of a published key.
+(`lie` → *lay*, `lie_2` → *lied*; `die_2` → *dice*). The suffix is assigned by a **pure,
+transparent sort** of the forms — no lockfile, no frozen identity, no human-review workflow.
 
-The suffix is now pinned in checked-in **assignment lockfiles** (`data/assignments/{noun,verb,adj}.lock.csv`),
-the data equivalent of `Cargo.lock`. The matching model is **exact match or human decision** —
-resolution never guesses:
+For each `(lemma, part of speech)` the extractor:
 
-* Each emitted key is anchored to a stable identity and a **frozen** suffix. Two anchor tiers
-  exist: an author-authored Wiktionary **senseid** (`sid:` — durable; the one identity that
-  carries a key through form edits) or, for everything else, the **form signature** (`sig:` —
-  the identity *is* the forms, so a matched key can never change what it emits).
-* On every refresh, senses are matched to existing lock rows **only on exact anchor equality**;
-  genuinely new senses get **append-only** higher suffixes; vanished senses are **tombstoned**
-  and their suffix is retired forever. When a retired row and a new sense look like a possible
-  rematch (e.g. an upstream spelling correction), the refresh writes a **rematch proposal** to
-  `data/intermediate/pending-rematches.csv` instead of guessing. A human sanctions it by adding
-  the corresponding row to `data/assignments/overrides.csv`, restoring the lockfiles to the
-  committed baseline (`git restore data/assignments`), and re-running `refresh-data` — the
-  override then carries the key forward in place of the tombstone + append. The tool proposes,
-  the reviewer decides, git records why. (Overrides apply to active rows only; `check-registry`
-  rejects a pending override whose target row is already tombstoned.)
-* `cargo xtask check-registry` fails the build if any previously-committed key changed meaning:
-  anchors, suffixes, and **forms** are immutable (bare `sid:` drift and sanctioned overrides are
-  the only exceptions), and the committed PHF tables must correspond 1:1 to the active lock rows.
-* `cargo xtask report-coverage` shows how much of each lockfile rests on each anchor tier.
+1. gathers every plain attested inflection pattern and drops the one the regular rule engine
+   already produces (so the rule serves it at runtime);
+2. sorts the survivors by emitted **form signature** (standard senses before slang/soft ones,
+   then lexicographically);
+3. hands out suffixes: if a regular form was dropped, the bare key is reserved for the rule
+   engine and numbering starts at `_2`; otherwise the first-sorted survivor takes the bare
+   lemma. The rest number upward (`_2`, `_3`, …).
 
-These initial lockfiles were generated during the pre-merge determinism work after fixing the extractor/table policy bugs. That means the first PR is allowed to re-key the previously generated tables: `origin/main` had no assignment lockfiles yet, so the checked-in locks in this change become the first stability baseline. After they land, ordinary refreshes must preserve key meanings within the same `DATA_MAJOR`.
+Because the key is a function of the forms alone, **reordering the dump's entries can never
+change the output** — generation is reproducible. `cargo xtask check-registry` is a dump-free
+consistency gate: it verifies the committed tables are well-formed, have unique and correctly
+shaped keys, and preserve rule/table layering (a bare key never merely duplicates the rule
+engine, which would mean a `english-core` rule changed without regenerating).
 
-`cargo xtask seed-assignments` remains available as a one-time bootstrap command for freezing an existing set of committed PHF tables into lockfiles, but it is not part of the normal refresh flow.
-
-### Stability policy: immutable within a data-major, compacted across them
-
-Left alone forever, an append-only registry accumulates cruft: tombstoned rows, suffix gaps
-from ambiguous drift, ever-higher numbers for new senses. The policy that bounds this is
-versioned like semver:
-
-* **Within a data-major version** (tracked in `data/assignments/DATA_MAJOR`): published keys
-  never change meaning. Refreshes may update forms in place, append new suffixes, and
-  tombstone vanished senses — `cargo xtask check-registry` hard-fails anything else.
-* **At a data-major release**: run `cargo xtask compact`. It deletes all tombstones, closes
-  suffix gaps (preserving relative order; the bare slot is never newly occupied), regenerates
-  the tables, and bumps `DATA_MAJOR`. `check-registry` recognizes the bump and waives
-  cross-version immutability for exactly that PR — the bump in the diff *is* the reviewable
-  declaration of a breaking data change. Ship it as a **semver-major** crate release and list
-  the renumbered keys in the changelog.
-
-So sense keys are stable for as long as you stay on a crate major version, and cruft is
-bounded by the compaction cadence instead of growing forever.
-
-What the guarantee covers: the mapping from a published key to its sense (and therefore
-which inflection family it produces). What it does not cover: the exact form values,
-which update in place as Wiktionary is edited.
+**Stability guarantee — "fairly stable", not frozen.** Keys are deterministic but **not
+immutable**. If Wiktionary adds, removes, or edits a lemma's attested forms, the sort can
+renumber that lemma's `_<n>` keys — a lexicographically earlier new variant deliberately shifts
+the later ones up. What stays true across refreshes is that the *set* of forms a lemma exposes
+is fully reachable through some key, and that a slang-only sense never takes the bare key from a
+standard one. There is no cross-version immutability check, `DATA_MAJOR`, override file, or
+rematch proposal flow — regenerating from a newer dump is the whole story. Review the
+`crates/english/generated/` diff on a refresh as you would any regenerated artifact.
 
 ## Benchmarks
 Performance benchmarks were run on my M2 Macbook.
@@ -304,7 +278,7 @@ Performance benchmarks were run on my M2 Macbook.
 Writing benchmarks and tests for such a project is rather difficult and requires opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of words may be inconsistent. This library includes a few uncountable words in its dataset, but not all. Uncountable words require special handling anyway. Take all benchmarks with a pound of salt, write your own tests for your own usecases. Any suggestions to improve the benchmarking are highly appreciated.
 
 ## Disclaimer
-Wiktionary data is often unstable and subject to weird changes. This means that the provided inflections may change unexpectedly. The generated lookup tables in `crates/english/generated/*_phf.rs` are the source of truth for a given revision, and the assignment lockfiles in `data/assignments/*.lock.csv` keep each sense-numbered key (`lie_2`, `die_2`, …) pointing at the same inflection across revisions — see [Deterministic sense numbering](#-deterministic-sense-numbering).
+Wiktionary data is often unstable and subject to weird changes. This means that the provided inflections may change unexpectedly. The generated lookup tables in `crates/english/generated/*_phf.rs` are the source of truth for a given revision. Sense-numbered keys (`lie_2`, `die_2`, …) are assigned deterministically by a form-signature sort, so they are reproducible for a given dump but may be renumbered when upstream forms change — see [Deterministic sense numbering](#deterministic-sense-numbering).
 
 ## Inspirations and Thanks
 - Ole in the bevy discord suggested I use ```phf``` instead of sorted arrays, this resulted in up to 40% speedups

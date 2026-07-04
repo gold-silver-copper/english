@@ -20,7 +20,7 @@ Evaluation of the English inflector (`cargo xtask accuracy`, using the 2026-07-0
 
 *Note: Benchmarking was done under a worst-case scenario; typical real-world usage is 50~ nanoseconds faster.*
 
-### Breaking data-major 2 / crate 0.3
+### Breaking change in 0.3: underscore sense-key format
 
 Sense-numbered keys now use the canonical underscore format (`die_2`, `lie_2`).
 The pre-0.3 adjacent-digit spelling (`die2`, `lie2`) was removed because it is
@@ -110,8 +110,8 @@ fn main() {
         ),
         "gone"
     );
-    // Sense-numbered keys distinguish homographs: "lie" (tell an untruth)
-    // and "lie_2" (recline) inflect differently.
+    // Sense-numbered keys distinguish homographs: "lie" (recline) and "lie_2"
+    // (tell an untruth) inflect differently.
     assert_eq!(
         English::verb(
             "lie",
@@ -120,7 +120,7 @@ fn main() {
             &Tense::Past,
             &Form::Finite
         ),
-        "lied"
+        "lay"
     );
     assert_eq!(
         English::verb(
@@ -130,7 +130,7 @@ fn main() {
             &Tense::Past,
             &Form::Finite
         ),
-        "lay"
+        "lied"
     );
     // "to be" has the most verb forms in english and requires using verb()
     assert_eq!(
@@ -217,8 +217,8 @@ It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive
 * Parses large English Wiktionary dumps
 * Extracts all verb, noun, and adjective forms
 * Uses `english-core` to filter out regular forms, preserving only irregulars
-* Resolves homograph sense numbers against the checked-in assignment lockfiles so keys stay stable across releases
-* Emits every plain attested variant as its own sense-numbered key (`cactus_2` → *cacti*, `cactus_3` → …), numbered canonical-first by Wiktionary listing order
+* Numbers homograph senses deterministically by a pure sort of their emitted forms (no lockfile, no identity)
+* Emits every plain attested variant as its own sense-numbered key (`cactus_2` → *cacti*, `cactus_3` → …), numbered in form-signature order
 * Generates the static PHF tables used in `english`
 
 ---
@@ -234,9 +234,9 @@ This project relies on raw data extracted from Wiktionary. Current version built
 
 1. Download the **raw Wiktextract JSONL dump** (~20 GB) from [Kaikki.org](https://kaikki.org/dictionary/rawdata.html).
 2. Place the file somewhere accessible (e.g. `../rawwiki.jsonl`).
-3. From the repository root, run: `cargo xtask refresh-data --dump ../rawwiki.jsonl --data-date YYYY-MM-DD` (use the dump's date).
-4. The generated Rust tables are written to `/crates/english/generated`, the assignment lockfiles to `/data/assignments`, and intermediate CSV/JSONL artifacts to `/data/intermediate`.
-5. Review `git diff data/assignments/` like a `Cargo.lock` diff, then run `cargo xtask check-registry` before committing.
+3. From the repository root, run: `cargo xtask refresh-data --dump ../rawwiki.jsonl`
+4. The generated Rust tables are written to `/crates/english/generated`; intermediate CSV/JSONL artifacts to `/data/intermediate`.
+5. Review `git diff crates/english/generated/`, then run `cargo xtask check-registry` before committing.
 
 To also run the extractor evaluation reports against the current library data, add `--with-checks`.
 
@@ -246,7 +246,7 @@ Performance benchmarks were run on my M2 Macbook.
 Writing benchmarks and tests for such a project is rather difficult and requires opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of words may be inconsistent. This library includes a few uncountable words in its dataset, but not all. Uncountable words require special handling anyway. Take all benchmarks with a pound of salt, write your own tests for your own usecases. Any suggestions to improve the benchmarking are highly appreciated.
 
 ## Disclaimer
-Wiktionary data is often unstable and subject to weird changes. This means that the provided inflections may change unexpectedly. The generated lookup tables in `crates/english/generated/*_phf.rs` are the source of truth for a given revision, and the assignment lockfiles in `data/assignments/*.lock.csv` keep each sense-numbered key (`lie_2`, `die_2`, …) pointing at the same inflection family across revisions.
+Wiktionary data is often unstable and subject to weird changes. This means that the provided inflections may change unexpectedly. The generated lookup tables in `crates/english/generated/*_phf.rs` are the source of truth for a given revision. Sense-numbered keys (`lie_2`, `die_2`, …) are assigned deterministically by a form-signature sort, so they are reproducible for a given dump but may be renumbered when upstream forms change — they are not frozen across revisions.
 
 ## Inspirations and Thanks
 - Ole in the bevy discord suggested I use ```phf``` instead of sorted arrays, this resulted in up to 40% speedups

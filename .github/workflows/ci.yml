@@ -14,8 +14,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Blocking: the full suite, including the extractor determinism/immutability tests
-  # (extractor is now a default member, so `cargo test --workspace` exercises them).
+  # Blocking: the full suite, including the extractor determinism tests (extractor
+  # is a default member, so `cargo test --workspace` exercises them).
   test:
     name: test
     runs-on: ubuntu-latest
@@ -36,33 +36,20 @@ jobs:
       - run: cargo run -p english --example test
       - run: cargo run -p english --example semantic_triples
 
-  # Blocking: the dump-free determinism gate. Verifies (a) the lockfiles are
-  # internally consistent, (b) no published key changed meaning vs the PR base
-  # (merge-base), and (c) the committed PHF tables are exactly what the lockfiles
-  # regenerate. None of this needs the multi-GB Wiktextract dump.
+  # Blocking: the dump-free consistency gate. Verifies the committed PHF tables
+  # are well-formed (unique, correctly-shaped keys), have no empty columns, and
+  # preserve rule/table layering (a bare key never merely duplicates the rule
+  # engine — which would mean a rule changed without regenerating). It does NOT
+  # need the multi-GB dump, and there is no cross-version immutability check:
+  # sense-numbered keys are deterministic, not frozen.
   registry:
     name: check-registry
     runs-on: ubuntu-latest
-    # Cross-version immutability is ARMED: the checked-in lockfiles are the public
-    # stability boundary, and any PR that moves/drops/revives a published key fails
-    # here. The sanctioned way to renumber is `cargo xtask compact`, which bumps
-    # data/assignments/DATA_MAJOR — check-registry waives cross-version immutability
-    # for exactly that (visible, reviewable) bump. Never a silent data change.
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # full history so check-registry can resolve the merge-base
-      - name: Fetch base branch
-        if: github.base_ref != ''
-        run: git fetch --no-tags --depth=2147483647 origin "${{ github.base_ref }}"
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      # GITHUB_EVENT_BEFORE = the true pre-push remote tip on push events, so a
-      # multi-commit direct push to main is gated as one delta (HEAD^ would only
-      # cover the final commit). Empty/zeros on PR events and branch creation.
       - run: cargo run -p xtask -- check-registry
-        env:
-          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
 
   # Both BLOCKING: the tree is formatted and clippy-clean; keep it that way.
   # -D warnings is what makes clippy an actual gate — without it the step

@@ -72,8 +72,8 @@ fn main() {
         ),
         "gone"
     );
-    // Sense-numbered keys distinguish homographs: "lie" (tell an untruth)
-    // and "lie_2" (recline) inflect differently.
+    // Sense-numbered keys distinguish homographs: "lie" (recline) and "lie_2"
+    // (tell an untruth) inflect differently. Numbering is by form signature.
     assert_eq!(
         English::verb(
             "lie",
@@ -82,7 +82,7 @@ fn main() {
             &Tense::Past,
             &Form::Finite
         ),
-        "lied"
+        "lay"
     );
     assert_eq!(
         English::verb(
@@ -92,7 +92,7 @@ fn main() {
             &Tense::Past,
             &Form::Finite
         ),
-        "lay"
+        "lied"
     );
     // "to be" has the most verb forms in english and requires using verb()
     assert_eq!(

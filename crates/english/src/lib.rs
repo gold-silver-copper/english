@@ -15,15 +15,20 @@
 //! # Sense-numbered keys
 //!
 //! Homograph senses and attested variants are published as `_<n>`-suffixed
-//! keys (`lie` -> *lied*, `lie_2` -> *lay*; `die_2` -> *dice*). The underscore
-//! is unambiguous: the extractor never admits a lemma containing `_`, so a
-//! trailing `_<digits>` can only be a sense suffix — digit-bearing words
-//! (`mp3`, `F16`, `F2`) can never collide with one. Pre-0.3 adjacent digit
-//! keys (`die2`) were intentionally retired at the data-major-2 re-key because
-//! they collided with ordinary digit-bearing input. Key-to-sense assignments
-//! are pinned in `data/assignments/*.lock.csv` (see `extractor::registry`) and
-//! are immutable within a data-major version; the form VALUES may update in
-//! place as Wiktionary is edited.
+//! keys (`die_2` -> *dice*). The underscore is unambiguous: the extractor never
+//! admits a lemma containing `_`, so a trailing `_<digits>` can only be a sense
+//! suffix — digit-bearing words (`mp3`, `F16`, `F2`) can never collide with one.
+//! Adjacent-digit keys (`die2`) are deliberately not parsed: they are
+//! indistinguishable from ordinary digit-bearing input.
+//!
+//! Key numbers are DETERMINISTIC but NOT immutable. They are assigned by a pure
+//! sort of each lemma's emitted forms (see `extractor::assign`): the bare key
+//! goes to the standard sense with the lexicographically-smallest signature (or
+//! is reserved for the rule engine when a regular form is attested), and the
+//! rest number upward. Regenerating from a newer Wiktionary dump can therefore
+//! renumber a lemma's `_<n>` keys if its attested forms change — there is no
+//! lockfile or frozen identity. What is stable is the *set* of forms a lemma
+//! exposes and the rule/table layering below.
 //!
 //! # Lookup semantics (invariants shared by [`English::noun`]/[`English::verb`]/[`English::adj`])
 //!
@@ -274,8 +279,9 @@ impl English {
     ///
     /// Handles irregular verbs (e.g., `"go" -> "went"`, `"eat" -> "ate"`)
     /// and falls back to regular conjugation rules when no override is found.
-    /// Supports sense-numbered keys for homographs (`"lie"` -> `"lied"`,
-    /// `"lie_2"` -> `"lay"` in the past finite).
+    /// Supports sense-numbered keys for homographs (`"lie"` -> `"lay"` for the
+    /// recline sense, `"lie_2"` -> `"lied"` for the untruth sense, in the past
+    /// finite).
     ///
     /// # Examples
     /// ```rust
@@ -299,10 +305,14 @@ impl English {
     ///     "gone"
     /// );
     ///
-    /// // Homograph senses
+    /// // Homograph senses (numbered by form signature: recline < untruth)
+    /// assert_eq!(
+    ///     English::verb("lie", &Person::Third, &Number::Singular, &Tense::Past, &Form::Finite),
+    ///     "lay"
+    /// );
     /// assert_eq!(
     ///     English::verb("lie_2", &Person::Third, &Number::Singular, &Tense::Past, &Form::Finite),
-    ///     "lay"
+    ///     "lied"
     /// );
     /// ```
     pub fn verb(
