@@ -410,7 +410,7 @@ pub fn extract_irregular_adjectives(input_path: impl AsRef<Path>) -> Result<Tabl
         // Snapshot the full plain pools BEFORE the periphrastic-credibility filter:
         // the filter decides only which form is CANONICAL (freer beats "more free"
         // for the lowest key) — a filtered periphrastic is still a plain attested
-        // variant and gets its own numbered key (`free2` -> "more free"/"most free").
+        // variant and gets its own numbered key (`free_2` -> "more free"/"most free").
         let all_comp = comp_forms.clone();
         let all_sup = sup_forms.clone();
         drop_periphrastic_if_single_word_attested(&mut comp_forms);
@@ -421,7 +421,7 @@ pub fn extract_irregular_adjectives(input_path: impl AsRef<Path>) -> Result<Tabl
         // observing it would fabricate a fully-predicted candidate, which
         // drop_regular then counts as a regular attestation — reserving the bare
         // key and demoting a genuine irregular sibling to suffix 2 (`fast` used to
-        // emit "more fast" while faster/fastest sat at `fast2`). Reservation must
+        // emit "more fast" while faster/fastest sat at `fast_2`). Reservation must
         // come from attested plain forms (`fun` really lists "more fun"), never
         // from a synthesized prediction.
         let attests_plain = comp_forms
@@ -881,7 +881,7 @@ mod tests {
         // sheep: canonical plural "sheep" (plain) + "sheeps" attested only with a
         // soft tag. The soft attestation must NOT reserve the bare key for the rule
         // engine — the irregular takes the bare key ("sheep" -> "sheep", not
-        // "sheep2" -> "sheep" with the bare key emitting "sheeps").
+        // "sheep_2" -> "sheep" with the bare key emitting "sheeps").
         let jsonl = concat!(
             r#"{"word":"sheep","pos":"noun","lang_code":"en","forms":[{"form":"sheep","tags":["plural"]},{"form":"sheeps","tags":["plural","nonstandard"]}]}"#,
             "\n"
@@ -912,7 +912,7 @@ mod tests {
         // engine does NOT predict — two syllables, not -y); a second (uncomparable)
         // sense attests nothing. The formless entry must be skipped, not observed
         // as a synthesized fully-regular candidate — otherwise the bare key emits
-        // "more clever" while cleverer/cleverest sit at clever2.
+        // "more clever" while cleverer/cleverest sit at clever_2.
         let jsonl = concat!(
             r#"{"word":"clever","pos":"adj","lang_code":"en","etymology_number":1,"forms":[{"form":"cleverer","tags":["comparative"]},{"form":"cleverest","tags":["superlative"]}]}"#,
             "\n",
@@ -1224,7 +1224,11 @@ mod tests {
             "\n"
         );
         let table = run_extract(jsonl, "blonk.jsonl", |p| extract_verb_conjugations(p));
-        assert_eq!(table.len(), 1, "spurious regular-past variant leaked: {table:?}");
+        assert_eq!(
+            table.len(),
+            1,
+            "spurious regular-past variant leaked: {table:?}"
+        );
         assert_eq!(table[0].0, "blonk_2", "regular reserves the bare key");
         assert_eq!(
             table[0].1,
@@ -1265,6 +1269,41 @@ mod tests {
             pasts,
             ["glamd", "glomd"].into_iter().collect(),
             "both attested pasts reachable"
+        );
+    }
+
+    #[test]
+    fn variant_tuples_are_slot_wise_synthesized_with_per_slot_reachability() {
+        // POLICY DECISION (deliberate; the answer to "tuple coherence vs per-slot
+        // reachability"): when the dump lists a slot's forms in a DIFFERENT order
+        // than a sibling slot — here past [gorma, gormb] but participle
+        // [gormb, gorma] — the extractor pairs alternates by index, so a published
+        // tuple may not be a verbatim attested (past, participle) pair. This is the
+        // real `pet` shape (past listed [pet, petted], participle [petted, pet]).
+        // The contract is PER-SLOT REACHABILITY: every plain attested form in every
+        // slot is reachable through SOME key. Flat wiktextract form lists cannot
+        // recover the true pairing, and grouping strictly by entry would strand a
+        // within-entry alternate (or, for `show`, the standard participle `shown`
+        // that equals no past) — so slot-wise synthesis is the reachability-
+        // preserving choice. This test pins that intent.
+        let jsonl = concat!(
+            r#"{"word":"gorm","pos":"verb","lang_code":"en","forms":[{"form":"gorma","tags":["past"]},{"form":"gormb","tags":["past"]},{"form":"gormb","tags":["participle","past"]},{"form":"gorma","tags":["participle","past"]}]}"#,
+            "\n"
+        );
+        let table = run_extract(jsonl, "gorm.jsonl", |p| extract_verb_conjugations(p));
+        let pasts: std::collections::BTreeSet<&str> =
+            table.iter().map(|(_, f)| f[1].as_str()).collect();
+        let participles: std::collections::BTreeSet<&str> =
+            table.iter().map(|(_, f)| f[3].as_str()).collect();
+        assert_eq!(
+            pasts,
+            ["gorma", "gormb"].into_iter().collect(),
+            "every attested past reachable through some key"
+        );
+        assert_eq!(
+            participles,
+            ["gorma", "gormb"].into_iter().collect(),
+            "every attested participle reachable through some key"
         );
     }
 }
