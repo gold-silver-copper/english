@@ -41,10 +41,8 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
         );
     }
 
-    if config.run_checks {
-        run_checks(&filtered_json_path, &config.artifacts_dir)?;
-    }
     if config.checks_only {
+        run_checks(&filtered_json_path, &config.artifacts_dir)?;
         println!("Checks-only run: generated tables untouched.");
         return Ok(());
     }

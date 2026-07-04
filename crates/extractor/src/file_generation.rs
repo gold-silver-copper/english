@@ -11,7 +11,7 @@ use std::path::Path;
 
 // ---------------------------------------------------------------------------
 // Table writers. These hold the exact byte formatting of the generated tables;
-// the lock-driven `generate_tables` path funnels through them.
+// the `generate_tables` path funnels the extracted candidates through them.
 // ---------------------------------------------------------------------------
 
 pub fn write_nouns_phf(

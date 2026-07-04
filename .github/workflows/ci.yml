@@ -25,9 +25,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace
       # `cargo test --workspace` uses DEFAULT features, so the `checks`-gated
-      # accuracy harness (the number every rule/table change must carry) is never
-      # exercised. Run its dump-free unit tests explicitly so a scorer regression
-      # fails CI, not just a local metric.
+      # accuracy harness never even compiles. Build + run its dump-free unit tests
+      # so the harness stays compilable and the pure scoring helpers (score_slot,
+      # keys_for) are pinned. The per-POS slot classification still needs the dump
+      # (only `cargo xtask accuracy` exercises it), so this is not full coverage.
       - run: cargo test -p extractor --features checks
       # Examples are assert-based demos that `cargo test` never executes (it only
       # compiles them) — run every assert-bearing example so stale key formats or

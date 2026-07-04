@@ -21,9 +21,7 @@ use std::process::{self, Command};
 
 struct RefreshDataArgs {
     dump_path: PathBuf,
-    generated_dir: Option<PathBuf>,
     artifacts_dir: Option<PathBuf>,
-    with_checks: bool,
 }
 
 fn workspace_root() -> Result<PathBuf, Box<dyn Error>> {
@@ -53,16 +51,21 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 // --------------------------------------------------------------------------
 // check-registry: dump-free structural + layering gate over the committed
-// tables. Fails if a key is malformed/duplicated, a row has the wrong arity,
-// or a bare key merely duplicates the rule engine (a rule changed without a
-// regenerate). No lockfile, no cross-version immutability, no overrides.
+// tables. Fails if a key is malformed/duplicated, a row has the wrong arity or
+// an empty column, or a bare key merely duplicates the rule engine (a rule
+// changed without a regenerate). No lockfile, no cross-version immutability, no
+// overrides. It CANNOT verify a row's irregular VALUES are correct/current —
+// those are attested data, not derivable without the dump; `cargo xtask
+// accuracy` (with the dump) is the authoritative value check.
 // --------------------------------------------------------------------------
 fn check_registry() -> Result<(), Box<dyn Error>> {
     let generated_dir = default_generated_dir()?;
     let violations = audit_tables(&generated_dir)?;
     if violations.is_empty() {
         println!(
-            "check-registry: OK — tables are well-formed, keys are unique, and rule/table layering holds."
+            "check-registry: OK — tables are well-formed, keys are unique, and rule/table layering \
+             holds. (Structural + layering only; run `cargo xtask accuracy` to verify the forms \
+             against the dump.)"
         );
         Ok(())
     } else {
@@ -150,21 +153,11 @@ fn refresh_data(args: Vec<String>) -> Result<(), Box<dyn Error>> {
         .arg("run")
         .arg("-p")
         .arg("extractor")
-        .arg("--release");
-    if parsed.with_checks {
-        command.arg("--features").arg("checks");
-    }
-    command.arg("--");
+        .arg("--release")
+        .arg("--");
     command.arg("--dump").arg(&parsed.dump_path);
-
-    if let Some(generated_dir) = parsed.generated_dir {
-        command.arg("--generated-dir").arg(generated_dir);
-    }
     if let Some(artifacts_dir) = parsed.artifacts_dir {
         command.arg("--artifacts-dir").arg(artifacts_dir);
-    }
-    if parsed.with_checks {
-        command.arg("--run-checks");
     }
 
     let status = command.status()?;
@@ -177,21 +170,15 @@ fn refresh_data(args: Vec<String>) -> Result<(), Box<dyn Error>> {
 
 fn parse_refresh_data_args(args: Vec<String>) -> Result<RefreshDataArgs, Box<dyn Error>> {
     let mut dump_path = None;
-    let mut generated_dir = None;
     let mut artifacts_dir = None;
-    let mut with_checks = false;
 
     let mut iter = args.into_iter();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--dump" => dump_path = Some(PathBuf::from(req(&mut iter, "--dump")?)),
-            "--generated-dir" => {
-                generated_dir = Some(PathBuf::from(req(&mut iter, "--generated-dir")?))
-            }
             "--artifacts-dir" => {
                 artifacts_dir = Some(PathBuf::from(req(&mut iter, "--artifacts-dir")?))
             }
-            "--with-checks" => with_checks = true,
             "-h" | "--help" => {
                 print_refresh_data_usage();
                 process::exit(0);
@@ -214,9 +201,7 @@ fn parse_refresh_data_args(args: Vec<String>) -> Result<RefreshDataArgs, Box<dyn
 
     Ok(RefreshDataArgs {
         dump_path,
-        generated_dir,
         artifacts_dir,
-        with_checks,
     })
 }
 
@@ -231,7 +216,7 @@ fn print_usage() {
 
 fn print_refresh_data_usage() {
     eprintln!(
-        "Usage: cargo xtask refresh-data --dump /path/to/rawwiki.jsonl [--with-checks] [--generated-dir DIR] [--artifacts-dir DIR]"
+        "Usage: cargo xtask refresh-data --dump /path/to/rawwiki.jsonl [--artifacts-dir DIR]"
     );
     eprintln!("       cargo xtask refresh-data /path/to/rawwiki.jsonl");
 }

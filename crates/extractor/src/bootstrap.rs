@@ -113,10 +113,11 @@ fn col(forms: &[String], i: usize) -> String {
 /// - every row has the right column arity with no empty column;
 /// - rule/table layering holds — a BARE key must hold something the regular rules
 ///   cannot predict (a bare row equal to the rule output is dead weight and means a
-///   core rule changed without regenerating). A bare key that has a numbered
-///   sibling is exempt: it is the base of a homograph set the runtime falls back to.
+///   core rule changed without regenerating).
 ///
-/// Returns human-readable violations; empty = OK.
+/// It does NOT verify that a row's irregular VALUES are correct/current — those
+/// are attested data, not derivable without the dump; `cargo xtask accuracy` is
+/// the authoritative value check. Returns human-readable violations; empty = OK.
 pub fn audit_tables(generated_dir: &Path) -> Result<Vec<String>, Box<dyn Error>> {
     let mut v = Vec::new();
     audit_pos(&mut v, generated_dir, "noun_phf.rs", 1, |lemma, forms| {
@@ -150,14 +151,21 @@ fn audit_pos(
         ));
         return Ok(());
     }
-    // Lemmas that carry a numbered key: a bare row for one of these is the base of
-    // a homograph set and is exempt from the dead-weight-vs-rule check.
-    let suffixed_lemmas: HashSet<&str> = pairs
-        .iter()
-        .filter_map(|(k, _)| split_key(k).map(|(lemma, _)| lemma))
-        .collect();
+    audit_rows(v, name, arity, rule_predicts, &pairs);
+    Ok(())
+}
+
+/// The per-row structural + layering checks, separated from file I/O so they are
+/// unit-testable with in-memory rows.
+fn audit_rows(
+    v: &mut Vec<String>,
+    name: &str,
+    arity: usize,
+    rule_predicts: impl Fn(&str, &[String]) -> bool,
+    pairs: &[KeyForms],
+) {
     let mut seen: HashSet<&str> = HashSet::new();
-    for (key, forms) in &pairs {
+    for (key, forms) in pairs {
         if !seen.insert(key) {
             v.push(format!("{name}: duplicate key `{key}`"));
         }
@@ -176,8 +184,14 @@ fn audit_pos(
                 "{name}: numbered key `{key}` has suffix {suffix} (numbered keys start at 2)"
             )),
             Some(_) => {}
+            // A BARE key must hold something the rules cannot predict. The generator
+            // never emits a rule-equal bare key (a rule-equal candidate is dropped
+            // and the bare slot reserved for the rule; a soft one sorts after its
+            // standard sibling), so any bare row that DOES equal the rule is dead
+            // weight — a core rule changed without regenerating. No sibling
+            // exemption: it would only blind this check for homograph bases.
             None => {
-                if !suffixed_lemmas.contains(key.as_str()) && rule_predicts(key, forms) {
+                if rule_predicts(key, forms) {
                     v.push(format!(
                         "{name}: bare key `{key}` equals the regular-rule prediction — dead weight; \
                          a core rule changed without regenerating (`cargo xtask refresh-data`)"
@@ -186,7 +200,6 @@ fn audit_pos(
             }
         }
     }
-    Ok(())
 }
 
 #[cfg(test)]
@@ -222,5 +235,98 @@ mod tests {
                 "{name} differs after a parse -> emit round-trip"
             );
         }
+    }
+
+    fn rows(v: &[(&str, &[&str])]) -> Vec<KeyForms> {
+        v.iter()
+            .map(|(k, f)| (k.to_string(), f.iter().map(|s| s.to_string()).collect()))
+            .collect()
+    }
+
+    #[test]
+    fn audit_rows_flags_structural_and_layering_problems() {
+        // A fake "add -s" noun rule for the layering check.
+        let adds_s = |lemma: &str, forms: &[String]| forms == [format!("{lemma}s")];
+
+        // Clean table: a bare irregular (child != childs) plus a numbered variant.
+        let mut out = Vec::new();
+        audit_rows(
+            &mut out,
+            "noun",
+            1,
+            adds_s,
+            &rows(&[("child", &["children"]), ("child_2", &["childz"])]),
+        );
+        assert!(out.is_empty(), "clean table flagged: {out:?}");
+
+        // A rule-equal bare row is dead weight — flagged EVEN with a numbered
+        // sibling (the exemption that used to hide this is gone).
+        let mut out = Vec::new();
+        audit_rows(
+            &mut out,
+            "noun",
+            1,
+            adds_s,
+            &rows(&[("dog", &["dogs"]), ("dog_2", &["doggos"])]),
+        );
+        assert!(
+            out.iter()
+                .any(|m| m.contains("bare key `dog`") && m.contains("dead weight")),
+            "{out:?}"
+        );
+
+        // Duplicate key, wrong arity, empty column, and a suffix < 2.
+        let never = |_: &str, _: &[String]| false;
+        let mut out = Vec::new();
+        audit_rows(
+            &mut out,
+            "noun",
+            1,
+            never,
+            &rows(&[("x", &["xen"]), ("x", &["xim"])]),
+        );
+        assert!(
+            out.iter().any(|m| m.contains("duplicate key `x`")),
+            "{out:?}"
+        );
+        let mut out = Vec::new();
+        audit_rows(&mut out, "verb", 4, never, &rows(&[("v", &["a", "b"])]));
+        assert!(
+            out.iter().any(|m| m.contains("expected 4")),
+            "arity: {out:?}"
+        );
+        let mut out = Vec::new();
+        audit_rows(&mut out, "noun", 1, never, &rows(&[("e", &[""])]));
+        assert!(
+            out.iter().any(|m| m.contains("empty form column")),
+            "{out:?}"
+        );
+        let mut out = Vec::new();
+        audit_rows(&mut out, "noun", 1, never, &rows(&[("z_1", &["zs"])]));
+        assert!(out.iter().any(|m| m.contains("suffix 1")), "{out:?}");
+    }
+
+    #[test]
+    fn parse_phf_pairs_reads_periphrastic_forms_with_spaces() {
+        // Periphrastic adjective forms ("more free") contain spaces; the '"'-split
+        // parser must recover them intact.
+        let dir = std::env::temp_dir().join("english_parse_phf_spaces");
+        let _ = fs::create_dir_all(&dir);
+        let path = dir.join("adj_phf.rs");
+        fs::write(
+            &path,
+            "use phf::phf_map;\n\
+             pub static ADJECTIVE_MAP: phf::Map<&'static str, (&'static str, &'static str)> = phf_map! {\n    \
+             \"free_2\" => (\"more free\", \"most free\"),\n};\n",
+        )
+        .unwrap();
+        let pairs = parse_phf_pairs(&path).unwrap();
+        assert_eq!(
+            pairs,
+            vec![(
+                "free_2".to_string(),
+                vec!["more free".to_string(), "most free".to_string()]
+            )]
+        );
     }
 }

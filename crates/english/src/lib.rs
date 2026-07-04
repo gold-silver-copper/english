@@ -7,10 +7,14 @@
 //! tables (`generated/*_phf.rs`, compiled in via `include!`) for an attested
 //! exception first, and fall back to [`EnglishCore`]'s regular rules otherwise.
 //! The tables and the rules are NOT independent: the extractor drops any
-//! candidate the rules already predict, so the tables hold exactly the
-//! attested exceptions and nothing else. Changing a rule in `english-core`
-//! therefore requires regenerating the tables — the rule/table sync test fails
-//! loudly if that is forgotten.
+//! candidate the rules already predict, so the tables hold exactly the attested
+//! exceptions and nothing else. Changing a rule in `english-core` therefore
+//! requires regenerating the tables (`cargo xtask refresh-data`). Two dump-free
+//! tests partially guard this: the `rule_table_sync` test below catches a rule
+//! change that makes an existing bare table row redundant, and english-core's
+//! `regular_rules_golden` test catches one that breaks the fallback for un-tabled
+//! regular words. Neither is exhaustive — `cargo xtask accuracy` (with the dump)
+//! is the authoritative check after a rule change.
 //!
 //! # Sense-numbered keys
 //!
@@ -76,12 +80,12 @@ use verb_phf::*;
 /// containing `_` (such words fail its character filter), so a trailing
 /// `_<digits>` can ONLY be a sense suffix. Digit-bearing words (`"mp3"`, `"F16"`,
 /// `"F2"`, `"co2"`) have no underscore and are therefore never mangled.
+///
+/// Decoding goes through [`english_core::sense_key::split`] — the single owner of
+/// the key format, shared with the extractor's generator — so the runtime and the
+/// generator can never disagree on which strings are numbered keys.
 fn canonical_sense_suffix_base(word: &str) -> Option<&str> {
-    let (base, digits) = word.rsplit_once('_')?;
-    if base.is_empty() || digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    Some(base)
+    english_core::sense_key::split(word).map(|(base, _)| base)
 }
 
 /// Resolve the base lemma for inflection. A `_<digits>` sense suffix is honored
@@ -209,8 +213,8 @@ impl English {
     /// Inflects a noun into singular or plural form.
     ///
     /// Handles irregular nouns (e.g., `"child" -> "children"`) and
-    /// falls back to regular pluralization rules when no override is found.
-    /// Sense-numbered keys resolve to their pinned homograph (`"die_2" -> "dice"`);
+    /// falls back to regular pluralization rules when no table entry exists.
+    /// Sense-numbered keys resolve to their homograph (`"die_2" -> "dice"`);
     /// a `_<n>` suffix that resolves to no table key stays opaque
     /// (`"cat_2" -> "cat_2s"`).
     ///
@@ -278,7 +282,7 @@ impl English {
     /// Conjugates a verb into the requested form.
     ///
     /// Handles irregular verbs (e.g., `"go" -> "went"`, `"eat" -> "ate"`)
-    /// and falls back to regular conjugation rules when no override is found.
+    /// and falls back to regular conjugation rules when no table entry exists.
     /// Supports sense-numbered keys for homographs (`"lie"` -> `"lay"` for the
     /// recline sense, `"lie_2"` -> `"lied"` for the untruth sense, in the past
     /// finite).
@@ -435,39 +439,31 @@ mod rule_table_sync_tests {
     use super::{ADJECTIVE_MAP, PLURAL_MAP, VERB_MAP, canonical_sense_suffix_base};
     use english_core::EnglishCore;
     use english_core::grammar::{Form, Number, Person, Tense};
-    use std::collections::HashSet;
 
     fn is_bare(key: &str) -> bool {
         canonical_sense_suffix_base(key).is_none()
     }
 
-    fn suffixed_lemmas<'a, T>(entries: &'a [(&'a str, T)]) -> HashSet<&'a str> {
-        entries
-            .iter()
-            .filter_map(|(k, _)| canonical_sense_suffix_base(k))
-            .collect()
-    }
-
     #[test]
-    fn sibling_less_bare_rows_hold_only_what_the_rules_cannot_predict() {
+    fn bare_rows_hold_only_what_the_rules_cannot_predict() {
+        // Every BARE table row must differ from the rule prediction — the
+        // generator drops rule-equal candidates, so a bare row equal to the rule
+        // is dead weight meaning a core rule changed without regenerating. No
+        // homograph-base exemption: a base like `lie` is a genuine irregular, so
+        // checking it too only strengthens the guard (matches `audit_tables`).
         let nouns: Vec<_> = PLURAL_MAP.entries().map(|(k, v)| (*k, *v)).collect();
         let verbs: Vec<_> = VERB_MAP.entries().map(|(k, v)| (*k, *v)).collect();
         let adjs: Vec<_> = ADJECTIVE_MAP.entries().map(|(k, v)| (*k, *v)).collect();
         let mut redundant = Vec::new();
 
-        let noun_sib = suffixed_lemmas(&nouns);
         for (key, plural) in &nouns {
-            if is_bare(key)
-                && !noun_sib.contains(key)
-                && EnglishCore::pluralize_noun(key) == *plural
-            {
+            if is_bare(key) && EnglishCore::pluralize_noun(key) == *plural {
                 redundant.push(format!("noun {key} -> {plural} (rule already predicts it)"));
             }
         }
 
-        let verb_sib = suffixed_lemmas(&verbs);
         for (key, (third, past, pres_part, past_part)) in &verbs {
-            if !is_bare(key) || verb_sib.contains(key) {
+            if !is_bare(key) {
                 continue;
             }
             let p = |tense: &Tense, form: &Form| {
@@ -482,10 +478,8 @@ mod rule_table_sync_tests {
             }
         }
 
-        let adj_sib = suffixed_lemmas(&adjs);
         for (key, (comp, sup)) in &adjs {
             if is_bare(key)
-                && !adj_sib.contains(key)
                 && EnglishCore::comparative(key) == *comp
                 && EnglishCore::superlative(key) == *sup
             {

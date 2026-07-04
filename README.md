@@ -20,7 +20,7 @@ Evaluation of the English inflector (`cargo xtask accuracy`, using the 2026-07-0
 
 *Note: Benchmarking was done under a worst-case scenario; typical real-world usage is 50~ nanoseconds faster.*
 
-### Breaking data-major 2 / crate 0.3
+### Breaking change in 0.3: underscore sense-key format
 
 Sense-numbered keys now use the canonical underscore format (`die_2`, `lie_2`).
 The pre-0.3 adjacent-digit spelling (`die2`, `lie2`) was removed because it is
@@ -239,7 +239,7 @@ This project relies on raw data extracted from Wiktionary. Current version built
 4. The generated Rust tables are written to `/crates/english/generated`; intermediate CSV/JSONL artifacts to `/data/intermediate`.
 5. Review `git diff crates/english/generated/`, then run `cargo xtask check-registry` before committing.
 
-To also run the extractor evaluation reports against the current library data, add `--with-checks`.
+After committing regenerated tables, run `cargo xtask accuracy` to score them against the dump (it measures the currently-compiled committed tables).
 
 ## Deterministic sense numbering
 
@@ -260,8 +260,12 @@ For each `(lemma, part of speech)` the extractor:
 Because the key is a function of the forms alone, **reordering the dump's entries can never
 change the output** — generation is reproducible. `cargo xtask check-registry` is a dump-free
 consistency gate: it verifies the committed tables are well-formed, have unique and correctly
-shaped keys, and preserve rule/table layering (a bare key never merely duplicates the rule
-engine, which would mean a `english-core` rule changed without regenerating).
+shaped keys, no empty columns, and preserve rule/table layering (a bare key never merely
+duplicates the rule engine, which would mean an `english-core` rule changed without regenerating).
+It deliberately does **not** verify that a row's irregular *values* are correct — those are
+attested data, not derivable without the dump. `cargo xtask accuracy` (with the dump) is the
+authoritative value check; the `english-core` `regular_rules_golden` test additionally pins the
+regular fallbacks so a rule edit that breaks un-tabled words fails `cargo test`.
 
 **Stability guarantee — "fairly stable", not frozen.** Keys are deterministic but **not
 immutable**. If Wiktionary adds, removes, or edits a lemma's attested forms, the sort can

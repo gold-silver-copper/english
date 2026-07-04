@@ -116,12 +116,11 @@ fn attested_variants_are_numbered_keys_in_form_signature_order() {
 
 #[test]
 fn table_column_order_is_pinned() {
-    // Canary for the lock -> table emitter. check-registry's sync gate
-    // regenerates tables with the SAME in-tree emitter it verifies, so an
-    // emitter bug that permutes columns (past <-> past participle, comparative
-    // <-> superlative) would pass it by construction. These keys have pairwise
-    // DISTINCT column values, so any permutation fails here instead: regular
-    // pairs like lied/lied can't detect a swap, went/gone/going/goes can.
+    // Canary for the candidate -> table emitter. A column-permuting emitter bug
+    // (past <-> past participle, comparative <-> superlative) would not be caught
+    // by the byte round-trip test (it re-emits with the same emitter). These keys
+    // have pairwise DISTINCT column values, so any permutation fails HERE instead:
+    // regular pairs like lied/lied can't detect a swap, went/gone/going/goes can.
     assert_eq!(
         English::verb(
             "go",

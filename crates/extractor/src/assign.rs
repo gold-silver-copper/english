@@ -31,9 +31,9 @@
 //! Suffix 1 emits the bare lemma; `>= 2` emits `lemma_<n>`. The underscore is
 //! unambiguous because extraction rejects any lemma containing `_`
 //! ([`crate::helpers::word_is_proper`]), so a trailing `_<digits>` can only be a
-//! sense suffix — digit-bearing words (`mp3`, `F16`) are never numbered keys.
-//! [`make_key`]/[`split_key`] are the single encoder/decoder pair, shared by the
-//! extractor, the accuracy harness, and the runtime.
+//! sense suffix — digit-bearing words (`mp3`, `F16`) are never numbered keys. The
+//! format itself lives in [`english_core::sense_key`], the single owner shared
+//! with the runtime; [`make_key`]/[`split_key`] are this crate's thin re-exports.
 
 /// A distinct attested inflection pattern for one lemma, awaiting a key.
 #[derive(Debug, Clone, Default)]
@@ -96,31 +96,18 @@ pub fn assign(lemma: &str, mut candidates: Vec<Candidate>, had_regular: bool) ->
         .collect()
 }
 
-/// Suffix 1 emits the bare lemma; `>= 2` appends `_<n>`. The underscore separator
-/// is unambiguous: extraction filters out any lemma containing `_`
-/// (`word_is_proper`), so a trailing `_<digits>` can ONLY be a sense suffix —
-/// digit-bearing words (`mp3`, `F16`, `F2`, `co2`) can never collide with a
-/// numbered key.
-pub fn make_key(lemma: &str, suffix: u32) -> String {
-    if suffix <= 1 {
-        lemma.to_string()
-    } else {
-        format!("{lemma}_{suffix}")
-    }
-}
+/// The emitted key format lives in [`english_core::sense_key`] — the single
+/// owner shared with the runtime, so the two can never disagree on which strings
+/// are numbered keys. Re-exported here for the generator's callers.
+pub use english_core::sense_key::make_key;
 
-/// Inverse of [`make_key`]: `Some((lemma, suffix))` when `key` carries a
-/// `_<digits>` sense suffix, `None` for a bare key. This is the ONE decoder for
-/// the emitted-key format — the accuracy harness and the runtime all go through
-/// it, so the format can never drift apart between them. A digit run that
-/// overflows `u32` is a hard error (panic), never a silent coercion: a coerced
-/// suffix would alias the bare key, and such a key can only come from a corrupt
-/// generated table.
+/// Decode an emitted key into `(base_lemma, suffix)`, or `None` for a bare key.
+/// Wraps [`english_core::sense_key::split`] and parses the suffix to `u32`; an
+/// overflowing digit run is a hard error (panic), never a silent coercion — a
+/// coerced suffix would alias the bare key, and such a key can only come from a
+/// corrupt generated table.
 pub fn split_key(key: &str) -> Option<(&str, u32)> {
-    let (base, digits) = key.rsplit_once('_')?;
-    if base.is_empty() || digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
+    let (base, digits) = english_core::sense_key::split(key)?;
     let suffix = digits
         .parse()
         .unwrap_or_else(|_| panic!("sense suffix overflows u32 in key {key:?}"));

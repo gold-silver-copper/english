@@ -8,8 +8,9 @@
 //! - plain (no tag from either set): the only forms the library publishes.
 //!
 //! [`tag_rank`] encodes this as None/Some(1)/Some(0). `EXCLUDE_TAGS` and
-//! `SOFT_TAGS` must stay disjoint (asserted by a test); whether a change to
-//! either set alters an emitted form is caught by check-registry's byte-lock.
+//! `SOFT_TAGS` must stay disjoint (asserted by a test); changing either set
+//! changes which forms are emitted, so re-run `cargo xtask refresh-data` (and
+//! `accuracy`) after editing them.
 
 use csv::Writer;
 use serde::Deserialize;
@@ -211,9 +212,9 @@ pub fn entry_is_proper(entry: &Entry, pos: &str) -> bool {
 ///
 /// INVARIANT the public API depends on: because this rejects `_`, no emitted
 /// lemma ever contains an underscore, which is what makes the `_<n>` sense
-/// suffix in `registry::make_key` unambiguous — `English::noun("F2")` can never
-/// be confused with a numbered key. Admitting underscores here would break
-/// suffix parsing across the `english` crate.
+/// suffix in `assign::make_key` unambiguous — `English::noun("F2")` can never be
+/// confused with a numbered key. Admitting underscores here would break suffix
+/// parsing across the `english` crate.
 pub fn word_is_proper(word: &str) -> bool {
     !word.is_empty() && word.bytes().all(|b| b.is_ascii_alphabetic())
 }

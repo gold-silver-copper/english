@@ -238,7 +238,7 @@ This project relies on raw data extracted from Wiktionary. Current version built
 4. The generated Rust tables are written to `/crates/english/generated`; intermediate CSV/JSONL artifacts to `/data/intermediate`.
 5. Review `git diff crates/english/generated/`, then run `cargo xtask check-registry` before committing.
 
-To also run the extractor evaluation reports against the current library data, add `--with-checks`.
+After committing regenerated tables, run `cargo xtask accuracy` to score them against the dump (it measures the currently-compiled committed tables).
 
 ## Benchmarks
 Performance benchmarks were run on my M2 Macbook.

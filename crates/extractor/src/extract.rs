@@ -117,6 +117,17 @@ impl LemmaAcc {
     ///   therefore KEPT and published at a numbered key, unless it is the lemma's
     ///   sole candidate (then the bare key does fall through to the rule and the
     ///   row really would be redundant).
+    ///
+    /// KNOWN EDGE CASES (deliberate; no accuracy impact — every attested form
+    /// stays reachable through SOME key):
+    /// - Noun/verb, `soft_reserves=true`: a SLANG sense that attests the REGULAR
+    ///   form still reserves the bare key for the rule. If a STANDARD sibling is
+    ///   irregular, it lands on a numbered key and the bare key serves the regular
+    ///   — a simple, safe default (the adjective guard is the one exception, for
+    ///   suppletive standards where the regular default would be plainly wrong).
+    /// - A lemma whose only inflecting sense is soft (e.g. an uncountable standard
+    ///   sense that contributes no plural, plus a slang countable one) keeps its
+    ///   soft irregular on the bare key: there is no standard inflection to prefer.
     fn drop_regular(&mut self, predicted: &[String], soft_reserves: bool) {
         let sig = forms_sig(predicted);
         let Some(c) = self.by_sig.get(&sig) else {
@@ -654,7 +665,19 @@ pub fn filter_english_entries(
     let output_path = output_path.as_ref();
     let input = File::open(input_path)?;
     let reader = BufReader::new(input);
-    let mut output = File::create(output_path)?;
+
+    // Write to a sibling temp file and atomically rename over the target, so the
+    // input is NEVER truncated mid-read even when the dump and the filtered output
+    // are the same underlying file — the same path, a symlink, OR a hardlink (which
+    // the caller's canonicalize()-based reuse guard cannot detect: distinct paths,
+    // one inode). `File::create` here opens a distinct inode; the rename replaces
+    // only the output name, leaving the input's inode (still linked as the dump) intact.
+    let file_name = output_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("english_filtered.jsonl");
+    let tmp_path = output_path.with_file_name(format!("{file_name}.tmp"));
+    let mut output = File::create(&tmp_path)?;
 
     let mut tally = ParseTally::default();
     for line in reader.lines() {
@@ -669,7 +692,10 @@ pub fn filter_english_entries(
 
         writeln!(output, "{}", line)?;
     }
+    output.flush()?;
+    drop(output);
     tally.finish("filter_english_entries")?;
+    std::fs::rename(&tmp_path, output_path)?;
 
     println!("Filtered dataset saved to {}", output_path.display());
     Ok(())
@@ -738,6 +764,79 @@ mod tests {
         let mut table = f(&path).unwrap();
         table.sort_by(|a, b| a.0.cmp(&b.0));
         table
+    }
+
+    #[test]
+    fn reordering_dump_entries_does_not_change_output() {
+        // The core determinism guarantee at the extract level: two entries for one
+        // lemma, in either dump order, produce the identical table (candidates are
+        // deduped by signature and numbered by a pure form sort).
+        let e1 = r#"{"word":"x","pos":"noun","lang_code":"en","forms":[{"form":"xen","tags":["plural"]}]}"#;
+        let e2 = r#"{"word":"x","pos":"noun","lang_code":"en","forms":[{"form":"xim","tags":["plural"]}]}"#;
+        let fwd = run_extract(&format!("{e1}\n{e2}\n"), "order_fwd.jsonl", |p| {
+            extract_irregular_nouns(p)
+        });
+        let rev = run_extract(&format!("{e2}\n{e1}\n"), "order_rev.jsonl", |p| {
+            extract_irregular_nouns(p)
+        });
+        assert_eq!(fwd, rev, "dump entry order changed the output");
+        // xen < xim, so xen is the bare key regardless of order.
+        assert_eq!(
+            fwd,
+            vec![
+                ("x".to_string(), vec!["xen".to_string()]),
+                ("x_2".to_string(), vec!["xim".to_string()]),
+            ]
+        );
+
+        // Same for a multi-slot POS (verbs), where per-entry canonical choice could
+        // in principle leak order: two homograph verb entries, both orders identical.
+        let v1 = r#"{"word":"y","pos":"verb","lang_code":"en","forms":[{"form":"yode","tags":["past"]},{"form":"yode","tags":["participle","past"]}]}"#;
+        let v2 = r#"{"word":"y","pos":"verb","lang_code":"en","forms":[{"form":"yang","tags":["past"]},{"form":"yung","tags":["participle","past"]}]}"#;
+        let vfwd = run_extract(&format!("{v1}\n{v2}\n"), "vorder_fwd.jsonl", |p| {
+            extract_verb_conjugations(p)
+        });
+        let vrev = run_extract(&format!("{v2}\n{v1}\n"), "vorder_rev.jsonl", |p| {
+            extract_verb_conjugations(p)
+        });
+        assert_eq!(vfwd, vrev, "verb dump entry order changed the output");
+    }
+
+    #[test]
+    fn identical_plurals_across_entries_dedupe_to_one_key() {
+        // Two entries emitting the SAME plural collapse to a single candidate/key.
+        let e = r#"{"word":"w","pos":"noun","lang_code":"en","forms":[{"form":"wen","tags":["plural"]}]}"#;
+        let table = run_extract(&format!("{e}\n{e}\n"), "dedupe.jsonl", |p| {
+            extract_irregular_nouns(p)
+        });
+        assert_eq!(table, vec![("w".to_string(), vec!["wen".to_string()])]);
+    }
+
+    #[test]
+    fn filter_does_not_truncate_when_input_equals_output() {
+        // Regression: filtering in place used to `File::create` the output before
+        // reading the input, zeroing it when the dump and filtered file are the
+        // same underlying file. The temp-file + rename keeps the English lines.
+        let dir = std::env::temp_dir().join("english_filter_self_truncate");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("data.jsonl");
+        std::fs::write(
+            &path,
+            concat!(
+                r#"{"word":"cat","pos":"noun","lang_code":"en","forms":[]}"#,
+                "\n",
+                r#"{"word":"chat","pos":"noun","lang_code":"fr","forms":[]}"#,
+                "\n",
+            ),
+        )
+        .unwrap();
+        filter_english_entries(&path, &path).unwrap();
+        let out = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            out.contains(r#""word":"cat""#),
+            "english line lost: {out:?}"
+        );
+        assert!(!out.contains("\"fr\""), "non-english line kept: {out:?}");
     }
 
     #[test]
@@ -1009,5 +1108,26 @@ mod tests {
             emit[0].1[0], "zorps",
             "3sg synthesized from the regular rule"
         );
+    }
+
+    #[test]
+    fn slang_regular_attestation_reserves_the_bare_key_for_verbs() {
+        // DELIBERATE noun/verb policy (see `drop_regular` docs): a slang sense
+        // attesting the REGULAR conjugation reserves the bare key for the rule,
+        // even though a standard sense is irregular. The standard irregular stays
+        // reachable at a numbered key (no accuracy loss); the bare key serves the
+        // regular via the rule engine. Adjectives (bad -> worse) differ.
+        let jsonl = concat!(
+            r#"{"word":"sneak","pos":"verb","lang_code":"en","forms":[{"form":"snoke","tags":["past"]},{"form":"snoke","tags":["participle","past"]}],"senses":[{"glosses":["move quietly"]}]}"#,
+            "\n",
+            r#"{"word":"sneak","pos":"verb","lang_code":"en","forms":[{"form":"sneaked","tags":["past"]},{"form":"sneaked","tags":["participle","past"]}],"senses":[{"tags":["slang"]}]}"#,
+            "\n"
+        );
+        let table = run_extract(jsonl, "sneak.jsonl", |p| extract_verb_conjugations(p));
+        // Only the standard irregular is tabled, at sneak_2; bare `sneak` falls
+        // through to the rule (which yields the regular "sneaked").
+        assert_eq!(table.len(), 1, "{table:?}");
+        assert_eq!(table[0].0, "sneak_2");
+        assert_eq!(table[0].1[1], "snoke", "standard irregular reachable at _2");
     }
 }

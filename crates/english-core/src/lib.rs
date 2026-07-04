@@ -14,10 +14,11 @@
 //!    and its presence reserves the bare key for the rule engine.
 //!
 //! Consequently, changing any rule here changes what counts as "irregular" and
-//! REQUIRES regenerating the tables (`cargo xtask refresh-data`); the
-//! `rule_table_sync` test in the `english` crate fails if the two drift. This
-//! also means rule quality is measurable: `cargo xtask accuracy` scores the
-//! rules+tables together against every plain attested form in the dump.
+//! REQUIRES regenerating the tables (`cargo xtask refresh-data`). Two dump-free
+//! tests partially guard the drift — the `english` crate's `rule_table_sync`
+//! test and this crate's `regular_rules_golden` test — but `cargo xtask accuracy`
+//! (with the dump) is the authoritative check, and also measures rule quality
+//! against every plain attested form.
 //!
 //! Inputs are assumed to be lowercase lemmas; case handling is the `english`
 //! crate's responsibility (`rule_with_case`).
@@ -25,7 +26,7 @@
 mod adj;
 pub mod grammar;
 mod noun;
-
+pub mod sense_key;
 mod utils;
 mod verb;
 pub use crate::grammar::*;
