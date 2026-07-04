@@ -52,7 +52,12 @@ jobs:
         run: git fetch --no-tags --depth=2147483647 origin "${{ github.base_ref }}"
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      # GITHUB_EVENT_BEFORE = the true pre-push remote tip on push events, so a
+      # multi-commit direct push to main is gated as one delta (HEAD^ would only
+      # cover the final commit). Empty/zeros on PR events and branch creation.
       - run: cargo run -p xtask -- check-registry
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
 
   # fmt is BLOCKING (the tree is formatted; keep it that way). clippy remains
   # informational until a dedicated warning cleanup lands — flip it to blocking

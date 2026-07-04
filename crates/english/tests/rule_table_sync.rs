@@ -6,11 +6,11 @@
 //! Two exemptions, both about rows that are load-bearing despite rule-equal
 //! content:
 //! - Numbered keys: a suffixed row may equal the base lemma's rule prediction
-//!   (slang `bad2` -> badder) because the bare key holds a different irregular
+//!   (slang `bad_2` -> badder) because the bare key holds a different irregular
 //!   (`worse`), so the rule is unreachable — the row is the only way to publish
 //!   the forms.
 //! - Bare keys WITH numbered siblings: a rule-equal bare row (`ditsy` ->
-//!   ditsier, with the periphrastic sense at `ditsy2`) anchors the bare key —
+//!   ditsier, with the periphrastic sense at `ditsy_2`) anchors the bare key —
 //!   deleting it would let the sibling's forms migrate onto the bare key.
 //! A rule-equal bare row with NO siblings has neither excuse: it is dead weight
 //! and means a core rule changed without regenerating.

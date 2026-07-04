@@ -24,7 +24,8 @@ use crate::extract::{
     extract_irregular_adjectives, extract_irregular_nouns, extract_verb_conjugations,
     filter_english_entries,
 };
-use crate::registry::check_immutability;
+use crate::helpers::Pos;
+use crate::registry::{Overrides, check_immutability, save_proposals};
 use std::error::Error;
 use std::fs;
 
@@ -64,10 +65,17 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
     }
 
     // Load the committed assignment lockfiles (empty on first run). We keep a
-    // pristine copy to diff against after resolution, so a refresh can report any
+    // pristine clone to diff against after resolution, so a refresh can report any
     // previously-published key whose meaning would change.
-    let (before_noun, before_verb, before_adj) = load_locks(&config.assignments_dir)?;
     let (mut noun_lock, mut verb_lock, mut adj_lock) = load_locks(&config.assignments_dir)?;
+    let (before_noun, before_verb, before_adj) =
+        (noun_lock.clone(), verb_lock.clone(), adj_lock.clone());
+
+    // Reviewed rematch sanctions: the ONLY way a retired pairing is re-made.
+    let overrides = Overrides::load(config.assignments_dir.join("overrides.csv"))?;
+    noun_lock.set_overrides(&overrides);
+    verb_lock.set_overrides(&overrides);
+    adj_lock.set_overrides(&overrides);
 
     let verb_reap =
         extract_verb_conjugations(&filtered_json_path, &mut verb_lock, &config.data_date)?;
@@ -98,7 +106,7 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
         .into());
     }
 
-    // Surface resolution notes (drift re-matches, tombstones, ambiguities).
+    // Surface resolution notes (override applications, tombstones, ambiguities).
     for note in noun_lock
         .notes
         .iter()
@@ -108,12 +116,51 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
         println!("note: {note}");
     }
 
+    // Every override must have been APPLIED by this refresh (the dump was just
+    // consulted, so a still-pending or mismatched override is stale). Hard abort:
+    // writing the lock while overrides.csv contradicts it would leave the
+    // sanction file lying about what it sanctions.
+    let stale: Vec<String> = overrides
+        .check(&noun_lock, Pos::Noun, true)
+        .into_iter()
+        .chain(overrides.check(&verb_lock, Pos::Verb, true))
+        .chain(overrides.check(&adj_lock, Pos::Adj, true))
+        .collect();
+    if !stale.is_empty() {
+        return Err(format!(
+            "refusing to write lockfiles — {} override problem(s):\n  - {}",
+            stale.len(),
+            stale.join("\n  - ")
+        )
+        .into());
+    }
+
+    // Rematches the resolver refused to guess at: recorded for human review.
+    // Approving one = copying its first five columns into overrides.csv.
+    let proposals: Vec<_> = noun_lock
+        .proposals
+        .iter()
+        .chain(verb_lock.proposals.iter())
+        .chain(adj_lock.proposals.iter())
+        .cloned()
+        .collect();
+    if !proposals.is_empty() {
+        let path = config.artifacts_dir.join("pending-rematches.csv");
+        save_proposals(&proposals, &path)?;
+        println!(
+            "{} rematch proposal(s) written to {} — review and sanction real matches via \
+             data/assignments/overrides.csv.",
+            proposals.len(),
+            path.display()
+        );
+    }
+
     // Report (do not abort) immutability violations vs. the committed lock; the
     // `check-registry` xtask is the hard CI gate.
     let mut violations = Vec::new();
-    violations.extend(check_immutability(&before_noun, &noun_lock));
-    violations.extend(check_immutability(&before_verb, &verb_lock));
-    violations.extend(check_immutability(&before_adj, &adj_lock));
+    violations.extend(check_immutability(&before_noun, &noun_lock, &overrides));
+    violations.extend(check_immutability(&before_verb, &verb_lock, &overrides));
+    violations.extend(check_immutability(&before_adj, &adj_lock, &overrides));
     if !violations.is_empty() {
         eprintln!(
             "\nWARNING: {} immutability violation(s) detected vs the committed lock:",

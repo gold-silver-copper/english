@@ -242,15 +242,24 @@ assigned by alphabetically sorting whatever forms survived filtering in a given 
 upstream change could renumber a lemma and silently swap the meaning of a published key.
 
 The suffix is now pinned in checked-in **assignment lockfiles** (`data/assignments/{noun,verb,adj}.lock.csv`),
-the data equivalent of `Cargo.lock`:
+the data equivalent of `Cargo.lock`. The matching model is **exact match or human decision** —
+resolution never guesses:
 
-* Each emitted key is anchored to a stable identity (Wikidata QID → senseid → `etymology_number` →,
-  as a last resort, the form signature) and a **frozen** suffix.
-* On every refresh, senses are matched to existing lock rows by anchor and **reuse** their pinned
-  suffix (forms may update in place); genuinely new senses get **append-only** higher suffixes;
-  vanished senses are **tombstoned** and their suffix is retired forever.
-* `cargo xtask check-registry` fails the build if any previously-committed key changed meaning.
-* `cargo xtask report-coverage` shows how much of each lockfile rests on strong vs. weak anchors.
+* Each emitted key is anchored to a stable identity and a **frozen** suffix. Two anchor tiers
+  exist: an author-authored Wiktionary **senseid** (`sid:` — durable; the one identity that
+  carries a key through form edits) or, for everything else, the **form signature** (`sig:` —
+  the identity *is* the forms, so a matched key can never change what it emits).
+* On every refresh, senses are matched to existing lock rows **only on exact anchor equality**;
+  genuinely new senses get **append-only** higher suffixes; vanished senses are **tombstoned**
+  and their suffix is retired forever. When a retired row and a new sense look like a possible
+  rematch (e.g. an upstream spelling correction), the refresh writes a **rematch proposal** to
+  `data/intermediate/pending-rematches.csv` instead of guessing; a human sanctions it by adding
+  the corresponding row to `data/assignments/overrides.csv`, and the next refresh applies it —
+  the tool proposes, the reviewer decides, git records why.
+* `cargo xtask check-registry` fails the build if any previously-committed key changed meaning:
+  anchors, suffixes, and **forms** are immutable (bare `sid:` drift and sanctioned overrides are
+  the only exceptions), and the committed PHF tables must correspond 1:1 to the active lock rows.
+* `cargo xtask report-coverage` shows how much of each lockfile rests on each anchor tier.
 
 These initial lockfiles were generated during the pre-merge determinism work after fixing the extractor/table policy bugs. That means the first PR is allowed to re-key the previously generated tables: `origin/main` had no assignment lockfiles yet, so the checked-in locks in this change become the first stability baseline. After they land, ordinary refreshes must preserve key meanings within the same `DATA_MAJOR`.
 

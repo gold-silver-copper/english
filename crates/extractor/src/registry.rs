@@ -10,44 +10,57 @@
 //! part of speech). Each emitted key is pinned to a **frozen identity anchor** and
 //! a **frozen suffix** (emitted as `lemma` for suffix 1, `lemma_<n>` otherwise —
 //! see [`make_key`]). On every refresh, [`Lock::resolve`] matches the dump's
-//! candidate senses to existing lock rows by stable anchors, reuses their pinned
-//! suffixes (updating only the stored forms), allocates strictly-higher suffixes
-//! for genuinely new senses, and tombstones senses that disappeared (their suffix
-//! is retired forever, never reassigned). [`check_immutability`] turns "a
-//! published key changed meaning" into a hard, reviewable build failure.
+//! candidate senses to existing lock rows by EXACT anchor equality, reuses their
+//! pinned suffixes, allocates strictly-higher suffixes for genuinely new senses,
+//! and tombstones senses that disappeared (their suffix is retired forever,
+//! never reassigned). [`check_immutability`] turns "a published key changed
+//! meaning" into a hard, reviewable build failure.
 //!
-//! Anchor strength, strongest first:
-//! 1. `qid:Q####` — Wikidata QID (globally stable external id).
-//! 2. `sid:en:...` — author-authored senseid (durable by Wiktionary convention).
-//! 3. `etym:<n>` — etymology_number (per-entry; stable under form/tag edits).
-//! 4. `etym:<n>#sig:<forms>` — when an etymology has >1 emitted sense, the form
-//!    signature breaks the tie (the only place forms enter identity).
-//! 5. `sig:<forms>` — last-resort content anchor (used for rows bootstrapped from
-//!    the pre-existing tables, where no dump metadata was available).
+//! # The matching model: exact match or human decision
 //!
-//! # How [`Lock::resolve`] proceeds (and why each phase is shaped as it is)
+//! Resolution NEVER guesses. A committed row matches a dump candidate only on
+//! exact anchor equality; everything else is tombstone + append, with a
+//! *rematch proposal* emitted for a human to review. A sanctioned rematch is an
+//! explicit row in `data/assignments/overrides.csv` (reviewed like any other
+//! change) — the tool proposes, the human decides, git records why. The two
+//! anchor tiers:
 //!
-//! - **Phase A** — exact anchor match ([`anchor_exact_match`]), rows in suffix
-//!   order. A strong anchor shared by several candidates in one batch is only
-//!   trusted together with a signature match ([`BatchUniq`]).
-//! - **Phase B(a)** — drift re-match by etymology, ONLY for rows frozen on a
-//!   BARE `etym:<n>` anchor AND only when that etym is unique in the batch:
-//!   both guards exist because an etym-only match on ambiguous input could
-//!   hand a pinned suffix a sibling sense's forms with no anchor/suffix change
-//!   — a swap [`check_immutability`] is structurally unable to see.
-//! - **Phase B(b)** — the sole-remaining-sense re-match: allowed only for a
-//!   lemma that has ALWAYS been single-sense, where 1-out/1-in is almost
-//!   certainly a form correction. Polysemous ambiguity always falls through.
-//! - **Phase C** — append-only allocation for new identities, ordered by
-//!   [`Candidate::order_key`] (anchors, then standard-before-soft, then the
-//!   dump's listing ordinal, then signature) so cold-start numbering is
-//!   deterministic AND canonical-first. Anchors stay unique per (lemma, pos)
-//!   even against tombstones (`#u<suffix>` disambiguator).
-//! - **Phase D** — tombstone what didn't match; suffixes are never reused.
+//! 1. `sid:en:...` — author-authored senseid (durable by Wiktionary
+//!    convention). The ONE in-place drift path: a matching sid asserts
+//!    same-sense identity, so the stored forms may update. Drift is only
+//!    allowed while the sid is unambiguous — unique in the batch, held by a
+//!    single active row, and not `#sig:`-qualified; otherwise the signature
+//!    must also match exactly.
+//! 2. `sig:<forms>` — content anchor: the identity IS the forms. A `sig:` row
+//!    whose forms drift upstream never re-matches; it retires and the new
+//!    paradigm appends, so a published key's forms can never silently change
+//!    meaning — by construction, not by heuristic.
 //!
-//! The guiding principle across all phases: WHEN IN DOUBT, TOMBSTONE AND
-//! APPEND. A wrongly-retired key costs an extra suffix; a wrongly-matched key
-//! silently changes published behavior, which is the one unrecoverable failure.
+//! qid/etym remain as informational columns (review aids, coverage stats) but
+//! are never matching authority: QIDs are entry-level (shared across all of an
+//! entry's senses) and etymology numbers are renumberable section ordinals —
+//! both proved capable of silently re-pairing published keys when trusted.
+//!
+//! # How [`Lock::resolve`] proceeds
+//!
+//! - **Overrides** — sanctioned rematches from `overrides.csv` apply first,
+//!   re-anchoring the named row to its reviewed new identity.
+//! - **Exact match** — a full row x candidate match matrix ([`exact_match`]),
+//!   evaluated globally (no greedy row order): a candidate claimed by rows of
+//!   both tiers goes to the durable `sid:` row; a candidate claimed by two rows
+//!   of the SAME tier is a hard error (ambiguity never resolves silently).
+//! - **Append** — new identities get strictly-higher suffixes, ordered by
+//!   [`Candidate::order_key`] (standard-before-soft first, then anchors, then
+//!   the dump's listing ordinal, then signature). Anchors stay unique per
+//!   (lemma, pos) even against tombstones (`#u<suffix>` disambiguator).
+//! - **Tombstone + propose** — unmatched rows retire (suffixes never reused);
+//!   when unmatched rows and leftover candidates coexist, each pairing is
+//!   emitted as a [`Proposal`] for human review instead of being guessed at.
+//!
+//! The guiding principle: WHEN IN DOUBT, TOMBSTONE, APPEND, AND ASK. A
+//! wrongly-retired key costs an extra suffix and a review; a wrongly-matched
+//! key silently changes published behavior, which is the one unrecoverable
+//! failure.
 //!
 //! Cruft is bounded, not eternal: [`Lock::compact`] (via `cargo xtask compact`)
 //! drops tombstones and renumbers at a deliberate DATA_MAJOR bump — the
@@ -130,10 +143,11 @@ impl Candidate {
         forms_sig(&self.forms)
     }
     /// A *deterministic, reproducible* total order for assigning suffixes to the
-    /// brand-new identities that co-appear at cold start. It orders by the anchor
-    /// fields (qid, then sid, then etym), then standard-before-soft (a slang-only
-    /// sense must never outrank a standard sibling for a low key), then the
-    /// listing `ordinal` (several variant patterns from one entry number
+    /// brand-new identities that co-appear at cold start. Standard-before-soft
+    /// comes FIRST — a slang-only sense must never outrank a standard sibling
+    /// for a low key, regardless of what metadata either happens to carry —
+    /// then the anchor fields (qid, then sid, then etym), then the listing
+    /// `ordinal` (several variant patterns from one entry number
     /// canonical-first, per the head template's editorial order), and only then
     /// the form signature. Note this is purely a tiebreak among co-appearing new
     /// senses (the result is frozen immediately after) — NOT a claim about which
@@ -141,12 +155,12 @@ impl Candidate {
     /// metadata-less sense can sort ahead of a metadata-bearing one. The
     /// bare-vs-`2` choice among genuine homographs is intentionally
     /// arbitrary-but-stable.
-    fn order_key(&self) -> (String, String, u32, bool, u8, String) {
+    fn order_key(&self) -> (bool, String, String, u32, u8, String) {
         (
+            self.soft_sense,
             self.qid.clone().unwrap_or_default(),
             self.sid.clone().unwrap_or_default(),
             self.etym.unwrap_or(0),
-            self.soft_sense,
             self.ordinal,
             self.sig(),
         )
@@ -160,9 +174,10 @@ pub struct LockRow {
     pub pos: Pos,
     pub suffix: u32,
     /// Frozen primary identity, chosen at creation. The immutability guard keys on
-    /// this; it never changes once written.
+    /// this; it changes only through a reviewed override.
     pub anchor: String,
-    /// Live anchors, enriched over time as stronger metadata becomes available.
+    /// Informational metadata (review aids / coverage stats), refreshed from the
+    /// last matched candidate. NEVER matching authority.
     pub qid: Option<String>,
     pub sid: Option<String>,
     pub etym: Option<u32>,
@@ -179,33 +194,15 @@ impl LockRow {
         forms_sig(&self.forms)
     }
 
-    /// Whether this row's *frozen* identity is its BARE etymology number (exactly
-    /// `etym:<n>`, no `#` qualifier). Only such rows may be re-matched on etym
-    /// alone: `etymology_number` is a renumberable section ordinal, so trusting it
-    /// for a row whose frozen identity is something else (a form signature) would
-    /// let an upstream reorder silently swap two senses' forms. Crucially, a
-    /// COMPOSITE anchor (`etym:<n>#sig:...`, `etym:<n>#u<k>`) means several rows
-    /// share that etymology and the qualifier IS part of the identity — matching
-    /// those by etym alone could hand one co-etymology sense another's forms
-    /// without moving any suffix or anchor, which `check_immutability` cannot see.
-    /// qid/sid are durable and need no such guard.
-    fn is_etym_frozen(&self) -> bool {
-        self.anchor.starts_with("etym:") && !self.anchor.contains('#')
-    }
-
-    /// Fold a freshly-matched candidate into this row: refresh the forms, enrich
-    /// any missing anchors, and bump `last_seen`. The frozen `anchor` and `suffix`
-    /// are deliberately untouched.
+    /// Fold a freshly-matched candidate into this row: refresh the forms, the
+    /// informational metadata, and `last_seen`. The frozen `anchor` and `suffix`
+    /// are deliberately untouched. qid/sid/etym are OVERWRITTEN (not filled-if-
+    /// missing): they carry no matching authority, and keeping them current
+    /// prevents a stale value from misleading a reviewer.
     fn apply_match(&mut self, c: &Candidate, date: &str) {
-        if self.qid.is_none() {
-            self.qid = c.qid.clone();
-        }
-        if self.sid.is_none() {
-            self.sid = c.sid.clone();
-        }
-        if self.etym.is_none() {
-            self.etym = c.etym;
-        }
+        self.qid = c.qid.clone();
+        self.sid = c.sid.clone();
+        self.etym = c.etym;
         if c.gloss.is_some() {
             self.gloss = c.gloss.clone();
         }
@@ -224,13 +221,158 @@ pub struct Assignment {
     pub forms: Vec<String>,
 }
 
+/// A sanctioned rematch: "the row at (lemma, pos, suffix), currently anchored on
+/// `old_anchor`, is the same sense as the dump candidate identified by
+/// `new_anchor` — re-anchor it and carry the key forward." Authored by a human in
+/// `data/assignments/overrides.csv` after reviewing a [`Proposal`]; this is the
+/// ONLY way a `sig:`-anchored row's forms can change without retiring the key.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Override {
+    pub lemma: String,
+    pub pos: Pos,
+    pub suffix: u32,
+    pub old_anchor: String,
+    pub new_anchor: String,
+}
+
+/// The reviewed overrides file. An override is *pending* while its row still
+/// carries `old_anchor` (the next refresh applies it), *applied* once the row
+/// carries `new_anchor` (inert; safe to delete), and *stale* if the row carries
+/// neither or does not exist (a hard check failure — the file must never drift
+/// out of correspondence with the locks).
+#[derive(Debug, Clone, Default)]
+pub struct Overrides {
+    pub rows: Vec<Override>,
+}
+
+const OVERRIDES_HEADER: &[&str] = &["lemma", "pos", "suffix", "old_anchor", "new_anchor"];
+
+impl Overrides {
+    /// Load `overrides.csv`; a missing file is an empty set, a malformed row is a
+    /// hard error (same strictness as [`Lock::load`]).
+    pub fn load(path: impl AsRef<Path>) -> Result<Overrides, Box<dyn Error>> {
+        let path = path.as_ref();
+        let mut out = Overrides::default();
+        if !path.exists() {
+            return Ok(out);
+        }
+        let mut rdr = ReaderBuilder::new().has_headers(true).from_path(path)?;
+        for record in rdr.records() {
+            let record = record?;
+            let pos = Pos::parse(record.get(1).unwrap_or("").trim())
+                .ok_or_else(|| format!("bad pos in override row: {record:?}"))?;
+            let suffix: u32 = record
+                .get(2)
+                .unwrap_or("")
+                .trim()
+                .parse()
+                .map_err(|_| format!("invalid suffix in override row: {record:?}"))?;
+            let old_anchor = record.get(3).unwrap_or("").trim().to_string();
+            let new_anchor = record.get(4).unwrap_or("").trim().to_string();
+            if old_anchor.is_empty() || new_anchor.is_empty() || old_anchor == new_anchor {
+                return Err(format!("invalid anchors in override row: {record:?}").into());
+            }
+            out.rows.push(Override {
+                lemma: record.get(0).unwrap_or("").trim().to_string(),
+                pos,
+                suffix,
+                old_anchor,
+                new_anchor,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Cross-check every override against the lock it targets. `require_applied`
+    /// is set right after a refresh (the dump was just consulted, so a still-
+    /// pending override means its target candidate was absent — stale by
+    /// definition); check-registry runs with it unset (pending is a legitimate
+    /// waiting state between committing an override and running the refresh).
+    pub fn check(&self, lock: &Lock, pos: Pos, require_applied: bool) -> Vec<String> {
+        let mut v = Vec::new();
+        for o in self.rows.iter().filter(|o| o.pos == pos) {
+            let row = lock
+                .map
+                .get(&(o.lemma.clone(), o.pos.as_str().to_string()))
+                .and_then(|rows| rows.iter().find(|r| r.suffix == o.suffix));
+            match row {
+                None => v.push(format!(
+                    "override {} [{}] suffix {}: no such lock row — stale override, remove it",
+                    o.lemma,
+                    o.pos.as_str(),
+                    o.suffix
+                )),
+                Some(r) if r.anchor == o.new_anchor => {} // applied; inert
+                Some(r) if r.anchor == o.old_anchor => {
+                    if require_applied {
+                        v.push(format!(
+                            "override {} [{}] suffix {}: still pending after the refresh — the \
+                             candidate `{}` was not in the dump (stale override?)",
+                            o.lemma,
+                            o.pos.as_str(),
+                            o.suffix,
+                            o.new_anchor
+                        ));
+                    }
+                }
+                Some(r) => v.push(format!(
+                    "override {} [{}] suffix {}: row anchor `{}` matches neither old `{}` nor \
+                     new `{}` — stale override, remove or fix it",
+                    o.lemma,
+                    o.pos.as_str(),
+                    o.suffix,
+                    r.anchor,
+                    o.old_anchor,
+                    o.new_anchor
+                )),
+            }
+        }
+        v.sort();
+        v
+    }
+
+    /// Whether this set sanctions replacing `old_anchor` at (lemma, pos) with a
+    /// row holding `new_anchor` at the same suffix. Used by [`check_immutability`]
+    /// to waive exactly the anchor transition the override describes.
+    fn waives(&self, lemma: &str, pos: &str, suffix: u32, old_anchor: &str) -> Option<&Override> {
+        self.rows.iter().find(|o| {
+            o.lemma == lemma
+                && o.pos.as_str() == pos
+                && o.suffix == suffix
+                && o.old_anchor == old_anchor
+        })
+    }
+}
+
+/// A rematch the resolver REFUSED to make (exact matching found no claim, but an
+/// unmatched pinned row and a leftover candidate coexist for the lemma). Written
+/// to `pending-rematches.csv` for human review; approving one means adding the
+/// corresponding row to `overrides.csv`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Proposal {
+    pub lemma: String,
+    pub pos: Pos,
+    pub suffix: u32,
+    pub old_anchor: String,
+    pub old_forms: Vec<String>,
+    /// The anchor an override would name to accept this pairing.
+    pub candidate_anchor: String,
+    pub candidate_forms: Vec<String>,
+    pub candidate_gloss: Option<String>,
+}
+
 /// An entire lockfile (all rows for one part of speech), indexed by `(lemma, pos)`.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Lock {
     map: BTreeMap<(String, String), Vec<LockRow>>,
-    /// Human-facing notes accumulated during resolution (drift matches, tombstones,
-    /// ambiguous cases) — surfaced to the maintainer, never affects determinism.
+    /// Human-facing notes accumulated during resolution (override applications,
+    /// tombstones, ambiguous cases) — surfaced to the maintainer, never affects
+    /// determinism.
     pub notes: Vec<String>,
+    /// Refused rematches accumulated during resolution, for `pending-rematches.csv`.
+    pub proposals: Vec<Proposal>,
+    /// Sanctioned rematches, set before resolution (see [`Lock::set_overrides`]).
+    overrides: Vec<Override>,
 }
 
 impl Lock {
@@ -342,27 +484,16 @@ impl Lock {
             }
             let tier = r.anchor.split(':').next().unwrap_or("");
             match tier {
-                "qid" if r.qid.is_none() => v.push(format!(
-                    "{} [{}] anchor `{}` is qid-tier but the qid field is empty",
-                    r.lemma,
-                    r.pos.as_str(),
-                    r.anchor
-                )),
-                "sid" if r.sid.is_none() => v.push(format!(
+                "sid" if r.sid.is_none() && r.status == Status::Active => v.push(format!(
                     "{} [{}] anchor `{}` is sid-tier but the sid field is empty",
                     r.lemma,
                     r.pos.as_str(),
                     r.anchor
                 )),
-                "etym" if r.etym.is_none() => v.push(format!(
-                    "{} [{}] anchor `{}` is etym-tier but the etym field is empty",
-                    r.lemma,
-                    r.pos.as_str(),
-                    r.anchor
-                )),
-                "qid" | "sid" | "etym" | "sig" => {}
+                "sid" | "sig" => {}
                 other => v.push(format!(
-                    "{} [{}] anchor `{}` has unknown tier `{}`",
+                    "{} [{}] anchor `{}` has unknown tier `{}` (exact matching knows only sid/sig; \
+                     run `cargo xtask migrate-anchors` for a pre-migration lock)",
                     r.lemma,
                     r.pos.as_str(),
                     r.anchor,
@@ -377,10 +508,23 @@ impl Lock {
         v
     }
 
+    /// Install the reviewed overrides (normally the full contents of
+    /// `overrides.csv`; rows for other parts of speech are ignored at use).
+    pub fn set_overrides(&mut self, overrides: &Overrides) {
+        self.overrides = overrides.rows.clone();
+    }
+
     /// Resolve one lemma's candidates against the committed lock, mutating the lock
     /// in place and returning the stable assignments. `had_regular` records whether
     /// a regular-prediction-equal sense was seen for this lemma (and dropped by the
     /// caller as a runtime fall-through), which decides cold-start numbering.
+    ///
+    /// Errors are AMBIGUITY, not I/O: a candidate exactly claimed by two rows of
+    /// the same tier, or a row exactly claimed by two candidates. Exact matching
+    /// makes these structurally near-impossible (signatures are batch-unique, sid
+    /// drift is gated on unambiguity), so an error means the lock and dump
+    /// genuinely contradict each other — the refresh must stop and a human must
+    /// resolve it (usually via `overrides.csv`), never pick a winner by order.
     pub fn resolve(
         &mut self,
         lemma: &str,
@@ -388,13 +532,11 @@ impl Lock {
         candidates: Vec<Candidate>,
         had_regular: bool,
         date: &str,
-    ) -> Vec<Assignment> {
+    ) -> Result<Vec<Assignment>, String> {
         let mut notes = Vec::new();
+        let mut proposals = Vec::new();
         let key = (lemma.to_string(), pos.as_str().to_string());
-
-        // etymology_number is only a safe stand-alone anchor when distinct across
-        // the batch; otherwise colliding senses need the form signature as a tiebreak.
-        let uniq = BatchUniq::of(&candidates);
+        let overrides: Vec<Override> = self.for_lemma_overrides(lemma, pos);
 
         let assignments = {
             let rows = self.map.entry(key).or_default();
@@ -403,115 +545,162 @@ impl Lock {
             let mut remaining = candidates;
             let mut assignments: Vec<Assignment> = Vec::new();
 
-            // -- Phase A: exact anchor match, rows in suffix order --
-            for ri in 0..original_len {
-                if rows[ri].status != Status::Active {
-                    matched[ri] = true; // tombstones are inert
+            // -- Overrides: sanctioned rematches apply before anything else --
+            // A pending override re-anchors its row to the reviewed new identity
+            // and consumes the candidate that identity names. Anything that does
+            // not line up is left untouched here; Overrides::check() after the
+            // refresh turns an unapplied override into a hard error.
+            for ov in &overrides {
+                let Some(ri) = (0..original_len)
+                    .find(|&ri| rows[ri].suffix == ov.suffix && rows[ri].status == Status::Active)
+                else {
+                    continue;
+                };
+                if rows[ri].anchor == ov.new_anchor {
+                    notes.push(format!(
+                        "override for {lemma}{} already applied — remove it from overrides.csv",
+                        suffix_note(ov.suffix)
+                    ));
+                    continue;
+                }
+                if rows[ri].anchor != ov.old_anchor {
                     continue;
                 }
                 if let Some(ci) = remaining
                     .iter()
-                    .position(|c| anchor_exact_match(&rows[ri], c, &uniq))
+                    .position(|c| candidate_matches_anchor(c, &ov.new_anchor))
                 {
                     let c = remaining.remove(ci);
-                    rows[ri].apply_match(&c, date);
-                    assignments.push(Assignment {
-                        key: make_key(lemma, rows[ri].suffix),
-                        forms: c.forms,
-                    });
-                    matched[ri] = true;
-                }
-            }
-
-            // -- Phase B(a): drift re-match by etymology (forms edited but same etym) --
-            // Only for rows whose FROZEN identity is the etym; a sig-frozen row that
-            // merely got an etym enriched onto it must not be re-paired on etym alone
-            // (an etymology renumber could otherwise hand it a different sense's forms).
-            // AND only when that etym value is UNIQUE among this batch's candidates —
-            // the same guard anchor_exact_match applies. If a formerly single-sense
-            // etymology has since split into several candidates, matching "the first
-            // one with that etym" would hand the pinned suffix an arbitrary sibling's
-            // forms with no anchor or suffix change, which check_immutability cannot
-            // see. Ambiguous duplicate-etym drift must tombstone + append instead.
-            for ri in 0..original_len {
-                if matched[ri] || rows[ri].status != Status::Active {
-                    continue;
-                }
-                if !rows[ri].is_etym_frozen() {
-                    continue;
-                }
-                let Some(etym) = rows[ri].etym else { continue };
-                if !uniq.etym_unique(etym) {
-                    continue;
-                }
-                if let Some(ci) = remaining.iter().position(|c| c.etym == Some(etym)) {
-                    let c = remaining.remove(ci);
                     notes.push(format!(
-                        "{lemma}{} re-matched by etym:{etym} after form drift ({} -> {})",
+                        "override applied: {lemma}{} re-anchored `{}` -> `{}` ({} -> {})",
                         suffix_note(rows[ri].suffix),
+                        ov.old_anchor,
+                        ov.new_anchor,
                         rows[ri].sig(),
                         c.sig()
                     ));
+                    rows[ri].anchor = ov.new_anchor.clone();
                     rows[ri].apply_match(&c, date);
                     assignments.push(Assignment {
                         key: make_key(lemma, rows[ri].suffix),
-                        forms: c.forms,
+                        forms: rows[ri].forms.clone(),
                     });
                     matched[ri] = true;
                 }
             }
 
-            // -- Phase B(b): the unambiguous single-sense case --
-            // Only reuse a vacated key for an unanchored sense when the lemma has
-            // ALWAYS been single-sense: then a 1-out/1-in is almost certainly a
-            // form correction, and the key has never meant anything else. For a
-            // polysemous lemma we refuse to guess (that is exactly how an unrelated
-            // sense would silently inherit a published key) and instead tombstone +
-            // append, degrading the old key to the regular rule rather than to a
-            // different irregular sense. "ALWAYS single-sense" counts TOMBSTONES:
-            // a retired sibling proves the lemma was polysemous, and the 1-in
-            // could plausibly be that retired sense reappearing — re-matching it
-            // onto the survivor would publish the retired semantics under the
-            // surviving key, which check_immutability cannot see.
+            // -- Exact match: full row x candidate matrix, no greedy order --
+            // sid drift is only unambiguous when the sid is held by ONE active row
+            // (several siblings sharing a sid must be told apart by content).
+            let sid_dup = duplicate_sids(&remaining);
+            let mut sid_row_counts: BTreeMap<&str, u32> = BTreeMap::new();
+            for ri in 0..original_len {
+                if rows[ri].status == Status::Active && !matched[ri] {
+                    if let Some((s, _)) = sid_anchor_parts(&rows[ri].anchor) {
+                        *sid_row_counts.entry(s).or_default() += 1;
+                    }
+                }
+            }
+            let sid_shared: std::collections::HashSet<String> = sid_row_counts
+                .iter()
+                .filter(|(_, n)| **n > 1)
+                .map(|(s, _)| s.to_string())
+                .collect();
+
+            // For each candidate, collect every row that exactly claims it.
+            let mut claims: Vec<(usize, usize)> = Vec::new(); // (candidate idx, row idx)
+            for (ci, c) in remaining.iter().enumerate() {
+                let claimants: Vec<usize> = (0..original_len)
+                    .filter(|&ri| {
+                        rows[ri].status == Status::Active
+                            && !matched[ri]
+                            && exact_match(&rows[ri], c, &sid_dup, &sid_shared)
+                    })
+                    .collect();
+                let (sid_rows, sig_rows): (Vec<usize>, Vec<usize>) = claimants
+                    .into_iter()
+                    .partition(|&ri| rows[ri].anchor.starts_with("sid:"));
+                if sid_rows.len() > 1 || sig_rows.len() > 1 {
+                    let anchors: Vec<&str> = sid_rows
+                        .iter()
+                        .chain(sig_rows.iter())
+                        .map(|&ri| rows[ri].anchor.as_str())
+                        .collect();
+                    return Err(format!(
+                        "AMBIGUOUS: {lemma} [{}] candidate `{}` is exactly claimed by {} rows of \
+                         the same tier ({}); refusing to pick one — resolve via overrides.csv",
+                        pos.as_str(),
+                        c.sig(),
+                        sid_rows.len().max(sig_rows.len()),
+                        anchors.join(", ")
+                    ));
+                }
+                // A candidate claimed by both tiers goes to the durable sid row;
+                // the sig row is left to tombstone (its content now belongs to a
+                // sense with an explicit durable identity).
+                if let Some(&ri) = sid_rows.first().or(sig_rows.first()) {
+                    claims.push((ci, ri));
+                }
+            }
+            // Two candidates claiming one row would mean two batch-distinct
+            // signatures both exactly matched it — structurally impossible, but
+            // ambiguity must never resolve silently, so keep the guard.
+            {
+                let mut per_row: BTreeMap<usize, u32> = BTreeMap::new();
+                for &(_, ri) in &claims {
+                    *per_row.entry(ri).or_default() += 1;
+                }
+                if let Some((&ri, _)) = per_row.iter().find(|(_, n)| **n > 1) {
+                    return Err(format!(
+                        "AMBIGUOUS: {lemma} [{}] row `{}` is exactly claimed by multiple dump \
+                         candidates; refusing to pick one — resolve via overrides.csv",
+                        pos.as_str(),
+                        rows[ri].anchor
+                    ));
+                }
+            }
+            // Apply the 1:1 matches (descending candidate index so removal is stable).
+            claims.sort_by(|a, b| b.0.cmp(&a.0));
+            for (ci, ri) in claims {
+                let c = remaining.remove(ci);
+                rows[ri].apply_match(&c, date);
+                assignments.push(Assignment {
+                    key: make_key(lemma, rows[ri].suffix),
+                    forms: c.forms,
+                });
+                matched[ri] = true;
+            }
+
+            // -- Propose, never guess: unmatched pinned rows x leftover candidates --
             let unmatched_active: Vec<usize> = (0..original_len)
                 .filter(|&ri| !matched[ri] && rows[ri].status == Status::Active)
                 .collect();
-            if original_len == 1 && unmatched_active.len() == 1 && remaining.len() == 1 {
-                let ri = unmatched_active[0];
-                // Never reuse across a known etymology boundary, nor when a
-                // durable anchor (qid/sid) proves the incoming candidate is a
-                // DIFFERENT sense than the one pinned here: this phase matches
-                // on nothing but arithmetic, so any conflicting identity
-                // evidence must veto it (tombstone + append instead).
-                let anchor_conflict = strong_conflict(&rows[ri].qid, &remaining[0].qid)
-                    || strong_conflict(&rows[ri].sid, &remaining[0].sid)
-                    || (rows[ri].etym.is_some() && remaining[0].etym.is_some());
-                if !anchor_conflict {
-                    let c = remaining.remove(0);
-                    notes.push(format!(
-                        "{lemma}{} re-matched as sole remaining sense after form drift ({} -> {})",
-                        suffix_note(rows[ri].suffix),
-                        rows[ri].sig(),
-                        c.sig()
-                    ));
-                    rows[ri].apply_match(&c, date);
-                    assignments.push(Assignment {
-                        key: make_key(lemma, rows[ri].suffix),
-                        forms: c.forms,
-                    });
-                    matched[ri] = true;
-                }
-            } else if !unmatched_active.is_empty() && !remaining.is_empty() {
+            if !unmatched_active.is_empty() && !remaining.is_empty() {
                 notes.push(format!(
                     "AMBIGUOUS: {lemma} [{}] has {} unmatched pinned sense(s) and {} unmatched dump sense(s) \
-                     with no shared anchor; tombstoning the pinned one(s) and allocating new suffix(es). Review the lock diff.",
+                     with no exact anchor match; tombstoning the pinned one(s) and allocating new suffix(es). \
+                     Rematch proposals recorded — review pending-rematches and sanction any real match via overrides.csv.",
                     pos.as_str(),
                     unmatched_active.len(),
                     remaining.len()
                 ));
+                for &ri in &unmatched_active {
+                    for c in &remaining {
+                        proposals.push(Proposal {
+                            lemma: lemma.to_string(),
+                            pos,
+                            suffix: rows[ri].suffix,
+                            old_anchor: rows[ri].anchor.clone(),
+                            old_forms: rows[ri].forms.clone(),
+                            candidate_anchor: primary_anchor_token(c, &sid_dup),
+                            candidate_forms: c.forms.clone(),
+                            candidate_gloss: c.gloss.clone(),
+                        });
+                    }
+                }
             }
 
-            // -- Phase C: allocate strictly-higher suffixes for new identities --
+            // -- Append: allocate strictly-higher suffixes for new identities --
             let base = if original_len == 0 {
                 if had_regular { 2 } else { 1 }
             } else {
@@ -527,7 +716,7 @@ impl Lock {
             remaining.sort_by_key(|c| c.order_key());
             for (offset, c) in remaining.into_iter().enumerate() {
                 let suffix = base + offset as u32;
-                let mut anchor = primary_anchor_token(&c, &uniq);
+                let mut anchor = primary_anchor_token(&c, &sid_dup);
                 if taken.contains(&anchor) {
                     anchor = format!("{anchor}#u{suffix}");
                 }
@@ -554,7 +743,7 @@ impl Lock {
                 rows.push(row);
             }
 
-            // -- Phase D: tombstone pinned senses that vanished from the dump --
+            // -- Tombstone pinned senses that vanished from the dump --
             for ri in 0..original_len {
                 if !matched[ri] && rows[ri].status == Status::Active {
                     rows[ri].status = Status::Tombstone;
@@ -572,7 +761,51 @@ impl Lock {
         };
 
         self.notes.append(&mut notes);
-        assignments
+        self.proposals.append(&mut proposals);
+        Ok(assignments)
+    }
+
+    fn for_lemma_overrides(&self, lemma: &str, pos: Pos) -> Vec<Override> {
+        self.overrides
+            .iter()
+            .filter(|o| o.lemma == lemma && o.pos == pos)
+            .cloned()
+            .collect()
+    }
+
+    /// One-time migration to the exact-match anchor model: every row whose frozen
+    /// anchor is a qid/etym tier (including composites and `#u` variants) is
+    /// re-anchored to its current form signature; `sid:` and `sig:` rows are kept
+    /// as they are. Suffixes, forms, and statuses are untouched — the emitted
+    /// tables cannot change. Returns the number of rows re-anchored. This rewrites
+    /// frozen anchors, so it must ship with a DATA_MAJOR bump (`cargo xtask
+    /// migrate-anchors` does both).
+    pub fn migrate_to_exact_anchors(&mut self) -> usize {
+        let mut migrated = 0;
+        for rows in self.map.values_mut() {
+            let mut taken: std::collections::HashSet<String> = rows
+                .iter()
+                .filter(|r| r.anchor.starts_with("sid:") || r.anchor.starts_with("sig:"))
+                .map(|r| r.anchor.clone())
+                .collect();
+            // Suffix order keeps `#u` disambiguation deterministic.
+            let mut order: Vec<usize> = (0..rows.len()).collect();
+            order.sort_by_key(|&i| rows[i].suffix);
+            for i in order {
+                let r = &mut rows[i];
+                if r.anchor.starts_with("sid:") || r.anchor.starts_with("sig:") {
+                    continue;
+                }
+                let mut anchor = sig_anchor(&r.forms);
+                if taken.contains(&anchor) {
+                    anchor = format!("{anchor}#u{}", r.suffix);
+                }
+                taken.insert(anchor.clone());
+                r.anchor = anchor;
+                migrated += 1;
+            }
+        }
+        migrated
     }
 
     /// Compact the lock for a **data-major release**: delete every tombstone and
@@ -655,7 +888,16 @@ impl Lock {
                 anchor: record.get(3).unwrap_or("").to_string(),
                 qid: opt(record.get(4)),
                 sid: opt(record.get(5)),
-                etym: record.get(6).and_then(|s| s.trim().parse::<u32>().ok()),
+                // Same strictness as suffix/status: an EMPTY cell is a legitimate
+                // None, but non-empty garbage is a hard error — a silently-dropped
+                // etym once looked identical to a never-recorded one.
+                etym: match record.get(6).map(str::trim) {
+                    None | Some("") => None,
+                    Some(s) => Some(
+                        s.parse::<u32>()
+                            .map_err(|_| format!("invalid etym in lock row: {record:?}"))?,
+                    ),
+                },
                 status,
                 first_seen: record.get(8).unwrap_or("").to_string(),
                 last_seen: record.get(9).unwrap_or("").to_string(),
@@ -830,7 +1072,18 @@ pub struct Coverage {
 /// Compare a previous (committed) lock against a freshly-resolved one and return a
 /// list of *violations*: ways in which an already-published key changed meaning.
 /// Empty = safe to ship.
-pub fn check_immutability(old: &Lock, new: &Lock) -> Vec<String> {
+///
+/// `overrides` waives EXACTLY the transitions it describes: an old row whose
+/// anchor was replaced at the same suffix by the override's `new_anchor` is a
+/// sanctioned rematch, not a drop.
+///
+/// Beyond anchors and suffixes, FORMS are immutable too: a row that keeps its
+/// anchor must keep its forms, except for bare `sid:` rows (senseid identity is
+/// the one sanctioned in-place drift path; a `#sig:`-qualified sid anchor bakes
+/// the forms into the identity, so those may not drift either). This closes the
+/// hand-edit hole: without it, editing a sig-anchored row's forms in place would
+/// republish a key with different meaning and no anchor/suffix change to flag.
+pub fn check_immutability(old: &Lock, new: &Lock, overrides: &Overrides) -> Vec<String> {
     let mut violations = Vec::new();
 
     // Index new rows by frozen identity and by (lemma,pos,suffix).
@@ -869,25 +1122,36 @@ pub fn check_immutability(old: &Lock, new: &Lock) -> Vec<String> {
         );
         match new_by_anchor.get(&id) {
             None => {
-                // BOTH statuses are append-only: dropping an active row loses a
-                // published key, and dropping a tombstone un-retires its suffix
-                // (Phase C allocates from max(suffix)+1, so a deleted top
-                // tombstone lets the NEXT refresh re-mint the retired key for a
-                // brand-new sense — across two individually-green PRs).
-                let why = match r.status {
-                    Status::Active => "an active key must be tombstoned, not deleted",
-                    Status::Tombstone => {
-                        "tombstones are removed only by a sanctioned compact (DATA_MAJOR bump)"
-                    }
-                };
-                violations.push(format!(
-                    "{} [{}] anchor `{}` (suffix {}, {}) was DROPPED; {why}",
-                    r.lemma,
-                    r.pos.as_str(),
-                    r.anchor,
-                    r.suffix,
-                    r.status.as_str()
-                ));
+                // A sanctioned override rematch: the same suffix now carries the
+                // override's new anchor. Anything else is a drop.
+                let waived = overrides
+                    .waives(&r.lemma, r.pos.as_str(), r.suffix, &r.anchor)
+                    .is_some_and(|ov| {
+                        new_by_suffix
+                            .get(&(r.lemma.clone(), r.pos.as_str().to_string(), r.suffix))
+                            .is_some_and(|occ| occ.iter().any(|nr| nr.anchor == ov.new_anchor))
+                    });
+                if !waived {
+                    // BOTH statuses are append-only: dropping an active row loses a
+                    // published key, and dropping a tombstone un-retires its suffix
+                    // (appends allocate from max(suffix)+1, so a deleted top
+                    // tombstone lets the NEXT refresh re-mint the retired key for a
+                    // brand-new sense — across two individually-green PRs).
+                    let why = match r.status {
+                        Status::Active => "an active key must be tombstoned, not deleted",
+                        Status::Tombstone => {
+                            "tombstones are removed only by a sanctioned compact (DATA_MAJOR bump)"
+                        }
+                    };
+                    violations.push(format!(
+                        "{} [{}] anchor `{}` (suffix {}, {}) was DROPPED; {why}",
+                        r.lemma,
+                        r.pos.as_str(),
+                        r.anchor,
+                        r.suffix,
+                        r.status.as_str()
+                    ));
+                }
             }
             Some(nr) => {
                 if nr.suffix != r.suffix {
@@ -900,6 +1164,18 @@ pub fn check_immutability(old: &Lock, new: &Lock) -> Vec<String> {
                     violations.push(format!(
                         "{} [{}] anchor `{}` was REVIVED from tombstone (retired identities must stay retired)",
                         r.lemma, r.pos.as_str(), r.anchor
+                    ));
+                }
+                let sid_drift_allowed = r.anchor.starts_with("sid:") && !r.anchor.contains("#sig:");
+                if r.forms != nr.forms && !sid_drift_allowed {
+                    violations.push(format!(
+                        "{} [{}] anchor `{}` CHANGED FORMS in place ({} -> {}); only bare sid: \
+                         rows may drift — a sig-anchored change of meaning needs an override",
+                        r.lemma,
+                        r.pos.as_str(),
+                        r.anchor,
+                        forms_sig(&r.forms),
+                        forms_sig(&nr.forms)
                     ));
                 }
             }
@@ -1016,140 +1292,138 @@ fn split_forms(s: &str) -> Vec<String> {
     }
 }
 
-/// Anchor values (per tier) that are shared by more than one candidate in a batch.
-/// A strong anchor (qid/sid/etym) is only safe to use bare when it is unique among
-/// the lemma's candidates; otherwise the form signature must disambiguate it. This
-/// matters most for nouns, where one entry can list several plural forms that all
-/// inherit the entry's single qid/sid/etymology.
-#[derive(Default)]
-struct BatchUniq {
-    qid_dup: std::collections::HashSet<String>,
-    sid_dup: std::collections::HashSet<String>,
-    etym_dup: std::collections::HashSet<u32>,
+/// Senseids carried by more than one candidate in the batch (a Wiktionary entry
+/// can list several inflection variants of ONE sense — they share its sid). A
+/// duplicated sid cannot identify a row by itself; content must agree too.
+fn duplicate_sids(candidates: &[Candidate]) -> std::collections::HashSet<String> {
+    let mut counts: BTreeMap<&str, u32> = BTreeMap::new();
+    for c in candidates {
+        if let Some(s) = &c.sid {
+            *counts.entry(s).or_default() += 1;
+        }
+    }
+    counts
+        .into_iter()
+        .filter(|(_, n)| *n > 1)
+        .map(|(s, _)| s.to_string())
+        .collect()
 }
 
-impl BatchUniq {
-    fn of(candidates: &[Candidate]) -> Self {
-        use std::collections::HashMap;
-        let mut qid: HashMap<&str, u32> = HashMap::new();
-        let mut sid: HashMap<&str, u32> = HashMap::new();
-        let mut etym: HashMap<u32, u32> = HashMap::new();
-        for c in candidates {
-            if let Some(q) = &c.qid {
-                *qid.entry(q).or_default() += 1;
-            }
-            if let Some(s) = &c.sid {
-                *sid.entry(s).or_default() += 1;
-            }
-            if let Some(e) = c.etym {
-                *etym.entry(e).or_default() += 1;
-            }
-        }
-        BatchUniq {
-            qid_dup: qid
-                .into_iter()
-                .filter(|(_, n)| *n > 1)
-                .map(|(k, _)| k.to_string())
-                .collect(),
-            sid_dup: sid
-                .into_iter()
-                .filter(|(_, n)| *n > 1)
-                .map(|(k, _)| k.to_string())
-                .collect(),
-            etym_dup: etym
-                .into_iter()
-                .filter(|(_, n)| *n > 1)
-                .map(|(k, _)| k)
-                .collect(),
-        }
-    }
-
-    fn qid_unique(&self, q: &str) -> bool {
-        !self.qid_dup.contains(q)
-    }
-    fn sid_unique(&self, s: &str) -> bool {
-        !self.sid_dup.contains(s)
-    }
-    fn etym_unique(&self, e: u32) -> bool {
-        !self.etym_dup.contains(&e)
+/// Decompose a `sid:`-tier anchor into `(senseid, qualifier)`, where the
+/// qualifier (after `#`) is `sig:<forms>` for a content-qualified identity or
+/// `u<suffix>` for a reappeared-sense disambiguator. `None` for other tiers.
+fn sid_anchor_parts(anchor: &str) -> Option<(&str, Option<&str>)> {
+    let rest = anchor.strip_prefix("sid:")?;
+    match rest.split_once('#') {
+        Some((sid, qual)) => Some((sid, Some(qual))),
+        None => Some((rest, None)),
     }
 }
 
-/// A candidate matches a row when their strongest shared anchor agrees — and, when
-/// that anchor value is shared by multiple candidates this batch, when the form
-/// signatures also agree (so the right plural-variant pairs with the right row).
+/// The exact-match predicate — the ONLY way a committed row pairs with a dump
+/// candidate outside a reviewed override.
 ///
-/// Rows whose FROZEN anchor carries a `#` qualifier (`...#sig:<forms>`, `...#u<k>`)
-/// additionally require a signature match for the qid/sid branches EVEN IF the
-/// value is unique in the current batch: a composite anchor means several rows
-/// shared that qid/sid when they were pinned (agora_4/agora_5 both under one QID),
-/// and batch uniqueness only proves the SIBLINGS vanished from this dump — not
-/// which sibling the surviving candidate is. Matching the lowest-suffix row on
-/// the bare qid would overwrite its forms with a possibly-different sense's,
-/// with anchor and suffix unchanged — a swap [`check_immutability`] is
-/// structurally unable to see. Such rows must match by signature or fall through
-/// to the conservative tombstone+append path.
-fn anchor_exact_match(row: &LockRow, c: &Candidate, uniq: &BatchUniq) -> bool {
-    // A conflicting DURABLE anchor (both sides carry a qid/sid and they differ)
-    // vetoes the match outright — most importantly the last-resort signature
-    // fallback below: a coincidental form collision must never let a sense with
-    // a different durable identity capture this row's published key (a swap
-    // check_immutability is structurally unable to see). etym is deliberately
-    // NOT a veto here: it is a renumberable section ordinal, and an upstream
-    // renumber must not mass-tombstone rows whose signatures still match.
+/// - `sig:` rows match on exact form-signature equality: the identity IS the
+///   forms, so a match can never change what the key emits.
+/// - `sid:` rows match on exact senseid equality. The stored forms may then
+///   drift in place (the senseid asserts same-sense identity), but ONLY while
+///   that reading is unambiguous: the sid must be unique in the batch, held by
+///   a single active row, and not `#sig:`-qualified — otherwise the signature
+///   must agree too, which reduces sid matching to content matching exactly
+///   where siblings would be indistinguishable.
+///
+/// A conflicting durable senseid or QID on either side vetoes any match: a
+/// coincidental form collision must never hand this row's published key to a
+/// sense that carries a different identity (a swap [`check_immutability`] could
+/// only see through the forms guard, after the damage is committed).
+fn exact_match(
+    row: &LockRow,
+    c: &Candidate,
+    sid_dup: &std::collections::HashSet<String>,
+    sid_shared: &std::collections::HashSet<String>,
+) -> bool {
     if strong_conflict(&row.qid, &c.qid) || strong_conflict(&row.sid, &c.sid) {
         return false;
     }
-    // Composite frozen identity: the qualifier is part of who this row IS.
-    let composite = row.anchor.contains('#');
-    if let (Some(rq), Some(cq)) = (&row.qid, &c.qid)
-        && rq == cq
-        && ((uniq.qid_unique(cq) && !composite) || row.sig() == c.sig())
-    {
-        return true;
+    if let Some((sid, qual)) = sid_anchor_parts(&row.anchor) {
+        let Some(csid) = &c.sid else { return false };
+        if csid != sid {
+            return false;
+        }
+        let sig_required = qual.is_some_and(|q| q.starts_with("sig:"))
+            || sid_dup.contains(sid)
+            || sid_shared.contains(sid);
+        !sig_required || row.sig() == c.sig()
+    } else if row.anchor.starts_with("sig:") {
+        row.sig() == c.sig()
+    } else {
+        // Legacy qid/etym tiers never match; `Lock::validate` rejects them until
+        // `migrate-anchors` has re-anchored the lock.
+        false
     }
-    if let (Some(rs), Some(cs)) = (&row.sid, &c.sid)
-        && rs == cs
-        && ((uniq.sid_unique(cs) && !composite) || row.sig() == c.sig())
-    {
-        return true;
-    }
-    if let (Some(re), Some(ce)) = (row.etym, c.etym)
-        && re == ce
-        && (row.sig() == c.sig() || (row.is_etym_frozen() && uniq.etym_unique(ce)))
-    {
-        return true;
-    }
-    row.sig() == c.sig()
 }
 
-/// The frozen primary identity for a new row. Always unique within `(lemma, pos)`:
-/// the strongest available anchor, plus a `#sig:` tiebreaker whenever that anchor
-/// value is shared by another candidate (candidates are deduped by signature, so
-/// the signature is always a unique disambiguator).
-fn primary_anchor_token(c: &Candidate, uniq: &BatchUniq) -> String {
-    if let Some(q) = &c.qid {
-        return if uniq.qid_unique(q) {
-            format!("qid:{q}")
-        } else {
-            format!("qid:{q}#sig:{}", c.sig())
-        };
+/// Whether a candidate is the one an override's `new_anchor` names.
+fn candidate_matches_anchor(c: &Candidate, anchor: &str) -> bool {
+    if let Some((sid, qual)) = sid_anchor_parts(anchor) {
+        c.sid.as_deref() == Some(sid)
+            && match qual {
+                Some(q) => match q.strip_prefix("sig:") {
+                    Some(sig) => c.sig() == sig,
+                    None => true, // `#u<k>` disambiguator carries no content
+                },
+                None => true,
+            }
+    } else if let Some(rest) = anchor.strip_prefix("sig:") {
+        let sig = rest.split_once('#').map(|(s, _)| s).unwrap_or(rest);
+        c.sig() == sig
+    } else {
+        false
     }
+}
+
+/// The frozen primary identity for a new row: the senseid when one exists (the
+/// durable tier, `#sig:`-qualified when the batch shares it), else the form
+/// signature. Always unique within `(lemma, pos)`: candidates are deduped by
+/// signature, so the signature is always a unique disambiguator.
+fn primary_anchor_token(c: &Candidate, sid_dup: &std::collections::HashSet<String>) -> String {
     if let Some(s) = &c.sid {
-        return if uniq.sid_unique(s) {
+        return if !sid_dup.contains(s) {
             format!("sid:{s}")
         } else {
             format!("sid:{s}#sig:{}", c.sig())
         };
     }
-    if let Some(e) = c.etym {
-        return if uniq.etym_unique(e) {
-            format!("etym:{e}")
-        } else {
-            format!("etym:{e}#sig:{}", c.sig())
-        };
-    }
     sig_anchor(&c.forms)
+}
+
+/// Write refused rematches for human review. One row per (retired row,
+/// leftover candidate) pairing; approving one means copying its first five
+/// columns into `overrides.csv` (they are already in that file's shape).
+pub fn save_proposals(
+    proposals: &[Proposal],
+    path: impl AsRef<Path>,
+) -> Result<(), Box<dyn Error>> {
+    let mut wtr = WriterBuilder::new().from_path(path)?;
+    wtr.write_record(OVERRIDES_HEADER.iter().copied().chain([
+        "old_forms",
+        "candidate_forms",
+        "candidate_gloss",
+    ]))?;
+    for p in proposals {
+        wtr.write_record(&[
+            p.lemma.clone(),
+            p.pos.as_str().to_string(),
+            p.suffix.to_string(),
+            p.old_anchor.clone(),
+            p.candidate_anchor.clone(),
+            p.old_forms.join("|"),
+            p.candidate_forms.join("|"),
+            p.candidate_gloss.clone().unwrap_or_default(),
+        ])?;
+    }
+    wtr.flush()?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1172,10 +1446,20 @@ mod tests {
         c
     }
 
+    fn cand_s(forms: &[&str], sid: &str) -> Candidate {
+        let mut c = cand(forms);
+        c.sid = Some(sid.to_string());
+        c
+    }
+
     fn keys(a: &[Assignment]) -> Vec<String> {
         let mut k: Vec<String> = a.iter().map(|x| x.key.clone()).collect();
         k.sort();
         k
+    }
+
+    fn no_ov() -> Overrides {
+        Overrides::default()
     }
 
     #[test]
@@ -1184,7 +1468,9 @@ mod tests {
         let mut lock = Lock::new();
         let recline = cand(&["lies", "lay", "lying", "lain"]);
         let untruth = cand(&["lies", "lied", "lying", "lied"]);
-        let a = lock.resolve("lie", Pos::Verb, vec![untruth, recline], false, "d1");
+        let a = lock
+            .resolve("lie", Pos::Verb, vec![untruth, recline], false, "d1")
+            .unwrap();
         let mut by_key: BTreeMap<_, _> =
             a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
         assert_eq!(by_key.remove("lie").unwrap()[1], "lay"); // recline is the bare key
@@ -1195,14 +1481,16 @@ mod tests {
     fn cold_start_with_regular_starts_at_two() {
         // die: regular plural dropped (had_regular), single irregular -> die_2, no bare die.
         let mut lock = Lock::new();
-        let a = lock.resolve("die", Pos::Noun, vec![cand(&["dice"])], true, "d1");
+        let a = lock
+            .resolve("die", Pos::Noun, vec![cand(&["dice"])], true, "d1")
+            .unwrap();
         assert_eq!(keys(&a), vec!["die_2".to_string()]);
     }
 
     #[test]
     fn reordered_forms_do_not_swap_keys() {
         // Establish lie/lie_2, then a later dump returns the senses in a different
-        // order AND with the untruth past-form edited. Keys must hold.
+        // order. Keys must hold (sig anchors are order-independent).
         let mut lock = Lock::new();
         lock.resolve(
             "lie",
@@ -1213,7 +1501,8 @@ mod tests {
             ],
             false,
             "d1",
-        );
+        )
+        .unwrap();
         // Round-trip through CSV to ensure persistence carries identity.
         let dir = std::env::temp_dir().join("english_registry_test_swap");
         let _ = std::fs::create_dir_all(&dir);
@@ -1221,44 +1510,67 @@ mod tests {
         lock.save(&path).unwrap();
         let mut lock2 = Lock::load(&path).unwrap();
 
-        let a = lock2.resolve(
-            "lie",
-            Pos::Verb,
-            vec![
-                // recline reordered to second; untruth's forms identical (sig anchor holds)
-                cand(&["lies", "lied", "lying", "lied"]),
-                cand(&["lies", "lay", "lying", "lain"]),
-            ],
-            false,
-            "d2",
-        );
+        let a = lock2
+            .resolve(
+                "lie",
+                Pos::Verb,
+                vec![
+                    cand(&["lies", "lied", "lying", "lied"]),
+                    cand(&["lies", "lay", "lying", "lain"]),
+                ],
+                false,
+                "d2",
+            )
+            .unwrap();
         let by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
         assert_eq!(by_key["lie"][1], "lay", "recline must stay the bare key");
         assert_eq!(by_key["lie_2"][1], "lied", "untruth must stay lie_2");
     }
 
     #[test]
-    fn etym_anchor_holds_through_form_edit() {
-        // With an etymology anchor, editing a form must NOT renumber.
+    fn sid_anchor_holds_and_drifts_in_place() {
+        // A senseid is the ONE identity that carries a key through form drift.
         let mut lock = Lock::new();
-        let mut c1 = cand(&["lies", "lay", "lying", "lain"]);
-        c1.etym = Some(1);
-        let mut c2 = cand(&["lies", "lied", "lying", "lied"]);
-        c2.etym = Some(2);
-        lock.resolve("lie", Pos::Verb, vec![c1, c2], false, "d1");
+        lock.resolve(
+            "lie",
+            Pos::Verb,
+            vec![
+                cand_s(&["lies", "lay", "lying", "lain"], "en:to rest"),
+                cand_s(&["lies", "lied", "lying", "lied"], "en:say falsehoods"),
+            ],
+            false,
+            "d1",
+        )
+        .unwrap();
+        let dir = std::env::temp_dir().join("english_registry_test_siddrift");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("verb.lock.csv");
+        lock.save(&path).unwrap();
+        let before = Lock::load(&path).unwrap();
 
-        // d2: same etyms, but recline's past_part edited lain -> layed (a form drift)
-        let mut e1 = cand(&["lies", "lay", "lying", "layed"]);
-        e1.etym = Some(1);
-        let mut e2 = cand(&["lies", "lied", "lying", "lied"]);
-        e2.etym = Some(2);
-        let a = lock.resolve("lie", Pos::Verb, vec![e2, e1], false, "d2");
+        // d2: recline's past participle edited lain -> layed; sid unchanged.
+        let a = lock
+            .resolve(
+                "lie",
+                Pos::Verb,
+                vec![
+                    cand_s(&["lies", "lied", "lying", "lied"], "en:say falsehoods"),
+                    cand_s(&["lies", "lay", "lying", "layed"], "en:to rest"),
+                ],
+                false,
+                "d2",
+            )
+            .unwrap();
         let by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
+        // sid sort order puts "en:say falsehoods" first at cold start (as in the
+        // real verb lock); recline drifts in place at lie_2.
+        assert_eq!(by_key["lie"][1], "lied");
         assert_eq!(
-            by_key["lie"][3], "layed",
-            "recline kept its key, forms updated"
+            by_key["lie_2"][3], "layed",
+            "sid row kept its key, forms updated"
         );
-        assert_eq!(by_key["lie_2"][1], "lied");
+        // Bare-sid drift is the sanctioned exception to forms immutability.
+        assert!(check_immutability(&before, &lock, &no_ov()).is_empty());
     }
 
     #[test]
@@ -1270,22 +1582,24 @@ mod tests {
             vec![cand(&["runs", "ran", "running", "run"])],
             false,
             "d1",
-        );
-        // d2: original sense unchanged + a brand-new homograph appears.
-        let a = lock.resolve(
-            "run",
-            Pos::Verb,
-            vec![
-                cand(&["runs", "ran", "running", "run"]),
-                cand(&["runs", "runned", "running", "runned"]),
-            ],
-            false,
-            "d2",
-        );
+        )
+        .unwrap();
+        let a = lock
+            .resolve(
+                "run",
+                Pos::Verb,
+                vec![
+                    cand(&["runs", "ran", "running", "run"]),
+                    cand(&["runs", "runned", "running", "runned"]),
+                ],
+                false,
+                "d2",
+            )
+            .unwrap();
         assert_eq!(keys(&a), vec!["run".to_string(), "run_2".to_string()]);
         let by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
         assert_eq!(by_key["run"][1], "ran", "original sense keeps the bare key");
-        assert_eq!(by_key["run_2"][1], "runned", "new sense appended at run2");
+        assert_eq!(by_key["run_2"][1], "runned", "new sense appended at run_2");
     }
 
     #[test]
@@ -1294,18 +1608,20 @@ mod tests {
         lock.resolve(
             "x",
             Pos::Noun,
-            vec![cand(&["xen"]), cand(&["xes"])], // x -> xen, x2 -> xes
+            vec![cand(&["xen"]), cand(&["xes"])],
             false,
             "d1",
-        );
-        // d2: xen sense disappears; xes remains; a new sense appears.
-        let a = lock.resolve(
-            "x",
-            Pos::Noun,
-            vec![cand(&["xes"]), cand(&["xim"])],
-            false,
-            "d2",
-        );
+        )
+        .unwrap();
+        let a = lock
+            .resolve(
+                "x",
+                Pos::Noun,
+                vec![cand(&["xes"]), cand(&["xim"])],
+                false,
+                "d2",
+            )
+            .unwrap();
         // xen's suffix (1) is retired; xes keeps suffix 2; new sense gets 3 (not 1).
         assert_eq!(keys(&a), vec!["x_2".to_string(), "x_3".to_string()]);
         let by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
@@ -1322,8 +1638,8 @@ mod tests {
                 cand(&["lies", "lied", "lying", "lied"]),
             ]
         };
-        let a1 = lock.resolve("lie", Pos::Verb, mk(), false, "d1");
-        let a2 = lock.resolve("lie", Pos::Verb, mk(), false, "d1");
+        let a1 = lock.resolve("lie", Pos::Verb, mk(), false, "d1").unwrap();
+        let a2 = lock.resolve("lie", Pos::Verb, mk(), false, "d1").unwrap();
         assert_eq!(keys(&a1), keys(&a2));
         assert_eq!(keys(&a1), vec!["lie".to_string(), "lie_2".to_string()]);
     }
@@ -1340,7 +1656,8 @@ mod tests {
             ],
             false,
             "d1",
-        );
+        )
+        .unwrap();
         // Hand-craft a "new" lock where the two anchors swapped suffixes.
         let mut new = Lock::new();
         for r in old.rows() {
@@ -1348,243 +1665,312 @@ mod tests {
             nr.suffix = if r.suffix == 1 { 2 } else { 1 };
             new.insert_row(nr);
         }
-        let v = check_immutability(&old, &new);
+        let v = check_immutability(&old, &new, &no_ov());
         assert!(!v.is_empty(), "swap must be flagged");
         assert!(v.iter().any(|m| m.contains("MOVED suffix")));
     }
 
     #[test]
-    fn immutability_guard_allows_form_update_and_append() {
+    fn immutability_guard_allows_append() {
         let mut old = Lock::new();
-        old.resolve("die", Pos::Noun, vec![cand(&["dice"])], true, "d1");
+        old.resolve("die", Pos::Noun, vec![cand(&["dice"])], true, "d1")
+            .unwrap();
         let mut new = Lock::new();
-        new.resolve("die", Pos::Noun, vec![cand(&["dice"])], true, "d1");
-        // forms update in place + append a new sense: both legal.
+        new.resolve("die", Pos::Noun, vec![cand(&["dice"])], true, "d1")
+            .unwrap();
         new.resolve(
             "die",
             Pos::Noun,
             vec![cand(&["dice"]), cand(&["dies_alt"])],
             true,
             "d2",
-        );
-        assert!(check_immutability(&old, &new).is_empty());
+        )
+        .unwrap();
+        assert!(check_immutability(&old, &new, &no_ov()).is_empty());
     }
 
     #[test]
-    fn shared_strong_anchor_gets_sig_tiebreak() {
-        // One noun entry with several plural forms shares its qid across candidates;
-        // each emitted key must still get a UNIQUE anchor (qid + sig tiebreak), or
-        // the immutability guard can't tell the rows apart.
-        let mut lock = Lock::new();
-        let mut c1 = cand(&["walrii"]);
-        c1.qid = Some("Q40994".into());
-        let mut c2 = cand(&["walrus"]);
-        c2.qid = Some("Q40994".into());
-        let mut c3 = cand(&["walrusses"]);
-        c3.qid = Some("Q40994".into());
-        lock.resolve("walrus", Pos::Noun, vec![c1, c2, c3], true, "d1");
-
-        let anchors: Vec<String> = lock.rows().map(|r| r.anchor.clone()).collect();
-        let distinct: std::collections::HashSet<_> = anchors.iter().collect();
-        assert_eq!(
-            anchors.len(),
-            distinct.len(),
-            "anchors must be unique: {anchors:?}"
-        );
-        assert!(
-            anchors.iter().all(|a| a.starts_with("qid:Q40994#sig:")),
-            "{anchors:?}"
-        );
-        // A freshly-resolved lock must pass the guard against itself.
-        assert!(check_immutability(&lock, &lock).is_empty());
-
-        // And re-resolving the same dump is idempotent (keys hold).
-        let mut c1 = cand(&["walrii"]);
-        c1.qid = Some("Q40994".into());
-        let mut c2 = cand(&["walrus"]);
-        c2.qid = Some("Q40994".into());
-        let mut c3 = cand(&["walrusses"]);
-        c3.qid = Some("Q40994".into());
-        let again = lock.resolve("walrus", Pos::Noun, vec![c1, c2, c3], true, "d2");
-        assert_eq!(keys(&again), vec!["walrus_2", "walrus_3", "walrus_4"]);
-        assert!(check_immutability(&lock, &lock).is_empty());
+    fn forms_drift_in_place_is_flagged_for_sig_rows() {
+        // A hand edit that changes a sig-anchored row's forms without touching
+        // anchor or suffix is EXACTLY the invisible meaning change the guard
+        // exists for; a bare sid row may drift (senseid identity).
+        let mut old = Lock::new();
+        old.insert_row(row("w", 1, "sig:foo", None, &["foo"]));
+        old.insert_row(row_s("v", 1, "sid:en:x", "en:x", &["va"]));
+        let mut new = Lock::new();
+        new.insert_row(row("w", 1, "sig:foo", None, &["bar"])); // edited in place
+        new.insert_row(row_s("v", 1, "sid:en:x", "en:x", &["vb"])); // sid drift: fine
+        let v = check_immutability(&old, &new, &no_ov());
+        assert_eq!(v.len(), 1, "{v:?}");
+        assert!(v[0].contains("CHANGED FORMS"), "{v:?}");
+        assert!(v[0].contains("`sig:foo`"), "{v:?}");
     }
 
     #[test]
-    fn co_etymology_uses_sig_tiebreak() {
-        // Two senses share etym 2 -> etym not unique -> anchors carry sig tiebreak.
+    fn single_sense_drift_tombstones_and_proposes() {
+        // Exact-or-ask: even a 1-out/1-in form drift is never re-matched
+        // automatically — the old key retires, the new paradigm appends, and a
+        // rematch proposal records the pairing for a human to sanction.
         let mut lock = Lock::new();
-        let mut c1 = cand(&["dies"]);
-        c1.etym = Some(2);
-        let mut c2 = cand(&["dice"]);
-        c2.etym = Some(2);
-        lock.resolve("die", Pos::Noun, vec![c1, c2], false, "d1");
-        let anchors: Vec<String> = lock.rows().map(|r| r.anchor.clone()).collect();
-        assert!(
-            anchors.iter().all(|a| a.starts_with("etym:2#sig:")),
-            "{anchors:?}"
-        );
-    }
-
-    #[test]
-    fn etym_split_with_drift_does_not_guess_which_sibling_inherits_the_key() {
-        // A single-sense lemma frozen on a BARE etym anchor (etym:1). A later dump
-        // SPLITS that etymology into two candidates (both etym=1) and the original
-        // forms have drifted away. Phase B(a) must NOT hand the pinned suffix
-        // whichever sibling happens to come first — the frozen anchor and suffix
-        // would stay identical, so check_immutability could never see the swap.
-        // The safe outcome: tombstone the old row, append both siblings.
-        let mut lock = Lock::new();
-        lock.resolve("x", Pos::Noun, vec![cand_e(&["alpha"], 1)], false, "d1");
-        let row = lock.rows().next().unwrap();
-        assert_eq!(
-            row.anchor, "etym:1",
-            "single sense freezes on the bare etym"
-        );
-
-        // d2: etym 1 split into two senses, original forms gone; adversarial order
-        // puts the WRONG sibling first (the one the old code would have grabbed).
-        let a = lock.resolve(
-            "x",
-            Pos::Noun,
-            vec![cand_e(&["unrelated"], 1), cand_e(&["alphaish"], 1)],
-            false,
-            "d2",
-        );
-        let old = lock.rows().find(|r| r.anchor == "etym:1").unwrap();
-        assert_eq!(
-            old.status,
-            Status::Tombstone,
-            "ambiguous split must tombstone"
-        );
+        lock.resolve("w", Pos::Noun, vec![cand(&["foo"])], false, "d1")
+            .unwrap();
+        let a = lock
+            .resolve("w", Pos::Noun, vec![cand(&["bar"])], false, "d2")
+            .unwrap();
+        assert_eq!(keys(&a), vec!["w_2".to_string()]);
+        let old = lock.rows().find(|r| r.suffix == 1).unwrap();
+        assert_eq!(old.status, Status::Tombstone);
         assert_eq!(
             old.forms,
-            vec!["alpha".to_string()],
-            "pinned forms never overwritten by a guess"
+            vec!["foo".to_string()],
+            "pinned forms never overwritten"
         );
-        assert_eq!(
-            keys(&a),
-            vec!["x_2".to_string(), "x_3".to_string()],
-            "both siblings appended"
-        );
-        assert!(check_immutability(&lock, &lock).is_empty());
-    }
-
-    #[test]
-    fn composite_qid_anchor_requires_sig_even_when_batch_unique() {
-        // agora-class: two variant senses share one QID at d1, so both rows are
-        // frozen on composite qid:Q1#sig:<forms> anchors. At d2 one sibling
-        // vanishes and the survivor's forms have DRIFTED — its QID is now unique
-        // in the batch, but uniqueness only proves the sibling is gone, not which
-        // sibling this is. It must NOT match the lowest-suffix row on the bare
-        // QID (that would overwrite pinned forms invisibly); the safe outcome is
-        // tombstone + append.
-        let mut lock = Lock::new();
-        lock.resolve(
-            "agora",
-            Pos::Noun,
-            vec![cand_q(&["agorae"], "Q1"), cand_q(&["agoroth"], "Q1")],
-            false,
-            "d1",
-        );
-        assert!(
-            lock.rows().all(|r| r.anchor.starts_with("qid:Q1#sig:")),
-            "shared qid must freeze composite anchors"
-        );
-
-        let a = lock.resolve(
-            "agora",
-            Pos::Noun,
-            vec![cand_q(&["agorai"], "Q1")],
-            false,
-            "d2",
-        );
-        let by_anchor: BTreeMap<String, &LockRow> =
-            lock.rows().map(|r| (r.anchor.clone(), r)).collect();
-        let first = by_anchor.get("qid:Q1#sig:agorae").expect("agorae row");
-        assert_eq!(
-            first.forms,
-            vec!["agorae".to_string()],
-            "pinned forms must not be overwritten by an ambiguous survivor"
-        );
-        assert_eq!(first.status, Status::Tombstone);
-        assert_eq!(
-            keys(&a),
-            vec!["agora_3".to_string()],
-            "drifted survivor appends"
-        );
-
-        // Control: a survivor whose forms are UNCHANGED still matches via the
-        // signature and keeps its key — no gratuitous churn.
-        let mut lock2 = Lock::new();
-        lock2.resolve(
-            "agora",
-            Pos::Noun,
-            vec![cand_q(&["agorae"], "Q1"), cand_q(&["agoroth"], "Q1")],
-            false,
-            "d1",
-        );
-        let b = lock2.resolve(
-            "agora",
-            Pos::Noun,
-            vec![cand_q(&["agoroth"], "Q1")],
-            false,
-            "d2",
-        );
-        assert_eq!(
-            keys(&b),
-            vec!["agora_2".to_string()],
-            "unchanged sibling keeps its key"
-        );
-    }
-
-    #[test]
-    fn composite_etym_anchors_never_rematch_by_etym_alone() {
-        // Two senses SHARE etym 2 -> composite anchors etym:2#sig:<forms>. If both
-        // forms later drift (and arrive reordered), the drift re-match path must
-        // NOT pair them by the shared etym: the signature is part of these rows'
-        // frozen identity, and an etym-only match could hand one sense the other's
-        // forms without moving any suffix or anchor — a swap check_immutability
-        // cannot see. The safe outcome is tombstone + append.
-        let mut lock = Lock::new();
-        lock.resolve(
-            "x",
-            Pos::Noun,
-            vec![cand_e(&["alpha"], 2), cand_e(&["beta"], 2)],
-            false,
-            "d1",
-        ); // x -> alpha (etym:2#sig:alpha), x_2 -> beta (etym:2#sig:beta)
-
-        // d2: both drift, REVERSED order — the bug would give the alpha row beta2.
-        lock.resolve(
-            "x",
-            Pos::Noun,
-            vec![cand_e(&["beta2"], 2), cand_e(&["alpha2"], 2)],
-            false,
-            "d2",
-        );
-        let by_anchor: BTreeMap<String, &LockRow> =
-            lock.rows().map(|r| (r.anchor.clone(), r)).collect();
-        let a = by_anchor.get("etym:2#sig:alpha").expect("alpha row");
-        let b = by_anchor.get("etym:2#sig:beta").expect("beta row");
-        assert_eq!(
-            a.forms,
-            vec!["alpha".to_string()],
-            "alpha row must not inherit drifted forms"
-        );
-        assert_eq!(b.forms, vec!["beta".to_string()]);
-        assert_eq!(a.status, Status::Tombstone, "ambiguous drift tombstones");
-        assert_eq!(b.status, Status::Tombstone);
+        assert_eq!(lock.proposals.len(), 1);
+        let p = &lock.proposals[0];
+        assert_eq!((p.suffix, p.old_anchor.as_str()), (1, "sig:foo"));
+        assert_eq!(p.candidate_anchor, "sig:bar");
         assert!(lock.notes.iter().any(|n| n.contains("AMBIGUOUS")));
-        assert!(check_immutability(&lock, &lock).is_empty());
+    }
+
+    #[test]
+    fn conflicting_qid_vetoes_content_match() {
+        // Same forms, different durable identity: the impostor must not inherit
+        // the key even though the content matches exactly.
+        let mut lock = Lock::new();
+        lock.resolve("w", Pos::Noun, vec![cand_q(&["foo"], "Q1")], false, "d1")
+            .unwrap();
+        let a = lock
+            .resolve("w", Pos::Noun, vec![cand_q(&["foo"], "Q2")], false, "d2")
+            .unwrap();
+        assert_eq!(keys(&a), vec!["w_2".to_string()]);
+        let old = lock.rows().find(|r| r.suffix == 1).unwrap();
+        assert_eq!(old.status, Status::Tombstone);
+        // The reappearing content re-derives the same sig anchor; it must be
+        // disambiguated against the tombstone, not collide with it.
+        let anchors: Vec<String> = lock.rows().map(|r| r.anchor.clone()).collect();
+        let distinct: std::collections::HashSet<_> = anchors.iter().collect();
+        assert_eq!(anchors.len(), distinct.len(), "{anchors:?}");
+    }
+
+    #[test]
+    fn durable_sid_outranks_content_claim() {
+        // A candidate exactly claimed by a sig row (content) AND a sid row
+        // (durable identity) goes to the sid row; the sig row retires.
+        let mut lock = Lock::new();
+        lock.resolve(
+            "w",
+            Pos::Noun,
+            vec![cand(&["foo"]), cand_s(&["bar"], "en:s")],
+            false,
+            "d1",
+        )
+        .unwrap(); // sig:foo @1, sid:en:s @2
+        let a = lock
+            .resolve("w", Pos::Noun, vec![cand_s(&["foo"], "en:s")], false, "d2")
+            .unwrap();
+        assert_eq!(keys(&a), vec!["w_2".to_string()]);
+        let sid_row = lock.rows().find(|r| r.suffix == 2).unwrap();
+        assert_eq!(
+            sid_row.forms,
+            vec!["foo".to_string()],
+            "sid row took the candidate"
+        );
+        assert_eq!(sid_row.status, Status::Active);
+        let sig_row = lock.rows().find(|r| r.suffix == 1).unwrap();
+        assert_eq!(sig_row.status, Status::Tombstone);
+    }
+
+    #[test]
+    fn same_tier_double_claim_is_a_hard_error() {
+        // Pathological (hand-built) lock: two sid-tier rows that both exactly
+        // claim one candidate. Ambiguity must never resolve silently.
+        let mut lock = Lock::new();
+        lock.insert_row(row_s("w", 1, "sid:en:s", "en:s", &["f1"]));
+        lock.insert_row(row_s("w", 2, "sid:en:s#sig:f1", "en:s", &["f1"]));
+        let err = lock
+            .resolve("w", Pos::Noun, vec![cand_s(&["f1"], "en:s")], false, "d1")
+            .unwrap_err();
+        assert!(err.contains("AMBIGUOUS"), "{err}");
+        assert!(err.contains("overrides.csv"), "{err}");
+    }
+
+    #[test]
+    fn shared_sid_requires_content_match() {
+        // Once several active rows hold one sid, sid matching degrades to exact
+        // content matching — drift would otherwise be assignable to either sibling.
+        let mut lock = Lock::new();
+        lock.resolve("w", Pos::Noun, vec![cand_s(&["f1"], "en:s")], false, "d1")
+            .unwrap(); // sid:en:s @1
+        lock.resolve(
+            "w",
+            Pos::Noun,
+            vec![cand_s(&["f1"], "en:s"), cand_s(&["f2"], "en:s")],
+            false,
+            "d2",
+        )
+        .unwrap(); // duplicate sid: @1 keeps f1 (sig agrees), f2 appends composite @2
+        assert!(
+            lock.rows().any(|r| r.anchor == "sid:en:s#sig:f2"),
+            "duplicate sid must freeze a composite anchor"
+        );
+        // d3: only the f2 variant survives. The bare row must NOT capture it by
+        // sid drift (two active rows share the sid); content decides.
+        let a = lock
+            .resolve("w", Pos::Noun, vec![cand_s(&["f2"], "en:s")], false, "d3")
+            .unwrap();
+        assert_eq!(keys(&a), vec!["w_2".to_string()]);
+        let bare = lock.rows().find(|r| r.suffix == 1).unwrap();
+        assert_eq!(bare.status, Status::Tombstone);
+        assert_eq!(bare.forms, vec!["f1".to_string()]);
+    }
+
+    #[test]
+    fn override_rematches_and_waives_immutability() {
+        let mut lock = Lock::new();
+        lock.resolve("w", Pos::Noun, vec![cand(&["foo"])], false, "d1")
+            .unwrap();
+        let dir = std::env::temp_dir().join("english_registry_test_override");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("noun.lock.csv");
+        lock.save(&path).unwrap();
+        let before = Lock::load(&path).unwrap();
+
+        let ov = Overrides {
+            rows: vec![Override {
+                lemma: "w".into(),
+                pos: Pos::Noun,
+                suffix: 1,
+                old_anchor: "sig:foo".into(),
+                new_anchor: "sig:bar".into(),
+            }],
+        };
+        lock.set_overrides(&ov);
+        let a = lock
+            .resolve("w", Pos::Noun, vec![cand(&["bar"])], false, "d2")
+            .unwrap();
+        assert_eq!(
+            keys(&a),
+            vec!["w".to_string()],
+            "override carries the key forward"
+        );
+        let r = lock.rows().find(|r| r.suffix == 1).unwrap();
+        assert_eq!(r.anchor, "sig:bar");
+        assert_eq!(r.forms, vec!["bar".to_string()]);
+        assert!(lock.notes.iter().any(|n| n.contains("override applied")));
+
+        // The override waives exactly this transition — and only with it present.
+        assert!(check_immutability(&before, &lock, &ov).is_empty());
+        assert!(!check_immutability(&before, &lock, &no_ov()).is_empty());
+        // Post-refresh, the override must be in the applied state.
+        assert!(ov.check(&lock, Pos::Noun, true).is_empty());
+    }
+
+    #[test]
+    fn override_check_flags_stale_rows() {
+        let mut lock = Lock::new();
+        lock.resolve("w", Pos::Noun, vec![cand(&["foo"])], false, "d1")
+            .unwrap();
+        let mk = |lemma: &str, suffix: u32, old: &str, new: &str| Overrides {
+            rows: vec![Override {
+                lemma: lemma.into(),
+                pos: Pos::Noun,
+                suffix,
+                old_anchor: old.into(),
+                new_anchor: new.into(),
+            }],
+        };
+        // No such row.
+        let v = mk("nope", 1, "sig:a", "sig:b").check(&lock, Pos::Noun, false);
+        assert!(v.iter().any(|m| m.contains("no such lock row")), "{v:?}");
+        // Anchor matches neither side.
+        let v = mk("w", 1, "sig:other", "sig:b").check(&lock, Pos::Noun, false);
+        assert!(v.iter().any(|m| m.contains("matches neither")), "{v:?}");
+        // Pending is fine before a refresh, an error after one.
+        let pending = mk("w", 1, "sig:foo", "sig:bar");
+        assert!(pending.check(&lock, Pos::Noun, false).is_empty());
+        let v = pending.check(&lock, Pos::Noun, true);
+        assert!(v.iter().any(|m| m.contains("still pending")), "{v:?}");
+    }
+
+    #[test]
+    fn ambiguous_drift_tombstones_appends_and_proposes() {
+        let mut lock = Lock::new();
+        lock.resolve(
+            "z",
+            Pos::Noun,
+            vec![cand(&["p1"]), cand(&["q1"])],
+            false,
+            "d1",
+        )
+        .unwrap();
+        let dir = std::env::temp_dir().join("english_registry_test_ambig");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("noun.lock.csv");
+        lock.save(&path).unwrap();
+        let before = Lock::load(&path).unwrap();
+
+        let asg = lock
+            .resolve(
+                "z",
+                Pos::Noun,
+                vec![cand(&["p2"]), cand(&["q2"])],
+                false,
+                "d2",
+            )
+            .unwrap();
+        assert_eq!(keys(&asg), vec!["z_3".to_string(), "z_4".to_string()]);
+        assert!(check_immutability(&before, &lock, &no_ov()).is_empty());
+        assert!(lock.notes.iter().any(|n| n.contains("AMBIGUOUS")));
+        // Every (retired row, leftover candidate) pairing is proposed for review.
+        assert_eq!(lock.proposals.len(), 4);
+    }
+
+    #[test]
+    fn soft_sense_never_takes_bare_key_at_cold_start() {
+        // The soft sense carries the LOWER etym (and would win an anchor-first
+        // sort); standard-before-soft must still hold.
+        let mut lock = Lock::new();
+        let mut soft = cand_e(&["badder"], 1);
+        soft.soft_sense = true;
+        let std_sib = cand_e(&["worse"], 2);
+        let a = lock
+            .resolve("bad", Pos::Adj, vec![soft, std_sib], false, "d1")
+            .unwrap();
+        let by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
+        assert_eq!(
+            by_key["bad"],
+            vec!["worse".to_string()],
+            "the standard sibling takes the bare key"
+        );
+        assert_eq!(by_key["bad_2"], vec!["badder".to_string()]);
+    }
+
+    #[test]
+    fn cold_start_orders_by_anchor_before_forms() {
+        // Among standard senses, anchors (etym here) outrank spelling.
+        let mut lock = Lock::new();
+        let a = lock
+            .resolve(
+                "w",
+                Pos::Noun,
+                vec![cand_e(&["aaa"], 2), cand_e(&["zzz"], 1)],
+                false,
+                "d1",
+            )
+            .unwrap();
+        let by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
+        assert_eq!(
+            by_key["w"],
+            vec!["zzz".to_string()],
+            "etym 1 takes the bare key"
+        );
+        assert_eq!(by_key["w_2"], vec!["aaa".to_string()]);
     }
 
     #[test]
     fn etym_renumber_does_not_swap_sig_frozen_rows() {
-        // Two senses created sig-frozen (no etym), later ENRICHED with etyms. If a
-        // future dump renumbers the etymology sections AND the forms drift, a
-        // sig-frozen row must never grab the other sense's forms via the (renumbered)
-        // etym — that is the silent run1<->run2 swap the lock exists to prevent.
+        // etym is informational only: a renumber + drift tombstones and appends,
+        // never re-pairs.
         let mut lock = Lock::new();
         lock.resolve(
             "x",
@@ -1592,16 +1978,16 @@ mod tests {
             vec![cand(&["alpha"]), cand(&["beta"])],
             false,
             "d1",
-        );
-        // d2: same forms, now carrying etyms -> rows get etym enriched (anchors stay sig:).
+        )
+        .unwrap();
         lock.resolve(
             "x",
             Pos::Noun,
             vec![cand_e(&["alpha"], 1), cand_e(&["beta"], 2)],
             false,
             "d2",
-        );
-
+        )
+        .unwrap();
         let dir = std::env::temp_dir().join("english_registry_test_etymswap");
         let _ = std::fs::create_dir_all(&dir);
         let path = dir.join("noun.lock.csv");
@@ -1615,8 +2001,8 @@ mod tests {
             vec![cand_e(&["alpha2"], 2), cand_e(&["beta2"], 1)],
             false,
             "d3",
-        );
-
+        )
+        .unwrap();
         let by_anchor: BTreeMap<String, &LockRow> =
             lock.rows().map(|r| (r.anchor.clone(), r)).collect();
         let a = by_anchor.get("sig:alpha").expect("alpha row");
@@ -1633,89 +2019,80 @@ mod tests {
             vec!["beta".to_string()],
             "beta must NOT inherit alpha's forms"
         );
-        // No published key silently changed meaning.
-        let v = check_immutability(&before, &lock);
+        assert_eq!(a.status, Status::Tombstone);
+        assert_eq!(b.status, Status::Tombstone);
+        let v = check_immutability(&before, &lock, &no_ov());
         assert!(v.is_empty(), "{v:?}");
     }
 
     #[test]
-    fn qid_enrichment_holds_key_through_drift() {
-        // qid is durable, so once enriched it must absorb form drift even for a
-        // row whose frozen anchor is a signature — in a polysemous lemma where the
-        // signature alone would lose the match.
+    fn tombstone_reappear_gets_unique_anchor() {
+        // A sense that vanished (tombstoned) then reappears re-derives the same
+        // anchor; the new row must get a UNIQUE anchor (not collide with its own
+        // tombstone) and a strictly-higher suffix.
         let mut lock = Lock::new();
-        lock.resolve(
-            "y",
-            Pos::Noun,
-            vec![cand(&["aaa"]), cand(&["bbb"])],
-            false,
-            "d1",
-        );
-        lock.resolve(
-            "y",
-            Pos::Noun,
-            vec![cand_q(&["aaa"], "Q1"), cand_q(&["bbb"], "Q2")],
-            false,
-            "d2",
-        );
-        // d3: the Q1 sense drifts aaa -> azz; the bare key must hold via qid.
-        let asg = lock.resolve(
-            "y",
-            Pos::Noun,
-            vec![cand_q(&["azz"], "Q1"), cand_q(&["bbb"], "Q2")],
-            false,
-            "d3",
-        );
-        assert_eq!(keys(&asg), vec!["y".to_string(), "y_2".to_string()]);
-        let by_key: BTreeMap<_, _> = asg
-            .iter()
-            .map(|x| (x.key.clone(), x.forms.clone()))
-            .collect();
+        lock.resolve("x", Pos::Noun, vec![cand(&["alpha"])], false, "d1")
+            .unwrap();
+        lock.resolve("x", Pos::Noun, vec![], false, "d2").unwrap(); // vanishes
+        let a = lock
+            .resolve("x", Pos::Noun, vec![cand(&["alpha"])], false, "d3")
+            .unwrap();
         assert_eq!(
-            by_key["y"],
-            vec!["azz".to_string()],
-            "qid Q1 held the bare key through drift"
+            keys(&a),
+            vec!["x_2".to_string()],
+            "reappearing sense gets a new suffix"
         );
-        assert_eq!(by_key["y_2"], vec!["bbb".to_string()]);
+        let anchors: Vec<String> = lock.rows().map(|r| r.anchor.clone()).collect();
+        let distinct: std::collections::HashSet<_> = anchors.iter().collect();
+        assert_eq!(
+            anchors.len(),
+            distinct.len(),
+            "anchors must stay unique: {anchors:?}"
+        );
+        assert!(check_immutability(&lock, &lock, &no_ov()).is_empty());
     }
 
     #[test]
-    fn ambiguous_drift_tombstones_and_appends() {
-        // Two sig-frozen senses both drift with no shared anchor: the design must
-        // tombstone the old suffixes and append at strictly-higher ones, never
-        // letting a new sense inherit a published key.
+    fn migrate_rewrites_legacy_tiers_to_sig() {
         let mut lock = Lock::new();
-        lock.resolve(
-            "z",
-            Pos::Noun,
-            vec![cand(&["p1"]), cand(&["q1"])],
-            false,
-            "d1",
-        );
-        let dir = std::env::temp_dir().join("english_registry_test_ambig");
-        let _ = std::fs::create_dir_all(&dir);
-        let path = dir.join("noun.lock.csv");
-        lock.save(&path).unwrap();
-        let before = Lock::load(&path).unwrap();
+        lock.insert_row(row("a", 1, "qid:Q1", Some("Q1"), &["ax"]));
+        lock.insert_row(row("b", 1, "etym:2#sig:bx", None, &["bx"]));
+        lock.insert_row(row_s("c", 1, "sid:en:c", "en:c", &["cx"]));
+        lock.insert_row(row("d", 1, "sig:dx", None, &["dx"]));
+        // Same lemma as an existing sig row -> needs the #u disambiguator.
+        let mut dup = row("d", 2, "qid:Q7", Some("Q7"), &["dx"]);
+        dup.status = Status::Tombstone;
+        lock.insert_row(dup);
 
-        let asg = lock.resolve(
-            "z",
-            Pos::Noun,
-            vec![cand(&["p2"]), cand(&["q2"])],
-            false,
-            "d2",
+        let migrated = lock.migrate_to_exact_anchors();
+        assert_eq!(migrated, 3);
+        let anchor_of = |lemma: &str, suffix: u32| {
+            lock.rows()
+                .find(|r| r.lemma == lemma && r.suffix == suffix)
+                .unwrap()
+                .anchor
+                .clone()
+        };
+        assert_eq!(anchor_of("a", 1), "sig:ax");
+        assert_eq!(anchor_of("b", 1), "sig:bx");
+        assert_eq!(anchor_of("c", 1), "sid:en:c", "sid rows keep their anchor");
+        assert_eq!(anchor_of("d", 1), "sig:dx", "sig rows keep their anchor");
+        assert_eq!(
+            anchor_of("d", 2),
+            "sig:dx#u2",
+            "collisions disambiguate by suffix"
         );
-        assert_eq!(keys(&asg), vec!["z_3".to_string(), "z_4".to_string()]);
-        assert!(check_immutability(&before, &lock).is_empty());
-        assert!(lock.notes.iter().any(|n| n.contains("AMBIGUOUS")));
+        assert!(lock.validate().is_empty(), "{:?}", lock.validate());
+        assert!(check_immutability(&lock, &lock, &no_ov()).is_empty());
     }
 
     #[test]
     fn reap_tombstones_absent_lemma() {
         let mut lock = Lock::new();
-        lock.resolve("alpha", Pos::Noun, vec![cand(&["alphae"])], false, "d1");
-        lock.resolve("beta", Pos::Noun, vec![cand(&["betae"])], false, "d1");
-        // Next refresh resolves only "alpha"; "beta" vanished from the dump.
+        lock.resolve("alpha", Pos::Noun, vec![cand(&["alphae"])], false, "d1")
+            .unwrap();
+        lock.resolve("beta", Pos::Noun, vec![cand(&["betae"])], false, "d1")
+            .unwrap();
         let mut resolved = std::collections::HashSet::new();
         resolved.insert("alpha".to_string());
         let rep = lock.reap(Pos::Noun, &resolved, "d2", 0.90);
@@ -1739,21 +2116,21 @@ mod tests {
 
     #[test]
     fn reap_skips_on_mass_absence() {
-        // A partial/bad dump that would retire most of the lock is refused wholesale.
         let mut lock = Lock::new();
-        lock.resolve("a", Pos::Noun, vec![cand(&["airr"])], false, "d1");
-        lock.resolve("b", Pos::Noun, vec![cand(&["birr"])], false, "d1");
-        lock.resolve("c", Pos::Noun, vec![cand(&["cirr"])], false, "d1");
-        lock.resolve("d", Pos::Noun, vec![cand(&["dirr"])], false, "d1");
+        lock.resolve("a", Pos::Noun, vec![cand(&["airr"])], false, "d1")
+            .unwrap();
+        lock.resolve("b", Pos::Noun, vec![cand(&["birr"])], false, "d1")
+            .unwrap();
+        lock.resolve("c", Pos::Noun, vec![cand(&["cirr"])], false, "d1")
+            .unwrap();
+        lock.resolve("d", Pos::Noun, vec![cand(&["dirr"])], false, "d1")
+            .unwrap();
         let mut resolved = std::collections::HashSet::new();
-        resolved.insert("a".to_string()); // 3 of 4 absent -> 75% > 10% guard
+        resolved.insert("a".to_string());
         let rep = lock.reap(Pos::Noun, &resolved, "d2", 0.10);
         assert!(rep.skipped);
         assert_eq!(rep.tombstoned, 0);
-        assert!(
-            lock.rows().all(|r| r.status == Status::Active),
-            "nothing tombstoned on a bad dump"
-        );
+        assert!(lock.rows().all(|r| r.status == Status::Active));
     }
 
     fn row(lemma: &str, suffix: u32, anchor: &str, qid: Option<&str>, forms: &[&str]) -> LockRow {
@@ -1773,31 +2150,15 @@ mod tests {
         }
     }
 
-    #[test]
-    fn cold_start_orders_by_strongest_anchor_not_forms() {
-        // etym 1 has lexicographically LARGER forms than etym 2. order_key must rank
-        // by the strong anchor (etym) first, so etym 1 takes the bare key regardless
-        // of spelling — the signature is the LAST resort, not the first.
-        let mut lock = Lock::new();
-        let mut e1 = cand(&["zzz"]);
-        e1.etym = Some(1);
-        let mut e2 = cand(&["aaa"]);
-        e2.etym = Some(2);
-        // pass in reverse order to prove ordering is by anchor, not input order
-        let a = lock.resolve("w", Pos::Noun, vec![e2, e1], false, "d1");
-        let by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
-        assert_eq!(
-            by_key["w"],
-            vec!["zzz".to_string()],
-            "etym 1 takes the bare key despite larger forms"
-        );
-        assert_eq!(by_key["w_2"], vec!["aaa".to_string()]);
+    fn row_s(lemma: &str, suffix: u32, anchor: &str, sid: &str, forms: &[&str]) -> LockRow {
+        let mut r = row(lemma, suffix, anchor, None, forms);
+        r.sid = Some(sid.to_string());
+        r
     }
 
     #[test]
     fn emit_collisions_detects_duplicate_keys() {
         let mut lock = Lock::new();
-        // suffix 1 and suffix 0 both map to make_key == bare "w".
         lock.insert_row(row("w", 1, "sig:a", None, &["a"]));
         lock.insert_row(row("w", 0, "sig:b", None, &["b"]));
         let c = lock.emit_collisions(Pos::Noun);
@@ -1806,133 +2167,38 @@ mod tests {
     }
 
     #[test]
-    fn validate_flags_suffix_zero_and_anchor_tier_mismatch() {
+    fn validate_flags_suffix_zero_and_legacy_tiers() {
         let mut lock = Lock::new();
         lock.insert_row(row("z", 0, "sig:z", None, &["z"])); // suffix 0
-        lock.insert_row(row("q", 2, "qid:Q1", None, &["q"])); // qid-tier anchor, qid field empty
+        lock.insert_row(row("q", 2, "qid:Q1", Some("Q1"), &["q"])); // legacy tier
+        lock.insert_row(row("e", 2, "etym:1", None, &["e"])); // legacy tier
         let v = lock.validate();
         assert!(v.iter().any(|m| m.contains("suffix 0")), "{v:?}");
+        assert_eq!(
+            v.iter().filter(|m| m.contains("unknown tier")).count(),
+            2,
+            "legacy qid/etym anchors must be rejected until migrated: {v:?}"
+        );
+        // sid-tier with empty sid field is inconsistent.
+        let mut bad_sid = row("s", 2, "sid:en:x", None, &["s"]);
+        bad_sid.sid = None;
+        let mut lock2 = Lock::new();
+        lock2.insert_row(bad_sid);
+        let v2 = lock2.validate();
         assert!(
-            v.iter()
-                .any(|m| m.contains("qid-tier but the qid field is empty")),
-            "{v:?}"
+            v2.iter()
+                .any(|m| m.contains("sid-tier but the sid field is empty")),
+            "{v2:?}"
         );
         // A clean lock validates empty.
         let mut ok = Lock::new();
-        ok.insert_row(row("good", 2, "qid:Q9", Some("Q9"), &["goods"]));
+        ok.insert_row(row("good", 2, "sig:goods", None, &["goods"]));
+        ok.insert_row(row_s("fine", 2, "sid:en:f", "en:f", &["fines"]));
         assert!(ok.validate().is_empty(), "{:?}", ok.validate());
     }
 
     #[test]
-    fn tombstone_reappear_gets_unique_anchor() {
-        // A sense that vanished (tombstoned) then reappears re-derives the same anchor;
-        // the new row must get a UNIQUE anchor (not collide with its own tombstone) and
-        // a strictly-higher suffix. Named guard for the bug the proptest first caught.
-        let mut lock = Lock::new();
-        let mut c = cand(&["alpha"]);
-        c.etym = Some(2);
-        lock.resolve("x", Pos::Noun, vec![c], false, "d1"); // x -> etym:2 @1
-        lock.resolve("x", Pos::Noun, vec![], false, "d2"); // vanishes -> tombstone @1
-        let mut c2 = cand(&["alpha"]);
-        c2.etym = Some(2);
-        let a = lock.resolve("x", Pos::Noun, vec![c2], false, "d3"); // reappears
-
-        assert_eq!(
-            keys(&a),
-            vec!["x_2".to_string()],
-            "reappearing sense gets a new suffix"
-        );
-        let anchors: Vec<String> = lock.rows().map(|r| r.anchor.clone()).collect();
-        let distinct: std::collections::HashSet<_> = anchors.iter().collect();
-        assert_eq!(
-            anchors.len(),
-            distinct.len(),
-            "anchors must stay unique: {anchors:?}"
-        );
-        assert!(check_immutability(&lock, &lock).is_empty());
-    }
-
-    #[test]
-    fn single_sense_rematch_refuses_conflicting_qid() {
-        // Phase B(b) must not hand a pinned single-sense key to a candidate whose
-        // durable anchor PROVES it is a different sense: qid Q1 pinned, refresh
-        // brings one candidate with qid Q2 and different forms -> tombstone the
-        // old row and append, never re-match.
-        let mut lock = Lock::new();
-        lock.resolve("w", Pos::Noun, vec![cand_q(&["foo"], "Q1")], false, "d1");
-        let a = lock.resolve("w", Pos::Noun, vec![cand_q(&["bar"], "Q2")], false, "d2");
-        assert_eq!(
-            keys(&a),
-            vec!["w_2".to_string()],
-            "a conflicting qid must veto the sole-remaining-sense re-match"
-        );
-        let old = lock
-            .rows()
-            .find(|r| r.qid.as_deref() == Some("Q1"))
-            .unwrap();
-        assert_eq!(old.status, Status::Tombstone, "the Q1 row must be retired");
-        let new = lock
-            .rows()
-            .find(|r| r.qid.as_deref() == Some("Q2"))
-            .unwrap();
-        assert_eq!(new.suffix, 2);
-    }
-
-    #[test]
-    fn single_sense_rematch_counts_tombstoned_history() {
-        // A tombstoned sibling proves the lemma was polysemous, so the 1-out/1-in
-        // guess is off the table: the sole unanchored candidate (plausibly the
-        // RETIRED sense reappearing with drifted forms) must not inherit the
-        // surviving row's published key.
-        let mut lock = Lock::new();
-        lock.resolve(
-            "x",
-            Pos::Noun,
-            vec![cand(&["alpha"]), cand(&["beta"])],
-            false,
-            "d1",
-        ); // alpha=1, beta=2
-        lock.resolve("x", Pos::Noun, vec![cand(&["alpha"])], false, "d2"); // beta tombstoned
-        let a = lock.resolve("x", Pos::Noun, vec![cand(&["beta2"])], false, "d3");
-        assert_eq!(
-            keys(&a),
-            vec!["x_3".to_string()],
-            "the sole candidate must append, not capture suffix 1"
-        );
-        let survivor = lock
-            .rows()
-            .find(|r| r.suffix == 1 && r.lemma == "x")
-            .unwrap();
-        assert_eq!(
-            survivor.status,
-            Status::Tombstone,
-            "the drifted-away suffix-1 sense retires instead of being guessed"
-        );
-    }
-
-    #[test]
-    fn sig_fallback_refuses_conflicting_qid() {
-        // Phase A's last-resort signature fallback: a candidate whose forms
-        // coincide with a row's stored forms but whose qid differs must NOT
-        // capture that row — the genuine qid match must win regardless of
-        // candidate order.
-        let row_q1 = row("r", 1, "qid:Q1", Some("Q1"), &["foo"]);
-        let impostor = cand_q(&["foo"], "Q2"); // same forms, different identity
-        let genuine = cand_q(&["bar"], "Q1"); // drifted forms, same identity
-        let uniq = BatchUniq::of(std::slice::from_ref(&impostor));
-        assert!(
-            !anchor_exact_match(&row_q1, &impostor, &uniq),
-            "sig coincidence must not override a conflicting qid"
-        );
-        let uniq = BatchUniq::of(std::slice::from_ref(&genuine));
-        assert!(anchor_exact_match(&row_q1, &genuine, &uniq));
-    }
-
-    #[test]
     fn deleting_a_tombstone_row_is_a_violation() {
-        // Tombstones are append-only too: deleting one un-retires its suffix
-        // (Phase C allocates from max+1), so check_immutability must flag the
-        // drop just like an active-row deletion.
         let mut old = Lock::new();
         old.insert_row(row("x", 1, "sig:a", None, &["a"]));
         let mut tomb = row("x", 2, "sig:b", None, &["b"]);
@@ -1942,7 +2208,7 @@ mod tests {
         let mut new = Lock::new();
         new.insert_row(row("x", 1, "sig:a", None, &["a"]));
 
-        let v = check_immutability(&old, &new);
+        let v = check_immutability(&old, &new, &no_ov());
         assert!(
             v.iter()
                 .any(|m| m.contains("tombstone") && m.contains("DROPPED")),
@@ -1952,14 +2218,11 @@ mod tests {
 
     #[test]
     fn validate_flags_bad_forms_arity_and_empty_columns() {
-        // An active verb row with 2 of 4 columns, and one with an empty column,
-        // would emit "" inflections via the pad-with-default generation path.
         let mut lock = Lock::new();
         let mut short = row("v", 2, "sig:a|b", None, &["a", "b"]);
         short.pos = Pos::Verb;
         lock.insert_row(short);
         lock.insert_row(row("n", 2, "sig:", None, &[""]));
-        // A tombstone with odd forms is exempt (never emitted).
         let mut tomb = row("t", 2, "sig:x", None, &[]);
         tomb.status = Status::Tombstone;
         lock.insert_row(tomb);
@@ -1980,6 +2243,30 @@ mod tests {
     }
 
     #[test]
+    fn load_rejects_garbage_etym_but_accepts_empty() {
+        let dir = std::env::temp_dir().join("english_registry_test_etymparse");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("noun.lock.csv");
+        let header =
+            "lemma,pos,suffix,anchor,qid,sid,etym,status,first_seen,last_seen,forms,glosses";
+        std::fs::write(
+            &path,
+            format!("{header}\nw,noun,1,sig:ws,,,,active,d,d,ws,\n"),
+        )
+        .unwrap();
+        let lock = Lock::load(&path).unwrap();
+        assert_eq!(lock.rows().next().unwrap().etym, None);
+
+        std::fs::write(
+            &path,
+            format!("{header}\nw,noun,1,sig:ws,,,one,active,d,d,ws,\n"),
+        )
+        .unwrap();
+        let err = Lock::load(&path).unwrap_err().to_string();
+        assert!(err.contains("invalid etym"), "{err}");
+    }
+
+    #[test]
     fn split_key_round_trips_make_key() {
         assert_eq!(split_key("die_2"), Some(("die", 2)));
         assert_eq!(split_key("die"), None);
@@ -1996,8 +2283,6 @@ mod tests {
     #[test]
     #[should_panic(expected = "overflows u32")]
     fn split_key_overflow_is_a_hard_error() {
-        // Silent coercion once aliased a suffixed key onto the bare lemma during
-        // seeding; a >u32 digit run can only come from a corrupt table.
         let _ = split_key("foo_4294967296");
     }
 
@@ -2005,10 +2290,14 @@ mod tests {
     fn reap_respects_max_fraction_boundary() {
         let build = || {
             let mut lock = Lock::new();
-            lock.resolve("a", Pos::Noun, vec![cand(&["air"])], false, "d1");
-            lock.resolve("b", Pos::Noun, vec![cand(&["bir"])], false, "d1");
-            lock.resolve("c", Pos::Noun, vec![cand(&["cir"])], false, "d1");
-            lock.resolve("d", Pos::Noun, vec![cand(&["dir"])], false, "d1");
+            lock.resolve("a", Pos::Noun, vec![cand(&["air"])], false, "d1")
+                .unwrap();
+            lock.resolve("b", Pos::Noun, vec![cand(&["bir"])], false, "d1")
+                .unwrap();
+            lock.resolve("c", Pos::Noun, vec![cand(&["cir"])], false, "d1")
+                .unwrap();
+            lock.resolve("d", Pos::Noun, vec![cand(&["dir"])], false, "d1")
+                .unwrap();
             lock
         };
         let mut resolved = std::collections::HashSet::new();
@@ -2016,13 +2305,11 @@ mod tests {
         resolved.insert("b".to_string());
         resolved.insert("c".to_string());
 
-        // 1 of 4 absent = 25%; with max_fraction 0.25 that is NOT > 0.25 -> reaps.
         let mut at = build();
         let rep = at.reap(Pos::Noun, &resolved, "d2", 0.25);
         assert!(!rep.skipped, "25% at the 0.25 boundary should reap");
         assert_eq!(rep.tombstoned, 1);
 
-        // 1 of 4 absent vs a 0.10 ceiling = 25% > 10% -> skipped.
         let mut over = build();
         let rep = over.reap(Pos::Noun, &resolved, "d2", 0.10);
         assert!(rep.skipped, "25% over the 0.10 ceiling must be refused");
@@ -2031,7 +2318,6 @@ mod tests {
 
     #[test]
     fn compact_drops_tombstones_and_closes_gaps_in_order() {
-        // Build cruft: x -> suffixes 1..4, tombstone 1 and 3 by vanishing them.
         let mut lock = Lock::new();
         lock.resolve(
             "x",
@@ -2039,25 +2325,23 @@ mod tests {
             vec![cand(&["a"]), cand(&["b"]), cand(&["c"]), cand(&["d"])],
             false,
             "d1",
-        ); // a=1, b=2, c=3, d=4 (alphabetical cold start)
+        )
+        .unwrap(); // a=1, b=2, c=3, d=4 (alphabetical cold start)
         lock.resolve(
             "x",
             Pos::Noun,
             vec![cand(&["b"]), cand(&["d"])],
             false,
             "d2",
-        ); // 1,3 tombstoned
+        )
+        .unwrap(); // 1,3 tombstoned
 
         let report = lock.compact();
         assert_eq!(report.tombstones_dropped, 2);
         let rows: Vec<(u32, String)> = lock.rows().map(|r| (r.suffix, r.sig())).collect();
-        // b (was 2) and d (was 4) survive; gaps close to 2,3 — but suffix 1 is NOT
-        // re-occupied (bare-slot reservation is unknowable after the fact).
         assert_eq!(rows, vec![(2, "b".to_string()), (3, "d".to_string())]);
         assert!(lock.validate().is_empty());
-        // Renumbering is exactly what check_immutability flags — compaction is only
-        // sanctioned behind a DATA_MAJOR bump.
-        assert!(check_immutability(&lock, &lock).is_empty());
+        assert!(check_immutability(&lock, &lock, &no_ov()).is_empty());
     }
 
     #[test]
@@ -2069,7 +2353,8 @@ mod tests {
             vec![cand(&["p"]), cand(&["q"])],
             false,
             "d1",
-        ); // p=1, q=2
+        )
+        .unwrap(); // p=1, q=2
         let report = lock.compact();
         assert!(report.is_noop(), "{report:?}");
         let rows: Vec<u32> = lock.rows().map(|r| r.suffix).collect();
@@ -2079,8 +2364,9 @@ mod tests {
     #[test]
     fn compact_removes_fully_tombstoned_lemmas() {
         let mut lock = Lock::new();
-        lock.resolve("z", Pos::Noun, vec![cand(&["zz"])], false, "d1");
-        lock.resolve("z", Pos::Noun, vec![], false, "d2"); // vanished -> tombstone
+        lock.resolve("z", Pos::Noun, vec![cand(&["zz"])], false, "d1")
+            .unwrap();
+        lock.resolve("z", Pos::Noun, vec![], false, "d2").unwrap(); // vanished
         let report = lock.compact();
         assert_eq!(report.tombstones_dropped, 1);
         assert_eq!(
@@ -2091,29 +2377,38 @@ mod tests {
     }
 
     #[test]
-    fn etym_frozen_row_rematches_on_form_drift() {
-        // Complement to the sig-frozen no-swap test: an etym-FROZEN row whose forms
-        // drift (same etym) DOES carry its key forward, rather than tombstoning.
-        let mut lock = Lock::new();
-        let mut c1 = cand(&["aaa"]);
-        c1.etym = Some(1);
-        let mut c2 = cand(&["bbb"]);
-        c2.etym = Some(2);
-        lock.resolve("x", Pos::Noun, vec![c1, c2], false, "d1"); // etym:1 -> x, etym:2 -> x2
+    fn overrides_load_round_trip_and_strictness() {
+        let dir = std::env::temp_dir().join("english_registry_test_ovload");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("overrides.csv");
+        std::fs::write(
+            &path,
+            "lemma,pos,suffix,old_anchor,new_anchor\nw,noun,1,sig:foo,sig:bar\n",
+        )
+        .unwrap();
+        let ov = Overrides::load(&path).unwrap();
+        assert_eq!(ov.rows.len(), 1);
+        assert_eq!(ov.rows[0].old_anchor, "sig:foo");
 
-        let mut e1 = cand(&["azz"]); // etym 1's form drifts aaa -> azz
-        e1.etym = Some(1);
-        let mut e2 = cand(&["bbb"]);
-        e2.etym = Some(2);
-        let a = lock.resolve("x", Pos::Noun, vec![e1, e2], false, "d2");
-        let by_key: BTreeMap<_, _> = a.iter().map(|x| (x.key.clone(), x.forms.clone())).collect();
-        assert_eq!(
-            by_key["x"],
-            vec!["azz".to_string()],
-            "etym-frozen row kept its key through drift"
+        // Missing file -> empty set; malformed row -> hard error.
+        assert!(
+            Overrides::load(dir.join("absent.csv"))
+                .unwrap()
+                .rows
+                .is_empty()
         );
-        assert_eq!(by_key["x_2"], vec!["bbb".to_string()]);
-        assert!(check_immutability(&lock, &lock).is_empty());
+        std::fs::write(
+            &path,
+            "lemma,pos,suffix,old_anchor,new_anchor\nw,noun,one,sig:foo,sig:bar\n",
+        )
+        .unwrap();
+        assert!(Overrides::load(&path).is_err());
+        std::fs::write(
+            &path,
+            "lemma,pos,suffix,old_anchor,new_anchor\nw,noun,1,sig:foo,sig:foo\n",
+        )
+        .unwrap();
+        assert!(Overrides::load(&path).is_err(), "old == new is malformed");
     }
 }
 
@@ -2122,13 +2417,12 @@ mod proptests {
     use super::*;
     use proptest::prelude::*;
 
-    /// One observed sense: forms + the full set of anchor tiers (etym / qid / sid),
-    /// so the property test exercises qid/sid matching and the `#sig` tiebreaks, not
-    /// just sig/etym. Small alphabets keep the search dense (and force collisions).
-    /// Exactly ONE form column: the stream resolves as `Pos::Noun`, and
-    /// `Lock::validate` (asserted every step) enforces per-POS column arity.
-    /// Multi-column signatures are covered by the verb unit tests and the
-    /// bootstrap round-trip.
+    /// One observed sense: forms plus the metadata tiers (etym / qid / sid). sid
+    /// exercises the durable tier (bare, composite, and drift paths); qid/etym
+    /// exercise the informational columns and the qid conflict veto. Small
+    /// alphabets keep the search dense (and force collisions). Exactly ONE form
+    /// column: the stream resolves as `Pos::Noun`, and `Lock::validate`
+    /// (asserted every step) enforces per-POS column arity.
     type Sense = (Vec<String>, Option<u32>, Option<String>, Option<String>);
     fn sense() -> impl Strategy<Value = Sense> {
         (
@@ -2140,8 +2434,8 @@ mod proptests {
     }
 
     /// A stream of dumps. Each dump carries an independent `had_regular` flag (to
-    /// exercise the cold-start-at-2 branch) and senses for TWO lemmas (to confirm the
-    /// per-(lemma,pos) buckets stay independent).
+    /// exercise the cold-start-at-2 branch) and senses for TWO lemmas (to confirm
+    /// the per-(lemma,pos) buckets stay independent).
     fn dumps() -> impl Strategy<Value = Vec<(bool, Vec<Sense>, Vec<Sense>)>> {
         let dump = (
             any::<bool>(),
@@ -2151,28 +2445,62 @@ mod proptests {
         prop::collection::vec(dump, 1..6usize)
     }
 
+    /// Keep the smaller of the existing and incoming value — the same
+    /// order-independent merge `LemmaAcc::observe` uses in the extract layer, so
+    /// the strategy feeds resolve() the anchor combinations the pipeline really
+    /// produces (min-merged across same-signature senses).
+    fn merge_min<T: Ord>(slot: &mut Option<T>, incoming: Option<T>) {
+        if let Some(new) = incoming {
+            match slot {
+                Some(cur) if *cur <= new => {}
+                _ => *slot = Some(new),
+            }
+        }
+    }
+
     fn to_candidates(senses: &[Sense]) -> Vec<Candidate> {
-        // Dedup by signature, as the extract layer does before calling resolve.
         let mut by_sig: BTreeMap<String, Candidate> = BTreeMap::new();
         for (forms, etym, qid, sid) in senses {
-            let mut c = Candidate::new(forms.clone());
-            c.etym = *etym;
-            c.qid = qid.clone();
-            c.sid = sid.clone();
-            by_sig.entry(c.sig()).or_insert(c);
+            let c = by_sig
+                .entry(forms_sig(forms))
+                .or_insert_with(|| Candidate::new(forms.clone()));
+            merge_min(&mut c.etym, *etym);
+            merge_min(&mut c.qid, qid.clone());
+            merge_min(&mut c.sid, sid.clone());
         }
         by_sig.into_values().collect()
+    }
+
+    /// A comparable snapshot of a lock's full row state.
+    fn snapshot(lock: &Lock) -> Vec<(String, String, u32, bool, Vec<String>)> {
+        let mut s: Vec<_> = lock
+            .rows()
+            .map(|r| {
+                (
+                    r.lemma.clone(),
+                    r.anchor.clone(),
+                    r.suffix,
+                    r.status == Status::Active,
+                    r.forms.clone(),
+                )
+            })
+            .collect();
+        s.sort();
+        s
     }
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1024))]
 
-        /// Across an arbitrary stream of refreshes — over qid/sid/etym/sig anchors,
-        /// both had_regular branches, and two independent lemmas — no published
-        /// (active) anchor ever changes its suffix and no tombstoned suffix is
-        /// revived/reused. Verified by check_immutability between consecutive on-disk
-        /// states and by an independent (lemma, anchor) -> suffix monotonicity ledger.
-        /// Exercises the real resolve -> save -> load cycle.
+        /// Across an arbitrary stream of refreshes — over sid/sig anchors,
+        /// informational qid/etym, both had_regular branches, and two independent
+        /// lemmas — resolution never errors, no published (active) anchor ever
+        /// changes its suffix, no tombstoned suffix is revived/reused, and the
+        /// entire outcome is invariant under permutation of the candidate input
+        /// order. Verified by check_immutability between consecutive on-disk
+        /// states, an independent (lemma, anchor) -> suffix monotonicity ledger,
+        /// and a mirrored resolve over reversed candidates. Exercises the real
+        /// resolve -> save -> load cycle.
         #[test]
         fn published_keys_never_move_or_revive(dumps in dumps()) {
             let dir = std::env::temp_dir().join(format!("english_proptest_lock_{}", std::process::id()));
@@ -2188,10 +2516,21 @@ mod proptests {
 
                     lock.save(&path).unwrap();
                     let before = Lock::load(&path).unwrap();
-                    lock.resolve(lemma, Pos::Noun, candidates, *had_regular, &format!("d{i}"));
+
+                    // Mirror: same dump, reversed candidate order, on a cloned lock.
+                    let mut mirror = lock.clone();
+                    let mut reversed = candidates.clone();
+                    reversed.reverse();
+
+                    let res = lock.resolve(lemma, Pos::Noun, candidates, *had_regular, &format!("d{i}"));
+                    prop_assert!(res.is_ok(), "resolve errored: {:?}", res.err());
+                    let mres = mirror.resolve(lemma, Pos::Noun, reversed, *had_regular, &format!("d{i}"));
+                    prop_assert!(mres.is_ok());
+                    prop_assert_eq!(snapshot(&lock), snapshot(&mirror), "candidate order changed the outcome");
 
                     // No published key changed meaning between the two on-disk states.
-                    prop_assert!(check_immutability(&before, &lock).is_empty());
+                    let no_ov = Overrides::default();
+                    prop_assert!(check_immutability(&before, &lock, &no_ov).is_empty());
                     // The lock is always internally valid.
                     prop_assert!(lock.validate().is_empty());
 

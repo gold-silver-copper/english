@@ -342,7 +342,7 @@ pub fn extract_irregular_nouns(
         if candidates.is_empty() {
             continue;
         }
-        lock.resolve(&lemma, Pos::Noun, candidates, had_regular, date);
+        lock.resolve(&lemma, Pos::Noun, candidates, had_regular, date)?;
         resolved.insert(lemma);
     }
     let reap = lock.reap(Pos::Noun, &resolved, date, REAP_MAX_FRACTION);
@@ -499,7 +499,7 @@ pub fn extract_irregular_adjectives(
         if candidates.is_empty() {
             continue;
         }
-        lock.resolve(&lemma, Pos::Adj, candidates, had_regular, date);
+        lock.resolve(&lemma, Pos::Adj, candidates, had_regular, date)?;
         resolved.insert(lemma);
     }
     let reap = lock.reap(Pos::Adj, &resolved, date, REAP_MAX_FRACTION);
@@ -703,7 +703,7 @@ pub fn extract_verb_conjugations(
         if candidates.is_empty() {
             continue;
         }
-        lock.resolve(&lemma, Pos::Verb, candidates, had_regular, date);
+        lock.resolve(&lemma, Pos::Verb, candidates, had_regular, date)?;
         resolved.insert(lemma);
     }
     let reap = lock.reap(Pos::Verb, &resolved, date, REAP_MAX_FRACTION);
@@ -796,7 +796,8 @@ mod tests {
                 vec![Candidate::new(vec![format!("word{c}en")])],
                 false,
                 "d0",
-            );
+            )
+            .unwrap();
         }
         let report = extract_irregular_nouns(&path, &mut lock, "d1").unwrap();
         assert!(

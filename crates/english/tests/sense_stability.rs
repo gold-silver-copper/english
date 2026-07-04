@@ -55,7 +55,7 @@ fn bare_keys_serve_the_canonical_irregular() {
     assert_eq!(English::adj("hot", &Degree::Comparative), "hotter");
     assert_eq!(English::adj("good", &Degree::Superlative), "best");
     // ...while a plainly-attested regular still reserves the bare key: the bare
-    // "die" stays regular ("dies") and the irregular sense lives at die2.
+    // "die" stays regular ("dies") and the irregular sense lives at die_2.
     assert_eq!(English::noun("die", &Number::Plural), "dies");
     assert_eq!(English::noun("die_2", &Number::Plural), "dice");
     // A genuinely periphrastic adjective keeps rule output on the bare key.
@@ -95,16 +95,16 @@ fn trailing_digits_strip_only_for_real_table_keys() {
 fn attested_variants_are_numbered_keys_in_listing_order() {
     // Every plain attested variant is its own numbered key. abide attests the
     // regular conjugation too, so the bare key serves the rule (abided) — like
-    // die/die2 — while the first-LISTED irregular (abode, the canonical form,
+    // die/die_2 — while the first-LISTED irregular (abode, the canonical form,
     // not the lexicographic accident "abid") takes the lowest numbered key and
     // the archaic variant the next one.
     assert_eq!(past_finite("abide"), "abided");
     assert_eq!(past_finite("abide_2"), "abode");
     assert_eq!(past_finite("abide_3"), "abid");
-    // crow: bare serves the regular "crowed"; the British variant is crow2.
+    // crow: bare serves the regular "crowed"; the British variant is crow_2.
     assert_eq!(past_finite("crow"), "crowed");
     assert_eq!(past_finite("crow_2"), "crew");
-    // dive: bare regular "dived"; the North American irregular is dive2.
+    // dive: bare regular "dived"; the North American irregular is dive_2.
     assert_eq!(past_finite("dive"), "dived");
     assert_eq!(past_finite("dive_2"), "dove");
 }

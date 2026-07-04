@@ -24,9 +24,9 @@
 //! a semver-major crate release. ENGLISH_ALLOW_RELOCK exists as a local
 //! development escape hatch only and is never set in CI.
 
-use extractor::bootstrap::{generate_tables, load_locks, save_locks, seed};
+use extractor::bootstrap::{generate_tables, load_locks, parse_phf_pairs, save_locks, seed};
 use extractor::helpers::Pos;
-use extractor::registry::{CompactReport, Lock, check_immutability};
+use extractor::registry::{CompactReport, Lock, Overrides, check_immutability, make_key};
 use std::env;
 use std::error::Error;
 use std::fs;
@@ -66,6 +66,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Some("check-registry") => check_registry(),
         Some("accuracy") => accuracy(args.collect()),
         Some("compact") => compact(),
+        Some("migrate-anchors") => migrate_anchors(),
         Some("regen-tables") => regen_tables(),
         Some("report-coverage") => report_coverage(),
         Some("-h") | Some("--help") | None => {
@@ -120,6 +121,9 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
     let assignments_dir = default_assignments_dir()?;
     let generated_dir = default_generated_dir()?;
     let (noun, verb, adj) = load_locks(&assignments_dir)?;
+    // The reviewed rematch sanctions: consulted so a sanctioned re-anchor is not
+    // flagged as a drop, and cross-checked so the file itself can never go stale.
+    let overrides = Overrides::load(assignments_dir.join("overrides.csv"))?;
 
     let mut violations = Vec::new();
 
@@ -182,10 +186,10 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    // Anchor-tier coverage on every gate run: most rows are still frozen on weak
-    // `sig:` anchors (bootstrap legacy), and drift-resilience improves as qid/sid
-    // enrichment lands — keep that visible in CI logs so erosion or stagnation is
-    // noticed, not discovered after a bad refresh.
+    // Metadata coverage on every gate run: most rows are content-anchored (`sig:`)
+    // and only sid rows survive form drift without a review — keep the mix visible
+    // in CI logs so erosion or stagnation is noticed, not discovered after a bad
+    // refresh. (qid/etym are informational columns, never matching authority.)
     for (name, lock) in [("noun", &noun), ("verb", &verb), ("adj", &adj)] {
         let c = lock.coverage();
         println!(
@@ -198,8 +202,11 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
         // 1. Internal consistency (unique anchors, no two identities share a suffix)
         //    plus strict structural validation (suffix>=1, anchor<->fields, no emit
         //    key collisions). Always enforced, never relaxed by the relock window.
-        violations.extend(check_immutability(working, working));
+        violations.extend(check_immutability(working, working, &overrides));
         violations.extend(working.validate());
+        // Overrides must always correspond to real rows (pending or applied);
+        // a stale override is a lie about what is sanctioned.
+        violations.extend(overrides.check(working, pos, false));
 
         // 2. Immutability vs. the baseline lock, if present there.
         if let Some(rev) = &baseline {
@@ -207,7 +214,7 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
             match git_show(&root, &format!("{rev}:{rel}"))? {
                 Some(csv) => {
                     let base_lock = load_lock_from_str(&csv)?;
-                    violations.extend(check_immutability(&base_lock, working));
+                    violations.extend(check_immutability(&base_lock, working, &overrides));
                 }
                 None => {
                     println!(
@@ -248,6 +255,60 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
         }
     }
     let _ = fs::remove_dir_all(&tmp);
+
+    // 4. Emitter-independent membership: parse the committed tables themselves and
+    //    require a 1:1 correspondence between active lock rows and table keys. The
+    //    byte-compare above regenerates with the SAME emitter it verifies, so a bug
+    //    in the emitter (e.g. a filter silently dropping rows) byte-matches its own
+    //    output; this check reads the tables through an independent path
+    //    (parse_phf_pairs) and catches exactly that class.
+    for (pos, lock, name) in [
+        (Pos::Noun, &noun, "noun_phf.rs"),
+        (Pos::Verb, &verb, "verb_phf.rs"),
+        (Pos::Adj, &adj, "adj_phf.rs"),
+    ] {
+        let table_path = generated_dir.join(name);
+        if !table_path.exists() {
+            continue; // already flagged as missing above
+        }
+        let table_keys: std::collections::HashSet<String> = parse_phf_pairs(&table_path)?
+            .into_iter()
+            .map(|(k, _)| k)
+            .collect();
+        let mut active = 0usize;
+        let mut missing: Vec<String> = Vec::new();
+        for r in lock.rows() {
+            if r.pos != pos || r.status != extractor::registry::Status::Active {
+                continue;
+            }
+            active += 1;
+            let key = make_key(&r.lemma, r.suffix);
+            if !table_keys.contains(&key) {
+                missing.push(key);
+            }
+        }
+        if !missing.is_empty() {
+            let shown = missing
+                .iter()
+                .take(10)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ");
+            violations.push(format!(
+                "{name}: {} active lock row(s) have no table entry (e.g. {shown}{})",
+                missing.len(),
+                if missing.len() > 10 { ", ..." } else { "" }
+            ));
+        }
+        if table_keys.len() != active {
+            violations.push(format!(
+                "{name} has {} keys but the {} lock has {} active rows — table and lock disagree",
+                table_keys.len(),
+                pos.as_str(),
+                active
+            ));
+        }
+    }
 
     if violations.is_empty() {
         println!("check-registry: OK — no published key changed meaning; tables match the lock.");
@@ -294,6 +355,19 @@ fn resolve_baseline(root: &Path) -> Result<Option<String>, Box<dyn Error>> {
             // the previous tip (first parent) instead so direct pushes to main
             // are still checked.
             if in_ci && Some(&mb) == head.as_ref() {
+                // Prefer the true pre-push remote tip (github.event.before,
+                // exported by ci.yml as GITHUB_EVENT_BEFORE): HEAD^ only gates
+                // the FINAL commit of a multi-commit direct push. All-zeros
+                // means branch creation; an unresolvable sha (force push that
+                // discarded it) falls back to HEAD^.
+                if let Some(before) = env::var("GITHUB_EVENT_BEFORE")
+                    .ok()
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty() && !s.chars().all(|c| c == '0'))
+                    && let Some(sha) = git_rev_parse(root, &before)?
+                {
+                    return Ok(Some(sha));
+                }
                 return match git_rev_parse(root, "HEAD^")? {
                     Some(prev) => Ok(Some(prev)),
                     None => Err(
@@ -447,6 +521,59 @@ fn compact() -> Result<(), Box<dyn Error>> {
     println!(
         "This is a BREAKING data change: ship it as a semver-major release and call out the \
          renumbered keys in the changelog. check-registry accepts it because of the DATA_MAJOR bump."
+    );
+    Ok(())
+}
+
+// --------------------------------------------------------------------------
+// migrate-anchors: one-time re-anchoring to the exact-match model. Rewrites
+// every legacy qid/etym-tier frozen anchor to the row's current form signature
+// (sid/sig rows are untouched); suffixes, forms, and statuses never change, so
+// the emitted tables are byte-identical. Rewriting frozen anchors is exactly
+// what check-registry flags, so this bumps DATA_MAJOR like compact does.
+// --------------------------------------------------------------------------
+fn migrate_anchors() -> Result<(), Box<dyn Error>> {
+    let assignments_dir = default_assignments_dir()?;
+    let generated_dir = default_generated_dir()?;
+    let major_path = assignments_dir.join("DATA_MAJOR");
+    let (mut noun, mut verb, mut adj) = load_locks(&assignments_dir)?;
+
+    let mut total = 0usize;
+    for (name, lock) in [("noun", &mut noun), ("verb", &mut verb), ("adj", &mut adj)] {
+        let n = lock.migrate_to_exact_anchors();
+        println!("migrate-anchors {name:>4}: re-anchored {n} row(s)");
+        total += n;
+    }
+    if total == 0 {
+        println!("migrate-anchors: nothing to do — every anchor is already sid/sig tier.");
+        return Ok(());
+    }
+
+    let invalid: Vec<String> = noun
+        .validate()
+        .into_iter()
+        .chain(verb.validate())
+        .chain(adj.validate())
+        .collect();
+    if !invalid.is_empty() {
+        return Err(format!(
+            "refusing to write migrated lockfiles — {} structural violation(s):\n  - {}",
+            invalid.len(),
+            invalid.join("\n  - ")
+        )
+        .into());
+    }
+
+    save_locks(&assignments_dir, &noun, &verb, &adj)?;
+    // Anchors are not part of the emitted tables; regenerate anyway to prove it.
+    generate_tables(&noun, &verb, &adj, &generated_dir)?;
+
+    let old_major = read_data_major_file(&major_path)?;
+    let new_major = old_major + 1;
+    fs::write(&major_path, format!("{new_major}\n"))?;
+    println!(
+        "migrate-anchors: re-anchored {total} row(s); DATA_MAJOR {old_major} -> {new_major}. \
+         Published keys and emitted forms are unchanged; the bump sanctions the anchor rewrite."
     );
     Ok(())
 }
@@ -681,6 +808,10 @@ fn print_usage() {
     eprintln!("  accuracy           Measure % of attested Wiktionary forms the library reproduces");
     eprintln!(
         "  compact            Data-major release: drop tombstones, close suffix gaps, bump DATA_MAJOR"
+    );
+    eprintln!("  regen-tables       Dump-free: regenerate the PHF tables from the lockfiles");
+    eprintln!(
+        "  migrate-anchors    One-time: re-anchor legacy qid/etym rows to form signatures (bumps DATA_MAJOR)"
     );
     eprintln!("  report-coverage    Show anchor-tier coverage of the lockfiles");
 }
