@@ -174,10 +174,26 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
             None => 1, // file predates the policy -> data-major 1
         };
         if working_major > base_major {
+            let working_version = read_crate_version(&root.join("crates/english/Cargo.toml"))?;
+            let base_version = git_show(&root, &format!("{rev}:crates/english/Cargo.toml"))?
+                .and_then(|s| parse_crate_version(&s));
+            match base_version {
+                Some(base_version)
+                    if is_breaking_version_bump(base_version, working_version) => {}
+                Some(base_version) => violations.push(format!(
+                    "DATA_MAJOR bumped {base_major} -> {working_major}, but english crate version did not make a semver-breaking bump ({} -> {}). A data re-key must ship as a breaking crate release.",
+                    base_version,
+                    working_version
+                )),
+                None => violations.push(format!(
+                    "DATA_MAJOR bumped {base_major} -> {working_major}, but the baseline english crate version could not be read; refusing to waive a re-key without release-version evidence"
+                )),
+            }
             println!(
                 "check-registry: DATA_MAJOR bump {base_major} -> {working_major}: SANCTIONED \
-                 compaction/re-key release — cross-version immutability waived for this change; \
-                 internal consistency + table sync still enforced."
+                 compaction/re-key release — cross-version immutability waived for this change \
+                 only when the english crate version also makes a breaking bump; internal \
+                 consistency + table sync still enforced."
             );
             baseline = None;
         } else if working_major < base_major {
@@ -593,6 +609,56 @@ fn read_data_major_file(path: &Path) -> Result<u32, Box<dyn Error>> {
 
 fn parse_data_major(s: &str) -> Option<u32> {
     s.trim().parse::<u32>().ok()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CrateVersion {
+    major: u32,
+    minor: u32,
+    patch: u32,
+}
+
+impl std::fmt::Display for CrateVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
+    }
+}
+
+/// Parse the package version from a Cargo.toml string. This tiny parser is
+/// intentionally dependency-free for xtask: it reads the first `version =` line,
+/// which in `crates/english/Cargo.toml` belongs to `[package]`.
+fn parse_crate_version(toml: &str) -> Option<CrateVersion> {
+    let version = toml.lines().find_map(|line| {
+        let (key, value) = line.split_once('=')?;
+        let value = value
+            .split('#')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .trim_matches('"');
+        (key.trim() == "version").then_some(value)
+    })?;
+    let mut parts = version.split('.');
+    Some(CrateVersion {
+        major: parts.next()?.parse().ok()?,
+        minor: parts.next()?.parse().ok()?,
+        patch: parts.next()?.parse().ok()?,
+    })
+}
+
+fn read_crate_version(path: &Path) -> Result<CrateVersion, Box<dyn Error>> {
+    let s = fs::read_to_string(path)?;
+    parse_crate_version(&s).ok_or_else(|| format!("unparseable crate version in {path:?}").into())
+}
+
+/// SemVer's breaking-release signal. For 0.y.z crates, a minor bump is the
+/// breaking line Cargo users understand; for 1+ crates, require a major bump.
+fn is_breaking_version_bump(old: CrateVersion, new: CrateVersion) -> bool {
+    if old.major == 0 {
+        new.major > 0 || (new.major == 0 && new.minor > old.minor)
+    } else {
+        new.major > old.major
+    }
 }
 
 // --------------------------------------------------------------------------

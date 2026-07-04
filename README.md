@@ -20,6 +20,13 @@ Evaluation of the English inflector (`cargo xtask accuracy`, using the 2026-07-0
 
 *Note: Benchmarking was done under a worst-case scenario; typical real-world usage is 50~ nanoseconds faster.*
 
+### Breaking data-major 2 / crate 0.3
+
+Sense-numbered keys now use the canonical underscore format (`die_2`, `lie_2`).
+The pre-0.3 adjacent-digit spelling (`die2`, `lie2`) was removed because it is
+ambiguous with ordinary digit-bearing words such as `mp3`, `F16`, and `F2`, which
+are now always treated opaquely unless they are exact table keys.
+
 ## 📦 Installation
 
 ```

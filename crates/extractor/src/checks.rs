@@ -90,15 +90,26 @@ pub fn run_checks(filtered_json_path: &Path, artifacts_dir: &Path) -> Result<(),
 
 /// The library reaches a homograph sense through its numbered key; a slot counts
 /// as reproduced if ANY published key of the lemma produces an attested form.
-/// The key list is derived from the ACTUAL generated tables (via
-/// `english::__table_entries`), never from a fixed probe window — a hard-coded
-/// `_2..=_N` range silently undercounts the moment any lemma's suffixes grow
-/// past N.
+/// The key list is derived from the ACTUAL generated tables, never from a fixed
+/// probe window — a hard-coded `_2..=_N` range silently undercounts the moment any
+/// lemma's suffixes grow past N.
 #[cfg(feature = "checks")]
-fn published_keys(table_keys: &[&'static str]) -> std::collections::BTreeMap<String, Vec<String>> {
+fn generated_keys(name: &str) -> Result<Vec<String>, Box<dyn Error>> {
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../english/generated")
+        .join(name);
+    Ok(crate::bootstrap::parse_phf_pairs(path)?
+        .into_iter()
+        .map(|(k, _)| k)
+        .collect())
+}
+
+#[cfg(feature = "checks")]
+fn published_keys(table_keys: &[String]) -> std::collections::BTreeMap<String, Vec<String>> {
     let mut by_lemma: std::collections::BTreeMap<String, Vec<String>> =
         std::collections::BTreeMap::new();
     for key in table_keys {
+        let key = key.as_str();
         // The one shared decoder for the emitted-key format (see registry::split_key).
         let lemma = crate::registry::split_key(key)
             .map(|(base, _)| base)
@@ -173,9 +184,8 @@ pub fn check_noun_plurals(
         }
     }
 
-    let (noun_keys, _, _) = english::__table_entries();
-    let key_strs: Vec<&'static str> = noun_keys.iter().map(|(k, _)| *k).collect();
-    let by_lemma = published_keys(&key_strs);
+    let noun_keys = generated_keys("noun_phf.rs")?;
+    let by_lemma = published_keys(&noun_keys);
 
     let mut score = Score::default();
     for (lemma, forms) in &attested {
@@ -287,9 +297,8 @@ pub fn check_verb_conjugations(
         ),
     };
 
-    let (_, verb_keys, _) = english::__table_entries();
-    let key_strs: Vec<&'static str> = verb_keys.iter().map(|(k, _)| *k).collect();
-    let by_lemma = published_keys(&key_strs);
+    let verb_keys = generated_keys("verb_phf.rs")?;
+    let by_lemma = published_keys(&verb_keys);
 
     let mut score = Score::default();
     for (lemma, slots) in &attested {
@@ -362,9 +371,8 @@ pub fn check_adjective_forms(
         }
     }
 
-    let (_, _, adj_keys) = english::__table_entries();
-    let key_strs: Vec<&'static str> = adj_keys.iter().map(|(k, _)| *k).collect();
-    let by_lemma = published_keys(&key_strs);
+    let adj_keys = generated_keys("adj_phf.rs")?;
+    let by_lemma = published_keys(&adj_keys);
 
     let mut score = Score::default();
     for (lemma, slots) in &attested {

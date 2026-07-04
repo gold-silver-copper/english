@@ -9,8 +9,8 @@
 //! The tables and the rules are NOT independent: the extractor drops any
 //! candidate the rules already predict, so the tables hold exactly the
 //! attested exceptions and nothing else. Changing a rule in `english-core`
-//! therefore requires regenerating the tables — the `rule_table_sync`
-//! integration test fails loudly if that is forgotten.
+//! therefore requires regenerating the tables — the rule/table sync test fails
+//! loudly if that is forgotten.
 //!
 //! # Sense-numbered keys
 //!
@@ -18,7 +18,9 @@
 //! keys (`lie` -> *lied*, `lie_2` -> *lay*; `die_2` -> *dice*). The underscore
 //! is unambiguous: the extractor never admits a lemma containing `_`, so a
 //! trailing `_<digits>` can only be a sense suffix — digit-bearing words
-//! (`mp3`, `F16`, `F2`) can never collide with one. Key-to-sense assignments
+//! (`mp3`, `F16`, `F2`) can never collide with one. Pre-0.3 adjacent digit
+//! keys (`die2`) were intentionally retired at the data-major-2 re-key because
+//! they collided with ordinary digit-bearing input. Key-to-sense assignments
 //! are pinned in `data/assignments/*.lock.csv` (see `extractor::registry`) and
 //! are immutable within a data-major version; the form VALUES may update in
 //! place as Wiktionary is edited.
@@ -61,15 +63,45 @@ mod verb_phf {
 }
 use verb_phf::*;
 
-/// The base of a sense-suffixed key: sense suffixes are `_<digits>` (underscore
-/// plus a number, e.g. `die_2`). Returns `None` when the word carries no suffix.
+/// The one parsed representation of a caller-provided inflection key.
+///
+/// This deliberately accepts only the canonical `_<digits>` suffix spelling. The
+/// old adjacent-digit spelling (`die2`) is not parsed: it is indistinguishable
+/// from real digit-bearing words (`mp3`, `F16`, `F2`) and was retired at the
+/// data-major-2 re-key. Keeping this behind a tiny enum forces every noun/verb/
+/// adjective path to make the same table-key-gated stripping decision.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SenseKey<'a> {
+    /// A real published key or alias of a published base lemma; inflect as `base`.
+    Published { base: &'a str },
+    /// Not a table-backed sense key; inflect the input opaquely by rule.
+    Opaque(&'a str),
+}
+
+impl<'a> SenseKey<'a> {
+    fn resolve(word: &'a str, is_key: impl Fn(&str) -> bool) -> Self {
+        match canonical_sense_suffix_base(word) {
+            Some(base) if is_key(word) || is_key(base) => SenseKey::Published { base },
+            _ => SenseKey::Opaque(word),
+        }
+    }
+
+    fn lemma(self) -> &'a str {
+        match self {
+            SenseKey::Published { base } | SenseKey::Opaque(base) => base,
+        }
+    }
+}
+
+/// The base of a canonical sense-suffixed key: sense suffixes are `_<digits>`
+/// (underscore plus a number, e.g. `die_2`). Returns `None` when the word carries
+/// no canonical suffix.
 ///
 /// The underscore makes this unambiguous: the extractor never emits a lemma
 /// containing `_` (such words fail its character filter), so a trailing
 /// `_<digits>` can ONLY be a sense suffix. Digit-bearing words (`"mp3"`, `"F16"`,
-/// `"F2"`, `"co2"`) have no underscore and are therefore never mangled — no
-/// plausibility heuristics needed.
-fn split_sense_suffix(word: &str) -> Option<&str> {
+/// `"F2"`, `"co2"`) have no underscore and are therefore never mangled.
+fn canonical_sense_suffix_base(word: &str) -> Option<&str> {
     let (base, digits) = word.rsplit_once('_')?;
     if base.is_empty() || digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
         return None;
@@ -87,10 +119,7 @@ fn split_sense_suffix(word: &str) -> Option<&str> {
 /// (`get_*(word)` then `get_*(base)`), so `"child_2"` inflects exactly like
 /// `"child"` rather than mixing stripped singulars with regular-rule plurals.
 fn base_lemma(word: &str, is_key: impl Fn(&str) -> bool) -> &str {
-    match split_sense_suffix(word) {
-        Some(base) if is_key(word) || is_key(base) => base,
-        _ => word,
-    }
+    SenseKey::resolve(word, is_key).lemma()
 }
 
 /// How a capitalized input's casing is restored onto a lowercase table value.
@@ -184,25 +213,6 @@ fn ci_lookup_with_base<T>(
             None
         }
     })
-}
-
-/// Test-only visibility into the generated tables (integration tests cannot see
-/// the private generated modules). Not part of the public API.
-#[doc(hidden)]
-#[allow(clippy::type_complexity)] // hidden test hook; a named type would be pure ceremony
-pub fn __table_entries() -> (
-    Vec<(&'static str, &'static str)>,
-    Vec<(
-        &'static str,
-        (&'static str, &'static str, &'static str, &'static str),
-    )>,
-    Vec<(&'static str, (&'static str, &'static str))>,
-) {
-    (
-        PLURAL_MAP.entries().map(|(k, v)| (*k, *v)).collect(),
-        VERB_MAP.entries().map(|(k, v)| (*k, *v)).collect(),
-        ADJECTIVE_MAP.entries().map(|(k, v)| (*k, *v)).collect(),
-    )
 }
 
 /// Entry point for English inflection and morphology.
@@ -426,4 +436,90 @@ pub fn count(noun: &str, count: u32) -> String {
 /// ```
 pub fn count_with_number(noun: &str, amount: u32) -> String {
     format!("{} {}", amount, count(noun, amount))
+}
+
+#[cfg(test)]
+mod rule_table_sync_tests {
+    //! Guard on the layering contract between `english-core`'s regular rules and the
+    //! generated tables: a BARE key's row must hold something the rules cannot
+    //! predict — a bare row equal to the rule's output is dead weight, and its
+    //! appearance means a core rule changed without regenerating the tables.
+
+    use super::{ADJECTIVE_MAP, PLURAL_MAP, VERB_MAP};
+    use english_core::EnglishCore;
+    use english_core::grammar::{Form, Number, Person, Tense};
+    use std::collections::HashSet;
+
+    fn split_suffix(key: &str) -> Option<&str> {
+        let (base, digits) = key.rsplit_once('_')?;
+        (!base.is_empty() && !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()))
+            .then_some(base)
+    }
+
+    fn is_bare(key: &str) -> bool {
+        split_suffix(key).is_none()
+    }
+
+    fn suffixed_lemmas<'a, T>(entries: &'a [(&'a str, T)]) -> HashSet<&'a str> {
+        entries
+            .iter()
+            .filter_map(|(k, _)| split_suffix(k))
+            .collect()
+    }
+
+    #[test]
+    fn sibling_less_bare_rows_hold_only_what_the_rules_cannot_predict() {
+        let nouns: Vec<_> = PLURAL_MAP.entries().map(|(k, v)| (*k, *v)).collect();
+        let verbs: Vec<_> = VERB_MAP.entries().map(|(k, v)| (*k, *v)).collect();
+        let adjs: Vec<_> = ADJECTIVE_MAP.entries().map(|(k, v)| (*k, *v)).collect();
+        let mut redundant = Vec::new();
+
+        let noun_sib = suffixed_lemmas(&nouns);
+        for (key, plural) in &nouns {
+            if is_bare(key)
+                && !noun_sib.contains(key)
+                && EnglishCore::pluralize_noun(key) == *plural
+            {
+                redundant.push(format!("noun {key} -> {plural} (rule already predicts it)"));
+            }
+        }
+
+        let verb_sib = suffixed_lemmas(&verbs);
+        for (key, (third, past, pres_part, past_part)) in &verbs {
+            if !is_bare(key) || verb_sib.contains(key) {
+                continue;
+            }
+            let p = |tense: &Tense, form: &Form| {
+                EnglishCore::verb(key, &Person::Third, &Number::Singular, tense, form)
+            };
+            if p(&Tense::Present, &Form::Finite) == *third
+                && p(&Tense::Past, &Form::Finite) == *past
+                && p(&Tense::Present, &Form::Participle) == *pres_part
+                && p(&Tense::Past, &Form::Participle) == *past_part
+            {
+                redundant.push(format!("verb {key} (rule already predicts all four forms)"));
+            }
+        }
+
+        let adj_sib = suffixed_lemmas(&adjs);
+        for (key, (comp, sup)) in &adjs {
+            if is_bare(key)
+                && !adj_sib.contains(key)
+                && EnglishCore::comparative(key) == *comp
+                && EnglishCore::superlative(key) == *sup
+            {
+                redundant.push(format!(
+                    "adj {key} -> {comp}/{sup} (rule already predicts it)"
+                ));
+            }
+        }
+
+        assert!(
+            redundant.is_empty(),
+            "{} table row(s) are redundant with the regular rules — a core rule changed \
+             without regenerating: run `cargo xtask refresh-data`:\n  {}",
+            redundant.len(),
+            redundant.join("\n  ")
+        );
+    }
 }

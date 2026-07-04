@@ -267,12 +267,13 @@ impl Entry {
             .cloned()
     }
 
-    /// First non-empty gloss, kept purely as a review aid in the lockfile.
+    /// Deterministic non-empty gloss, kept purely as a review aid in the lockfile.
     pub fn first_gloss(&self) -> Option<String> {
         self.senses
             .iter()
             .flat_map(|s| s.glosses.iter())
-            .find(|g| !g.is_empty())
+            .filter(|g| !g.is_empty())
+            .min()
             .cloned()
     }
 }
@@ -409,5 +410,27 @@ mod tests {
         // A soft form ahead of a plain one never wins regardless of position.
         let soft_first = forms(&[("aaa", 1), ("bbb", 0)]);
         assert_eq!(choose_form(&soft_first, "reg", false), Some("bbb".into()));
+    }
+
+    #[test]
+    fn persisted_gloss_is_order_independent() {
+        let entry = Entry {
+            word: "w".into(),
+            pos: "noun".into(),
+            forms: None,
+            lang_code: "en".into(),
+            etymology_number: None,
+            senses: vec![
+                Sense {
+                    glosses: vec!["z gloss".into()],
+                    ..Sense::default()
+                },
+                Sense {
+                    glosses: vec!["a gloss".into()],
+                    ..Sense::default()
+                },
+            ],
+        };
+        assert_eq!(entry.first_gloss(), Some("a gloss".into()));
     }
 }

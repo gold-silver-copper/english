@@ -318,7 +318,16 @@ impl Overrides {
                     o.pos.as_str(),
                     o.suffix
                 )),
-                Some(r) if r.anchor == o.new_anchor => {} // applied; inert
+                Some(r) if r.anchor == o.new_anchor && r.status == Status::Active => {} // applied; inert
+                Some(r) if r.anchor == o.new_anchor => v.push(format!(
+                    "override {} [{}] suffix {}: row carries the applied anchor `{}` but is \
+                     tombstoned, so the sanctioned rematch is not actually published — remove \
+                     or regenerate the override from the active baseline",
+                    o.lemma,
+                    o.pos.as_str(),
+                    o.suffix,
+                    o.new_anchor
+                )),
                 Some(r) if r.anchor == o.old_anchor && r.status == Status::Tombstone => {
                     // Application only ever targets ACTIVE rows, so a pending
                     // override whose row is already tombstoned (the refresh that
@@ -481,7 +490,20 @@ impl Lock {
     /// human-readable violations; empty = valid.
     pub fn validate(&self) -> Vec<String> {
         let mut v = Vec::new();
+        let mut anchor_counts: BTreeMap<(String, String, String), usize> = BTreeMap::new();
+        let mut suffix_occupants: BTreeMap<(String, String, u32), Vec<String>> = BTreeMap::new();
         for r in self.rows() {
+            *anchor_counts
+                .entry((
+                    r.lemma.clone(),
+                    r.pos.as_str().to_string(),
+                    r.anchor.clone(),
+                ))
+                .or_default() += 1;
+            suffix_occupants
+                .entry((r.lemma.clone(), r.pos.as_str().to_string(), r.suffix))
+                .or_default()
+                .push(r.anchor.clone());
             // Tombstones are exempt: they are never emitted, and their forms are
             // whatever they last were.
             if r.status == Status::Active {
@@ -579,6 +601,22 @@ impl Lock {
                     r.anchor,
                     other
                 )),
+            }
+        }
+        for ((lemma, pos, anchor), n) in &anchor_counts {
+            if *n > 1 {
+                v.push(format!(
+                    "{lemma} [{pos}] anchor `{anchor}` is shared by {n} rows (anchors must be unique per lemma)"
+                ));
+            }
+        }
+        for ((lemma, pos, suffix), anchors) in &suffix_occupants {
+            if anchors.len() > 1 {
+                v.push(format!(
+                    "{lemma} [{pos}] suffix {suffix} is held by {} identities at once: {}",
+                    anchors.len(),
+                    anchors.join(", ")
+                ));
             }
         }
         for pos in [Pos::Adj, Pos::Noun, Pos::Verb] {
@@ -1213,7 +1251,11 @@ pub fn check_immutability(old: &Lock, new: &Lock, overrides: &Overrides) -> Vec<
                     .is_some_and(|ov| {
                         new_by_suffix
                             .get(&(r.lemma.clone(), r.pos.as_str().to_string(), r.suffix))
-                            .is_some_and(|occ| occ.iter().any(|nr| nr.anchor == ov.new_anchor))
+                            .is_some_and(|occ| {
+                                occ.iter().any(|nr| {
+                                    nr.anchor == ov.new_anchor && nr.status == Status::Active
+                                })
+                            })
                     });
                 if !waived {
                     // BOTH statuses are append-only: dropping an active row loses a
@@ -1962,6 +2004,85 @@ mod tests {
         assert!(!check_immutability(&before, &lock, &no_ov()).is_empty());
         // Post-refresh, the override must be in the applied state.
         assert!(ov.check(&lock, Pos::Noun, true).is_empty());
+    }
+
+    #[test]
+    fn applied_override_must_still_publish_an_active_row() {
+        let mut before = Lock::new();
+        before
+            .resolve("w", Pos::Noun, vec![cand(&["foo"])], false, "d1")
+            .unwrap();
+        let ov = Overrides {
+            rows: vec![Override {
+                lemma: "w".into(),
+                pos: Pos::Noun,
+                suffix: 1,
+                old_anchor: "sig:foo".into(),
+                new_anchor: "sig:bar".into(),
+            }],
+        };
+        let mut after = Lock::new();
+        after.insert_row(LockRow {
+            lemma: "w".into(),
+            pos: Pos::Noun,
+            suffix: 1,
+            anchor: "sig:bar".into(),
+            qid: None,
+            sid: None,
+            etym: None,
+            status: Status::Tombstone,
+            first_seen: "d1".into(),
+            last_seen: "d2".into(),
+            forms: vec!["bar".into()],
+            gloss: None,
+        });
+
+        let stale = ov.check(&after, Pos::Noun, true);
+        assert!(
+            stale
+                .iter()
+                .any(|m| m.contains("applied anchor") && m.contains("tombstoned")),
+            "{stale:?}"
+        );
+        let violations = check_immutability(&before, &after, &ov);
+        assert!(
+            violations.iter().any(|m| m.contains("DROPPED")),
+            "a tombstoned new_anchor must not waive the dropped published key: {violations:?}"
+        );
+    }
+
+    #[test]
+    fn validate_rejects_duplicate_anchors_and_suffixes() {
+        let mut lock = Lock::new();
+        for (suffix, anchor, form) in [(1, "sig:a", "a"), (2, "sig:a", "a"), (2, "sig:b", "b")] {
+            lock.insert_row(LockRow {
+                lemma: "w".into(),
+                pos: Pos::Noun,
+                suffix,
+                anchor: anchor.into(),
+                qid: None,
+                sid: None,
+                etym: None,
+                status: Status::Active,
+                first_seen: "d1".into(),
+                last_seen: "d1".into(),
+                forms: vec![form.into()],
+                gloss: None,
+            });
+        }
+        let violations = lock.validate();
+        assert!(
+            violations
+                .iter()
+                .any(|m| m.contains("anchor `sig:a` is shared by 2 rows")),
+            "{violations:?}"
+        );
+        assert!(
+            violations
+                .iter()
+                .any(|m| m.contains("suffix 2 is held by 2 identities")),
+            "{violations:?}"
+        );
     }
 
     #[test]
