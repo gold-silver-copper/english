@@ -36,10 +36,18 @@
 //!    paradigm appends, so a published key's forms can never silently change
 //!    meaning — by construction, not by heuristic.
 //!
-//! qid/etym remain as informational columns (review aids, coverage stats) but
-//! are never matching authority: QIDs are entry-level (shared across all of an
-//! entry's senses) and etymology numbers are renumberable section ordinals —
-//! both proved capable of silently re-pairing published keys when trusted.
+//! qid/etym remain as informational columns (review aids, coverage stats) and
+//! are never POSITIVE matching authority: QIDs are entry-level (shared across
+//! all of an entry's senses) and etymology numbers are renumberable section
+//! ordinals — both proved capable of silently re-pairing published keys when
+//! trusted to select a match. One deliberate exception: a qid (or sid) that
+//! conflicts — present on BOTH sides with different values — is a NEGATIVE
+//! signal that vetoes an otherwise-exact match (see [`exact_match`]). A veto
+//! can only push toward the conservative outcome (tombstone + append +
+//! proposal), never select a row, so it cannot re-pair a key; without it, a
+//! coincidental form collision could hand a published key to a sense that
+//! provably carries a different identity. etym is not a veto (renumbering is
+//! routine upstream noise).
 //!
 //! # How [`Lock::resolve`] proceeds
 //!
@@ -177,7 +185,9 @@ pub struct LockRow {
     /// this; it changes only through a reviewed override.
     pub anchor: String,
     /// Informational metadata (review aids / coverage stats), refreshed from the
-    /// last matched candidate. NEVER matching authority.
+    /// last matched candidate. Never POSITIVE matching authority; a conflicting
+    /// qid/sid on both sides is a negative veto in [`exact_match`] (it can only
+    /// force tombstone + append, never select a match).
     pub qid: Option<String>,
     pub sid: Option<String>,
     pub etym: Option<u32>,
@@ -236,10 +246,16 @@ pub struct Override {
 }
 
 /// The reviewed overrides file. An override is *pending* while its row still
-/// carries `old_anchor` (the next refresh applies it), *applied* once the row
-/// carries `new_anchor` (inert; safe to delete), and *stale* if the row carries
-/// neither or does not exist (a hard check failure — the file must never drift
-/// out of correspondence with the locks).
+/// carries `old_anchor` AND is active (the next refresh applies it), *applied*
+/// once the row carries `new_anchor` (inert; safe to delete), and *stale* if
+/// the row carries neither, does not exist, or is tombstoned while still
+/// pending (a hard check failure — the file must never drift out of
+/// correspondence with the locks).
+///
+/// Workflow: overrides apply to ACTIVE rows only, so sanctioning a proposal
+/// means re-running the refresh from the committed baseline — `git restore
+/// data/assignments`, add the override, `cargo xtask refresh-data` — NOT
+/// stacking the override on top of the already-tombstoned refresh output.
 #[derive(Debug, Clone, Default)]
 pub struct Overrides {
     pub rows: Vec<Override>,
@@ -303,6 +319,21 @@ impl Overrides {
                     o.suffix
                 )),
                 Some(r) if r.anchor == o.new_anchor => {} // applied; inert
+                Some(r) if r.anchor == o.old_anchor && r.status == Status::Tombstone => {
+                    // Application only ever targets ACTIVE rows, so a pending
+                    // override whose row is already tombstoned (the refresh that
+                    // emitted the proposal was committed as-is) can never apply —
+                    // accepting it as "pending" would just fail the NEXT refresh.
+                    v.push(format!(
+                        "override {} [{}] suffix {}: the target row is tombstoned, so this \
+                         override can never apply. Restore the lockfiles to the committed \
+                         baseline (git restore data/assignments) and re-run refresh-data so it \
+                         applies to the active row, or remove the override.",
+                        o.lemma,
+                        o.pos.as_str(),
+                        o.suffix
+                    ));
+                }
                 Some(r) if r.anchor == o.old_anchor => {
                     if require_applied {
                         v.push(format!(
@@ -347,7 +378,9 @@ impl Overrides {
 /// A rematch the resolver REFUSED to make (exact matching found no claim, but an
 /// unmatched pinned row and a leftover candidate coexist for the lemma). Written
 /// to `pending-rematches.csv` for human review; approving one means adding the
-/// corresponding row to `overrides.csv`.
+/// corresponding row to `overrides.csv`, restoring the lockfiles to the
+/// committed baseline, and re-running the refresh (see [`Overrides`]) — the
+/// override then carries the key forward instead of the tombstone + append.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Proposal {
     pub lemma: String,
@@ -1463,7 +1496,9 @@ fn primary_anchor_token(c: &Candidate, sid_dup: &std::collections::HashSet<Strin
 
 /// Write refused rematches for human review. One row per (retired row,
 /// leftover candidate) pairing; approving one means copying its first five
-/// columns into `overrides.csv` (they are already in that file's shape).
+/// columns into `overrides.csv` (they are already in that file's shape),
+/// restoring the lockfiles to the committed baseline, and re-running the
+/// refresh so the override applies to the still-active row.
 pub fn save_proposals(
     proposals: &[Proposal],
     path: impl AsRef<Path>,
@@ -1954,6 +1989,19 @@ mod tests {
         assert!(pending.check(&lock, Pos::Noun, false).is_empty());
         let v = pending.check(&lock, Pos::Noun, true);
         assert!(v.iter().any(|m| m.contains("still pending")), "{v:?}");
+
+        // A pending override whose target row is TOMBSTONED can never apply
+        // (application only targets active rows): committing the proposal-emitting
+        // refresh as-is and stacking the override on top must fail check-registry
+        // NOW, not the next refresh.
+        lock.resolve("w", Pos::Noun, vec![cand(&["bar"])], false, "d2")
+            .unwrap(); // sig:foo @1 tombstones, sig:bar appends @2
+        let v = pending.check(&lock, Pos::Noun, false);
+        assert!(
+            v.iter()
+                .any(|m| m.contains("tombstoned") && m.contains("git restore")),
+            "{v:?}"
+        );
     }
 
     #[test]

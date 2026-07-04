@@ -72,4 +72,6 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
+      # --all-features so the `checks`-gated accuracy harness (compiled by
+      # `cargo xtask accuracy`) is linted too, not just the default surface.
+      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings

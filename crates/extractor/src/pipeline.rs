@@ -148,8 +148,9 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
         let path = config.artifacts_dir.join("pending-rematches.csv");
         save_proposals(&proposals, &path)?;
         println!(
-            "{} rematch proposal(s) written to {} — review and sanction real matches via \
-             data/assignments/overrides.csv.",
+            "{} rematch proposal(s) written to {} — to sanction one: add its first five \
+             columns to data/assignments/overrides.csv, `git restore data/assignments`, \
+             and re-run refresh-data (overrides apply to the still-active row).",
             proposals.len(),
             path.display()
         );

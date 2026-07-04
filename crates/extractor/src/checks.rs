@@ -114,8 +114,8 @@ fn published_keys(table_keys: &[&'static str]) -> std::collections::BTreeMap<Str
 /// The keys to query for one lemma: the bare lemma itself (rule fallback is
 /// always reachable) plus every suffixed key the tables actually publish.
 #[cfg(feature = "checks")]
-fn keys_for<'a>(
-    by_lemma: &'a std::collections::BTreeMap<String, Vec<String>>,
+fn keys_for(
+    by_lemma: &std::collections::BTreeMap<String, Vec<String>>,
     lemma: &str,
 ) -> Vec<String> {
     let mut keys = vec![lemma.to_string()];
@@ -146,7 +146,7 @@ pub fn check_noun_plurals(
 
     let output_path = output_path.as_ref();
     let (reader, mut writer) = base_setup(input_path.as_ref(), output_path);
-    writer.write_record(&["lemma", "attested_plurals", "library_said"])?;
+    writer.write_record(["lemma", "attested_plurals", "library_said"])?;
 
     // lemma -> plain attested plurals, aggregated across every entry.
     let mut attested: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
@@ -214,7 +214,7 @@ pub fn check_verb_conjugations(
 
     let output_path = output_path.as_ref();
     let (reader, mut writer) = base_setup(input_path.as_ref(), output_path);
-    writer.write_record(&["lemma", "slot", "attested_forms", "library_said"])?;
+    writer.write_record(["lemma", "slot", "attested_forms", "library_said"])?;
 
     const SLOTS: usize = 4; // 3sg, past, pres_part, past_part
     let slot_name = ["3sg", "past", "pres_part", "past_part"];
@@ -331,7 +331,7 @@ pub fn check_adjective_forms(
 
     let output_path = output_path.as_ref();
     let (reader, mut writer) = base_setup(input_path.as_ref(), output_path);
-    writer.write_record(&["lemma", "degree", "attested_forms", "library_said"])?;
+    writer.write_record(["lemma", "degree", "attested_forms", "library_said"])?;
 
     // Periphrastic attestations ("more free") are legitimate for adjectives, so
     // no word_is_proper filter on the forms here.

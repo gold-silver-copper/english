@@ -253,9 +253,12 @@ resolution never guesses:
   genuinely new senses get **append-only** higher suffixes; vanished senses are **tombstoned**
   and their suffix is retired forever. When a retired row and a new sense look like a possible
   rematch (e.g. an upstream spelling correction), the refresh writes a **rematch proposal** to
-  `data/intermediate/pending-rematches.csv` instead of guessing; a human sanctions it by adding
-  the corresponding row to `data/assignments/overrides.csv`, and the next refresh applies it —
-  the tool proposes, the reviewer decides, git records why.
+  `data/intermediate/pending-rematches.csv` instead of guessing. A human sanctions it by adding
+  the corresponding row to `data/assignments/overrides.csv`, restoring the lockfiles to the
+  committed baseline (`git restore data/assignments`), and re-running `refresh-data` — the
+  override then carries the key forward in place of the tombstone + append. The tool proposes,
+  the reviewer decides, git records why. (Overrides apply to active rows only; `check-registry`
+  rejects a pending override whose target row is already tombstoned.)
 * `cargo xtask check-registry` fails the build if any previously-committed key changed meaning:
   anchors, suffixes, and **forms** are immutable (bare `sid:` drift and sanctioned overrides are
   the only exceptions), and the committed PHF tables must correspond 1:1 to the active lock rows.
