@@ -494,6 +494,12 @@ pub fn extract_irregular_adjectives(input_path: impl AsRef<Path>) -> Result<Tabl
 /// a fully synthesized tuple would masquerade as a regular attestation and
 /// wrongly reserve the bare key. `be` is skipped entirely: its suppletive
 /// paradigm lives in `english-core`.
+///
+/// Variant tuples are synthesized SLOT-WISE (each slot's plain alternates paired
+/// by within-entry listing index); the published guarantee is per-slot
+/// reachability, not that a numbered tuple was attested as a matched pair. See
+/// the inline comment at the variant loop for the participle's dependent fallback
+/// and why slot-wise synthesis (not entry grouping) preserves reachability.
 pub fn extract_verb_conjugations(input_path: impl AsRef<Path>) -> Result<Table, Box<dyn Error>> {
     let input_path = input_path.as_ref();
     let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
