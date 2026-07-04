@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 61faab75a8e93d95a028cbcc85dae6c21495846574dc7b8ad4ad88b9f6eac84a # shrinks to dumps = [[(["a"], Some(2))], [], [(["a"], Some(2))]]
+cc 95544945997a57152f488cf41c73c9e0162ed4b08291446f8283e12a6faa2a38 # shrinks to dumps = [(false, [(["a"], None, None, Some("s1")), (["bc"], None, None, Some("s1"))], []), (false, [], []), (false, [(["a"], None, None, Some("s1")), (["b"], None, None, Some("s1"))], [])]

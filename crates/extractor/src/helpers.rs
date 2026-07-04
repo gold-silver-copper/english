@@ -6,6 +6,7 @@
 //! - [`SOFT_TAGS`]: real but nonstandard variants — kept in candidate pools so
 //!   they can inform decisions, but NEVER emitted as output;
 //! - plain (no tag from either set): the only forms the library publishes.
+//!
 //! [`tag_rank`] encodes this as None/Some(1)/Some(0); `EXCLUDE ∪ SOFT` must
 //! equal the legacy `BAD_TAGS` set (asserted by a test) so the emitted-form
 //! pool never silently widens or narrows relative to the published crate.
@@ -317,7 +318,7 @@ pub fn entry_is_proper(entry: &Entry, pos: &str) -> bool {
 /// be confused with a numbered key. Admitting underscores here would break
 /// suffix parsing across the `english` crate.
 pub fn word_is_proper(word: &str) -> bool {
-    if contains_bad_chars(&word) || !word.is_ascii() || contains_number(&word) {
+    if contains_bad_chars(word) || !word.is_ascii() || contains_number(word) {
         return false;
     }
     true

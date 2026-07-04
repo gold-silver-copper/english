@@ -86,7 +86,7 @@ fn split_sense_suffix(word: &str) -> Option<&str> {
 /// must treat the input as that base lemma — table lookups fall back to the base
 /// (`get_*(word)` then `get_*(base)`), so `"child_2"` inflects exactly like
 /// `"child"` rather than mixing stripped singulars with regular-rule plurals.
-fn base_lemma<'a>(word: &'a str, is_key: impl Fn(&str) -> bool) -> &'a str {
+fn base_lemma(word: &str, is_key: impl Fn(&str) -> bool) -> &str {
     match split_sense_suffix(word) {
         Some(base) if is_key(word) || is_key(base) => base,
         _ => word,
@@ -189,6 +189,7 @@ fn ci_lookup_with_base<T>(
 /// Test-only visibility into the generated tables (integration tests cannot see
 /// the private generated modules). Not part of the public API.
 #[doc(hidden)]
+#[allow(clippy::type_complexity)] // hidden test hook; a named type would be pure ceremony
 pub fn __table_entries() -> (
     Vec<(&'static str, &'static str)>,
     Vec<(

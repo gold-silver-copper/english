@@ -12,6 +12,7 @@
 //! - Bare keys WITH numbered siblings: a rule-equal bare row (`ditsy` ->
 //!   ditsier, with the periphrastic sense at `ditsy_2`) anchors the bare key —
 //!   deleting it would let the sibling's forms migrate onto the bare key.
+//!
 //! A rule-equal bare row with NO siblings has neither excuse: it is dead weight
 //! and means a core rule changed without regenerating.
 

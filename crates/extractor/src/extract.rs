@@ -751,6 +751,44 @@ pub fn strip_trailing_number(word: &str) -> &str {
     split_key(word).map(|(base, _)| base).unwrap_or(word)
 }
 
+pub fn analyze_and_write_suffix_rules(
+    input_path: impl AsRef<Path>,
+    output_path: impl AsRef<Path>,
+) -> Result<(), Box<dyn Error>> {
+    let input_path = input_path.as_ref();
+    let output_path = output_path.as_ref();
+    let file = File::open(input_path)?;
+    let mut rdr = ReaderBuilder::new().from_reader(BufReader::new(file));
+
+    let mut frequency: HashMap<(String, String), usize> = HashMap::new();
+    for result in rdr.records() {
+        let record = result?;
+        let singular_raw = record.get(0).unwrap();
+        let plural = record.get(1).unwrap();
+
+        let singular = strip_trailing_number(singular_raw);
+        let pair = suffix_rule(singular, plural);
+        *frequency.entry(pair).or_insert(0) += 1;
+    }
+
+    let mut frequency_rows: Vec<_> = frequency.into_iter().collect();
+    frequency_rows.sort_by(|a, b| {
+        b.1.cmp(&a.1)
+            .then_with(|| a.0.0.cmp(&b.0.0))
+            .then_with(|| a.0.1.cmp(&b.0.1))
+    });
+
+    let mut writer = WriterBuilder::new().from_path(output_path)?;
+    writer.write_record(["singular_suffix", "plural_suffix", "count"])?;
+
+    for ((singular_suffix, plural_suffix), count) in frequency_rows {
+        writer.write_record(&[singular_suffix, plural_suffix, count.to_string()])?;
+    }
+
+    writer.flush()?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1114,42 +1152,4 @@ mod tests {
             "3sg synthesized from the regular rule"
         );
     }
-}
-
-pub fn analyze_and_write_suffix_rules(
-    input_path: impl AsRef<Path>,
-    output_path: impl AsRef<Path>,
-) -> Result<(), Box<dyn Error>> {
-    let input_path = input_path.as_ref();
-    let output_path = output_path.as_ref();
-    let file = File::open(input_path)?;
-    let mut rdr = ReaderBuilder::new().from_reader(BufReader::new(file));
-
-    let mut frequency: HashMap<(String, String), usize> = HashMap::new();
-    for result in rdr.records() {
-        let record = result?;
-        let singular_raw = record.get(0).unwrap();
-        let plural = record.get(1).unwrap();
-
-        let singular = strip_trailing_number(singular_raw);
-        let pair = suffix_rule(singular, plural);
-        *frequency.entry(pair).or_insert(0) += 1;
-    }
-
-    let mut frequency_rows: Vec<_> = frequency.into_iter().collect();
-    frequency_rows.sort_by(|a, b| {
-        b.1.cmp(&a.1)
-            .then_with(|| a.0.0.cmp(&b.0.0))
-            .then_with(|| a.0.1.cmp(&b.0.1))
-    });
-
-    let mut writer = WriterBuilder::new().from_path(output_path)?;
-    writer.write_record(&["singular_suffix", "plural_suffix", "count"])?;
-
-    for ((singular_suffix, plural_suffix), count) in frequency_rows {
-        writer.write_record(&[singular_suffix, plural_suffix, count.to_string()])?;
-    }
-
-    writer.flush()?;
-    Ok(())
 }

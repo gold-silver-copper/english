@@ -21,16 +21,11 @@ impl EnglishCore {
         tense: &Tense,
         form: &Form,
     ) -> String {
-        match word {
-            "be" => {
-                return EnglishCore::to_be(person, number, tense, form).to_string();
-            }
-            _ => (),
+        if word == "be" {
+            return EnglishCore::to_be(person, number, tense, form).to_string();
         }
         match (person, number, tense, form) {
-            (_, _, _, Form::Infinitive) => {
-                return word.to_string();
-            }
+            (_, _, _, Form::Infinitive) => word.to_string(),
 
             (Person::Third, Number::Singular, Tense::Present, Form::Finite) => {
                 if let Some(irr) = EnglishCore::iter_replace_last(word, IRREGULAR_THIRD) {
@@ -38,9 +33,7 @@ impl EnglishCore {
                 }
                 format!("{}{}", word, "s")
             }
-            (_, _, Tense::Present, Form::Finite) => {
-                return word.to_string();
-            }
+            (_, _, Tense::Present, Form::Finite) => word.to_string(),
             (_, _, Tense::Present, Form::Participle) => {
                 if let Some(irr) = EnglishCore::iter_replace_last(word, IRREGULAR_PRES_PART) {
                     return irr;

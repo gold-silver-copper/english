@@ -4,8 +4,8 @@ use crate::grammar::*;
 impl EnglishCore {
     pub fn noun(word: &str, number: &Number) -> String {
         match number {
-            Number::Singular => return word.to_string(),
-            Number::Plural => return EnglishCore::pluralize_noun(word),
+            Number::Singular => word.to_string(),
+            Number::Plural => EnglishCore::pluralize_noun(word),
         }
     }
     pub fn add_possessive(word: &str) -> String {

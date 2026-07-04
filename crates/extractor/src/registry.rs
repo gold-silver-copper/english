@@ -440,7 +440,8 @@ impl Lock {
     /// Strict internal-consistency checks over the lock's own contents (no external
     /// baseline). Catches the kinds of corruption a hand-edit could introduce that
     /// [`check_immutability`] does not: a suffix below 1 (suffix 0 would alias the
-    /// bare key), a frozen anchor whose tier field is empty, an unknown anchor tier,
+    /// bare key), an unknown anchor tier, an anchor whose frozen payload no longer
+    /// names the row's own identity (sid field / form signature),
     /// an active row whose forms column has the wrong arity or an empty column
     /// (which would emit `""` inflections into the PHF tables via the
     /// pad-with-default generation path), and any emit-key collision. Returns
@@ -482,15 +483,61 @@ impl Lock {
                     r.suffix
                 ));
             }
+            // The frozen anchor payload must NAME the row it froze: `exact_match`
+            // and the immutability guard trust the anchor as the row's identity,
+            // so a payload that disagrees with the row's own columns is a lie a
+            // DATA_MAJOR-waived change could otherwise smuggle in. Tombstones are
+            // exempt from payload checks (like forms arity): they never emit or
+            // rematch, and check_immutability guards them by anchor string alone.
             let tier = r.anchor.split(':').next().unwrap_or("");
             match tier {
-                "sid" if r.sid.is_none() && r.status == Status::Active => v.push(format!(
-                    "{} [{}] anchor `{}` is sid-tier but the sid field is empty",
-                    r.lemma,
-                    r.pos.as_str(),
-                    r.anchor
-                )),
-                "sid" | "sig" => {}
+                "sid" => {
+                    let (sid, qual) = sid_anchor_parts(&r.anchor).unwrap_or(("", None));
+                    if r.status == Status::Active && r.sid.is_none() {
+                        v.push(format!(
+                            "{} [{}] anchor `{}` is sid-tier but the sid field is empty",
+                            r.lemma,
+                            r.pos.as_str(),
+                            r.anchor
+                        ));
+                    } else if r.status == Status::Active && r.sid.as_deref() != Some(sid) {
+                        v.push(format!(
+                            "{} [{}] anchor `{}` names sid `{sid}` but the sid field is `{}`",
+                            r.lemma,
+                            r.pos.as_str(),
+                            r.anchor,
+                            r.sid.as_deref().unwrap_or("")
+                        ));
+                    }
+                    if r.status == Status::Active
+                        && let Some(f) = qual
+                            .and_then(|q| q.strip_prefix("sig:"))
+                            .map(strip_u_disambiguator)
+                        && f != r.sig()
+                    {
+                        v.push(format!(
+                            "{} [{}] anchor `{}` freezes sig `{f}` but the forms are `{}`",
+                            r.lemma,
+                            r.pos.as_str(),
+                            r.anchor,
+                            r.sig()
+                        ));
+                    }
+                }
+                "sig" if r.status == Status::Active => {
+                    let payload =
+                        strip_u_disambiguator(r.anchor.strip_prefix("sig:").unwrap_or(""));
+                    if payload != r.sig() {
+                        v.push(format!(
+                            "{} [{}] anchor `{}` freezes sig `{payload}` but the forms are `{}`",
+                            r.lemma,
+                            r.pos.as_str(),
+                            r.anchor,
+                            r.sig()
+                        ));
+                    }
+                }
+                "sig" => {}
                 other => v.push(format!(
                     "{} [{}] anchor `{}` has unknown tier `{}` (exact matching knows only sid/sig; \
                      run `cargo xtask migrate-anchors` for a pre-migration lock)",
@@ -595,10 +642,11 @@ impl Lock {
             let sid_dup = duplicate_sids(&remaining);
             let mut sid_row_counts: BTreeMap<&str, u32> = BTreeMap::new();
             for ri in 0..original_len {
-                if rows[ri].status == Status::Active && !matched[ri] {
-                    if let Some((s, _)) = sid_anchor_parts(&rows[ri].anchor) {
-                        *sid_row_counts.entry(s).or_default() += 1;
-                    }
+                if rows[ri].status == Status::Active
+                    && !matched[ri]
+                    && let Some((s, _)) = sid_anchor_parts(&rows[ri].anchor)
+                {
+                    *sid_row_counts.entry(s).or_default() += 1;
                 }
             }
             let sid_shared: std::collections::HashSet<String> = sid_row_counts
@@ -660,7 +708,7 @@ impl Lock {
                 }
             }
             // Apply the 1:1 matches (descending candidate index so removal is stable).
-            claims.sort_by(|a, b| b.0.cmp(&a.0));
+            claims.sort_by_key(|&(ci, _)| std::cmp::Reverse(ci));
             for (ci, ri) in claims {
                 let c = remaining.remove(ci);
                 rows[ri].apply_match(&c, date);
@@ -940,8 +988,11 @@ impl Lock {
         Ok(())
     }
 
-    /// Coverage histogram by anchor tier — answers "how much of the lock rests on
-    /// strong vs. weak identity?" (research flagged qid/sid as sparse).
+    /// Coverage histogram by FROZEN anchor tier — answers "how much of the lock
+    /// can survive form drift without a review?" Only `sid:` rows can (the
+    /// durable tier); `sig:` rows retire on drift and need an override to
+    /// rematch. Buckets come from the anchor prefix, not the informational
+    /// qid/etym columns, which are no longer matching authority.
     pub fn coverage(&self) -> Coverage {
         let mut c = Coverage::default();
         for r in self.rows() {
@@ -950,14 +1001,12 @@ impl Lock {
                 continue;
             }
             c.active += 1;
-            if r.qid.is_some() {
-                c.by_qid += 1;
-            } else if r.sid.is_some() {
+            if r.anchor.starts_with("sid:") {
                 c.by_sid += 1;
-            } else if r.etym.is_some() {
-                c.by_etym += 1;
-            } else {
+            } else if r.anchor.starts_with("sig:") {
                 c.by_sig += 1;
+            } else {
+                c.legacy += 1;
             }
         }
         c
@@ -1063,10 +1112,12 @@ impl CompactReport {
 pub struct Coverage {
     pub active: usize,
     pub tombstoned: usize,
-    pub by_qid: usize,
+    /// Rows anchored on a durable senseid (survive form drift in place).
     pub by_sid: usize,
-    pub by_etym: usize,
+    /// Rows anchored on their form signature (retire on drift; override to rematch).
     pub by_sig: usize,
+    /// Pre-migration qid/etym tiers — should be zero after `migrate-anchors`.
+    pub legacy: usize,
 }
 
 /// Compare a previous (committed) lock against a freshly-resolved one and return a
@@ -1309,6 +1360,20 @@ fn duplicate_sids(candidates: &[Candidate]) -> std::collections::HashSet<String>
         .collect()
 }
 
+/// Strip a trailing `#u<suffix>` reappearance disambiguator, if present.
+/// (Appended by the append phase when a vanished sense re-derives an anchor
+/// its own tombstone still holds — see the `taken` set in [`Lock::resolve`].)
+fn strip_u_disambiguator(s: &str) -> &str {
+    if let Some((head, tail)) = s.rsplit_once("#u")
+        && !tail.is_empty()
+        && tail.bytes().all(|b| b.is_ascii_digit())
+    {
+        head
+    } else {
+        s
+    }
+}
+
 /// Decompose a `sid:`-tier anchor into `(senseid, qualifier)`, where the
 /// qualifier (after `#`) is `sig:<forms>` for a content-qualified identity or
 /// `u<suffix>` for a reappeared-sense disambiguator. `None` for other tiers.
@@ -1369,14 +1434,13 @@ fn candidate_matches_anchor(c: &Candidate, anchor: &str) -> bool {
         c.sid.as_deref() == Some(sid)
             && match qual {
                 Some(q) => match q.strip_prefix("sig:") {
-                    Some(sig) => c.sig() == sig,
+                    Some(sig) => c.sig() == strip_u_disambiguator(sig),
                     None => true, // `#u<k>` disambiguator carries no content
                 },
                 None => true,
             }
     } else if let Some(rest) = anchor.strip_prefix("sig:") {
-        let sig = rest.split_once('#').map(|(s, _)| s).unwrap_or(rest);
-        c.sig() == sig
+        c.sig() == strip_u_disambiguator(rest)
     } else {
         false
     }
@@ -2373,6 +2437,57 @@ mod tests {
             lock.rows().count(),
             0,
             "empty bucket must be dropped entirely"
+        );
+    }
+
+    #[test]
+    fn validate_flags_anchor_payload_mismatches() {
+        // The frozen payload must name the row's own identity: a sig anchor whose
+        // forms drifted in place, a sid anchor disagreeing with the sid column,
+        // and a #sig: qualifier disagreeing with the forms are all corruption.
+        let mut lock = Lock::new();
+        lock.insert_row(row("a", 1, "sig:old", None, &["new"]));
+        lock.insert_row(row_s("b", 1, "sid:en:x", "en:OTHER", &["bs"]));
+        lock.insert_row(row_s("c", 1, "sid:en:c#sig:cold", "en:c", &["cnew"]));
+        let v = lock.validate();
+        assert!(
+            v.iter()
+                .any(|m| m.contains("freezes sig `old`") && m.contains("`new`")),
+            "{v:?}"
+        );
+        assert!(
+            v.iter()
+                .any(|m| m.contains("names sid `en:x`") && m.contains("`en:OTHER`")),
+            "{v:?}"
+        );
+        assert!(
+            v.iter()
+                .any(|m| m.contains("freezes sig `cold`") && m.contains("`cnew`")),
+            "{v:?}"
+        );
+
+        // Consistent rows — including a #u-disambiguated sig anchor — are clean.
+        let mut ok = Lock::new();
+        ok.insert_row(row("a", 2, "sig:as", None, &["as"]));
+        ok.insert_row(row("a", 3, "sig:as#u3", None, &["as"]));
+        ok.insert_row(row_s("b", 2, "sid:en:b", "en:b", &["bs"]));
+        ok.insert_row(row_s("c", 2, "sid:en:c#sig:cs", "en:c", &["cs"]));
+        assert!(ok.validate().is_empty(), "{:?}", ok.validate());
+    }
+
+    #[test]
+    fn coverage_buckets_by_frozen_anchor_tier() {
+        let mut lock = Lock::new();
+        // sig-anchored but carrying informational qid: must count as sig.
+        lock.insert_row(row("a", 1, "sig:as", Some("Q1"), &["as"]));
+        lock.insert_row(row_s("b", 1, "sid:en:b", "en:b", &["bs"]));
+        let mut tomb = row("t", 2, "sig:ts", None, &["ts"]);
+        tomb.status = Status::Tombstone;
+        lock.insert_row(tomb);
+        let c = lock.coverage();
+        assert_eq!(
+            (c.active, c.by_sid, c.by_sig, c.legacy, c.tombstoned),
+            (2, 1, 1, 0, 1)
         );
     }
 

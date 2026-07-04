@@ -59,11 +59,11 @@ jobs:
         env:
           GITHUB_EVENT_BEFORE: ${{ github.event.before }}
 
-  # fmt is BLOCKING (the tree is formatted; keep it that way). clippy remains
-  # informational until a dedicated warning cleanup lands — flip it to blocking
-  # then.
+  # Both BLOCKING: the tree is formatted and clippy-clean; keep it that way.
+  # -D warnings is what makes clippy an actual gate — without it the step
+  # exits 0 no matter how many lints fire.
   lint:
-    name: fmt (blocking) + clippy (informational)
+    name: fmt + clippy (blocking)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -72,5 +72,4 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all --check
-      - run: cargo clippy --workspace --all-targets
-        continue-on-error: true
+      - run: cargo clippy --workspace --all-targets -- -D warnings

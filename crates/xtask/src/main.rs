@@ -1,21 +1,22 @@
 //! Workspace task runner (`cargo xtask <command>`), and the home of the
 //! project's stability machinery:
 //!
-//! - `refresh-data`   — full dump-driven regeneration (delegates to the
-//!                      extractor binary in release mode);
+//! - `refresh-data` — full dump-driven regeneration (delegates to the extractor
+//!   binary in release mode);
 //! - `check-registry` — THE CI gate: internal lock consistency, cross-version
-//!                      key immutability against the PR's merge-base, and a
-//!                      dump-free byte comparison of the committed tables
-//!                      against what the lockfiles regenerate;
-//! - `regen-tables`   — dump-free table emission from the lockfiles (use when
-//!                      only the emission format changed, not the data);
-//! - `compact`        — the sanctioned data-major cruft collection: drops
-//!                      tombstones, closes suffix gaps, bumps DATA_MAJOR
-//!                      (which is what makes check-registry accept the
-//!                      renumbering);
-//! - `accuracy`       — dump-driven measurement of rules+tables together;
+//!   key immutability against the PR's merge-base, a dump-free byte comparison
+//!   of the committed tables against what the lockfiles regenerate, an
+//!   emitter-independent lock↔table membership check, and override validation;
+//! - `regen-tables` — dump-free table emission from the lockfiles (use when
+//!   only the emission format changed, not the data);
+//! - `compact` — the sanctioned data-major cruft collection: drops tombstones,
+//!   closes suffix gaps, bumps DATA_MAJOR (which is what makes check-registry
+//!   accept the renumbering);
+//! - `migrate-anchors` — one-time re-anchoring of legacy qid/etym rows to the
+//!   exact-match sid/sig tiers (bumps DATA_MAJOR);
+//! - `accuracy` — dump-driven measurement of rules+tables together;
 //! - `seed-assignments` / `report-coverage` — one-time bootstrap and anchor
-//!                      telemetry.
+//!   telemetry.
 //!
 //! Stability model in one paragraph: published `_<n>` sense keys never change
 //! meaning within a data-major version — check-registry fails any PR that
@@ -186,15 +187,16 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    // Metadata coverage on every gate run: most rows are content-anchored (`sig:`)
-    // and only sid rows survive form drift without a review — keep the mix visible
-    // in CI logs so erosion or stagnation is noticed, not discovered after a bad
-    // refresh. (qid/etym are informational columns, never matching authority.)
+    // Anchor-tier coverage on every gate run: most rows are content-anchored
+    // (`sig:`) and only `sid:` rows survive form drift without a review — keep
+    // the mix visible in CI logs so erosion or stagnation is noticed, not
+    // discovered after a bad refresh. legacy>0 means a pre-migration anchor
+    // slipped in (validate() also rejects it).
     for (name, lock) in [("noun", &noun), ("verb", &verb), ("adj", &adj)] {
         let c = lock.coverage();
         println!(
-            "coverage {name:>4}: active={} (qid={} sid={} etym={} sig={})  tombstoned={}",
-            c.active, c.by_qid, c.by_sid, c.by_etym, c.by_sig, c.tombstoned
+            "coverage {name:>4}: active={} (sid={} sig={} legacy={})  tombstoned={}",
+            c.active, c.by_sid, c.by_sig, c.legacy, c.tombstoned
         );
     }
 
@@ -627,7 +629,9 @@ fn regen_tables() -> Result<(), Box<dyn Error>> {
 }
 
 // --------------------------------------------------------------------------
-// report-coverage: how much of each lock rests on strong vs. weak anchors.
+// report-coverage: how much of each lock rests on the durable sid: tier (which
+// survives form drift in place) vs. the content sig: tier (which retires on
+// drift and needs a reviewed override to rematch).
 // --------------------------------------------------------------------------
 fn report_coverage() -> Result<(), Box<dyn Error>> {
     let assignments_dir = default_assignments_dir()?;
@@ -635,8 +639,8 @@ fn report_coverage() -> Result<(), Box<dyn Error>> {
     for (name, lock) in [("noun", &noun), ("verb", &verb), ("adj", &adj)] {
         let c = lock.coverage();
         println!(
-            "{name:>5}: active={} (qid={} sid={} etym={} sig={})  tombstoned={}",
-            c.active, c.by_qid, c.by_sid, c.by_etym, c.by_sig, c.tombstoned
+            "{name:>5}: active={} (sid={} sig={} legacy={})  tombstoned={}",
+            c.active, c.by_sid, c.by_sig, c.legacy, c.tombstoned
         );
     }
     Ok(())
