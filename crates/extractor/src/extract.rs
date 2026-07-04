@@ -306,9 +306,10 @@ pub fn extract_irregular_nouns(input_path: impl AsRef<Path>) -> Result<Table, Bo
         }
 
         // Every distinct PLAIN attested plural becomes its own candidate: each
-        // variant gets its own numbered key (`cactus_2` -> cacti, `cactus_3` -> ...),
-        // with the listing index as the cold-start ordinal so the head template's
-        // canonical-first order decides the numbering, not the alphabet. Soft
+        // variant gets its own numbered key (`cactus_2` -> cacti, `cactus_3` -> ...).
+        // The key NUMBERS are handed out later by `assign`, from a pure sort of the
+        // emitted form signatures (standard-before-soft, then lexicographic) — NOT
+        // from dump listing order, so reordering the dump never changes them. Soft
         // forms (`busses`, nonstandard `sheeps`) are never emitted. The candidate
         // that EQUALS the rule prediction is observed too and removed at lemma
         // level by drop_regular, which reserves the bare key for the rule engine
@@ -597,42 +598,78 @@ pub fn extract_verb_conjugations(input_path: impl AsRef<Path>) -> Result<Table, 
         let third = select_slot(&third_forms, &predicted_third, true);
         let past = select_slot(&past_forms, &predicted_past, false);
         let present_part = select_slot(&pres_part_forms, &predicted_participle, false);
-        // Past participle falls back to the chosen past form when unattested.
+        // Was a past participle genuinely attested for this lemma, or is `past_part`
+        // merely a fallback copy of the chosen past? This decides the VARIANT
+        // participle fallback below.
+        let past_part_attested = past_part_forms.iter().any(|(_, rank)| *rank == 0);
+        // Past participle falls back to the chosen past when unattested — the
+        // "-ed serves both" default the regular rule engine also applies.
         let past_part =
             choose_form(&past_part_forms, &predicted_past, false).unwrap_or_else(|| past.clone());
 
-        // The canonical tuple plus one candidate per alternate rank: attested
-        // variant conjugations get their own numbered keys. Alternates align by
-        // rank per slot (dreamed/dreamt families move together); a slot without a
-        // k-th alternate keeps its canonical form. A variant tuple that turns out
-        // fully regular is dropped at lemma level by drop_regular, reserving the
-        // bare key for the rule engine — so a verb attesting both an irregular and
-        // the regular conjugation serves the regular on the bare key and the
-        // irregular at suffix 2, exactly like nouns (`die`/`die_2`).
+        // The canonical tuple plus one candidate per alternate index. Attested
+        // variant conjugations get their own numbered keys; each slot's plain
+        // alternates are paired by their within-entry LISTING index (head templates
+        // list corresponding forms in the same row order, so this usually
+        // reconstructs a coherent tuple). Where a slot has no k-th alternate it
+        // falls back to its own canonical form. The past participle is the one slot
+        // with a DEPENDENT fallback:
+        // - if the lemma attests a past participle at all, an alternate past with no
+        //   participle of its own inherits the canonical (attested) participle — a
+        //   shared irregular participle applies to every past variant (`forbid`:
+        //   forbad/forbade/forbid all take `forbidden`);
+        // - if NO participle is attested, `past_part` is just a copy of the canonical
+        //   past, so an alternate past must fall back to ITS OWN past, not to that
+        //   unrelated canonical past (the `xang`/`xung` bug: variant past `xung` was
+        //   wrongly published with the canonical participle `xang`).
+        // The published contract is per-slot reachability — every plain attested form
+        // in every slot is reachable through some key — NOT that a numbered tuple was
+        // attested verbatim (grouping strictly by entry would strand within-entry
+        // alternates and break that reachability). A variant tuple that turns out
+        // fully regular is dropped at lemma level by drop_regular, reserving the bare
+        // key for the rule engine — so a verb attesting both an irregular and the
+        // regular conjugation serves the regular on the bare key and the irregular at
+        // suffix 2, like nouns (`die`/`die_2`).
         let acc = by_lemma.entry(lemma).or_default();
-        let canonical = vec![
-            third.clone(),
-            past.clone(),
-            present_part.clone(),
-            past_part.clone(),
-        ];
-        acc.observe(canonical.clone(), &entry);
-        let alt = [
-            slot_alternates(&third_forms, &third),
-            slot_alternates(&past_forms, &past),
-            slot_alternates(&pres_part_forms, &present_part),
-            slot_alternates(&past_part_forms, &past_part),
-        ];
-        for k in 0..alt.iter().map(|v| v.len()).max().unwrap_or(0) {
-            let tuple: Vec<String> = (0..4)
-                .map(|i| {
-                    alt[i]
-                        .get(k)
-                        .cloned()
-                        .unwrap_or_else(|| canonical[i].clone())
-                })
-                .collect();
-            acc.observe(tuple, &entry);
+        acc.observe(
+            vec![
+                third.clone(),
+                past.clone(),
+                present_part.clone(),
+                past_part.clone(),
+            ],
+            &entry,
+        );
+        let third_alt = slot_alternates(&third_forms, &third);
+        let past_alt = slot_alternates(&past_forms, &past);
+        let pres_part_alt = slot_alternates(&pres_part_forms, &present_part);
+        let past_part_alt = slot_alternates(&past_part_forms, &past_part);
+        let variant_count = [
+            third_alt.len(),
+            past_alt.len(),
+            pres_part_alt.len(),
+            past_part_alt.len(),
+        ]
+        .into_iter()
+        .max()
+        .unwrap_or(0);
+        for k in 0..variant_count {
+            let v_third = third_alt.get(k).cloned().unwrap_or_else(|| third.clone());
+            let v_past = past_alt.get(k).cloned().unwrap_or_else(|| past.clone());
+            let v_pres_part = pres_part_alt
+                .get(k)
+                .cloned()
+                .unwrap_or_else(|| present_part.clone());
+            // Dependent participle fallback (see above): the shared attested
+            // participle when one exists, otherwise this variant's OWN past.
+            let v_past_part = past_part_alt.get(k).cloned().unwrap_or_else(|| {
+                if past_part_attested {
+                    past_part.clone()
+                } else {
+                    v_past.clone()
+                }
+            });
+            acc.observe(vec![v_third, v_past, v_pres_part, v_past_part], &entry);
         }
     }
     tally.finish("extract_verb_conjugations")?;
@@ -932,7 +969,7 @@ mod tests {
         // whose senses are ALL slang attests badder/"more bad" plainly. The slang
         // canonical (badder — single-word beats periphrastic) equals the CVC rule
         // prediction, and being all-slang it must NOT reserve the bare key —
-        // standard `worse` keeps it (standard sorts before soft at cold start).
+        // standard `worse` keeps it (standard sorts before soft).
         // Because `worse` occupies the bare key, the rule can never serve badder,
         // so the rule-equal soft candidate is KEPT and published as a numbered key
         // rather than dropped; the periphrastic variant follows it.
@@ -1072,9 +1109,11 @@ mod tests {
     fn noun_alternate_plurals_get_their_own_numbered_keys() {
         // cactus-like: the regular "cactuses" is plainly attested (dropped; bare
         // key reserved for the rule), and every other plain plural gets its own
-        // numbered key in listing order. The soft-tagged one is never emitted.
+        // numbered key. Numbering is by FORM SIGNATURE, not dump listing order:
+        // "cactodes" is listed BEFORE "cacti" here, yet "cacti" sorts first
+        // (cacti < cactodes) and takes the lower key. The soft form is never emitted.
         let jsonl = concat!(
-            r#"{"word":"cactus","pos":"noun","lang_code":"en","forms":[{"form":"cacti","tags":["plural"]},{"form":"cactodes","tags":["plural"]},{"form":"cactuses","tags":["plural"]},{"form":"cactusses","tags":["plural","nonstandard"]}]}"#,
+            r#"{"word":"cactus","pos":"noun","lang_code":"en","forms":[{"form":"cactodes","tags":["plural"]},{"form":"cacti","tags":["plural"]},{"form":"cactuses","tags":["plural"]},{"form":"cactusses","tags":["plural","nonstandard"]}]}"#,
             "\n"
         );
         let table = run_extract(jsonl, "cactus.jsonl", |p| extract_irregular_nouns(p));
@@ -1084,7 +1123,7 @@ mod tests {
                 ("cactus_2".to_string(), vec!["cacti".to_string()]),
                 ("cactus_3".to_string(), vec!["cactodes".to_string()]),
             ],
-            "listing order decides numbering; soft form excluded; regular dropped"
+            "form-signature order decides numbering (not listing order); soft form excluded; regular dropped"
         );
     }
 
@@ -1129,5 +1168,103 @@ mod tests {
         assert_eq!(table.len(), 1, "{table:?}");
         assert_eq!(table[0].0, "sneak_2");
         assert_eq!(table[0].1[1], "snoke", "standard irregular reachable at _2");
+    }
+
+    #[test]
+    fn verb_variant_past_participle_falls_back_to_its_own_past_not_the_canonical() {
+        // Regression: two plain pasts (xang, xung) and NO attested past participle.
+        // The alternate-past variant must publish ITS OWN past as its participle,
+        // matching the canonical tuple's "past participle defaults to past" rule.
+        // The bug published the canonical participle (xang) against the variant
+        // past (xung), pairing an alternate past with an unrelated participle.
+        let jsonl = concat!(
+            r#"{"word":"x","pos":"verb","lang_code":"en","forms":[{"form":"xang","tags":["past"]},{"form":"xung","tags":["past"]}]}"#,
+            "\n"
+        );
+        let table = run_extract(jsonl, "xang_xung.jsonl", |p| extract_verb_conjugations(p));
+        assert_eq!(table.len(), 2, "{table:?}");
+        // Canonical: xang sorts before xung, so it takes the bare key. Its own
+        // participle (unattested) is xang.
+        assert_eq!(table[0].0, "x");
+        assert_eq!(
+            table[0].1,
+            vec![
+                "xes".to_string(),
+                "xang".to_string(),
+                "xing".to_string(),
+                "xang".to_string()
+            ]
+        );
+        // Variant: xung's participle is xung (its own past), NOT the canonical xang.
+        assert_eq!(table[1].0, "x_2");
+        assert_eq!(
+            table[1].1,
+            vec![
+                "xes".to_string(),
+                "xung".to_string(),
+                "xing".to_string(),
+                "xung".to_string(),
+            ],
+            "variant participle must be the variant's own past (xung), not canonical xang"
+        );
+    }
+
+    #[test]
+    fn no_participle_regular_past_variant_is_dropped_and_reserves_the_bare_key() {
+        // Consequence of the own-past fallback in the NO-participle case: a verb
+        // whose canonical is irregular (past `blank`) but which also plainly attests
+        // the regular past `blonked`, with NO participle attested. The regular-past
+        // variant now falls back to `blonked` as its own participle, so its tuple
+        // exactly equals the rule prediction and is dropped — reserving the bare key
+        // for the rule and leaving only the irregular at `blonk_2`. Before the fix
+        // the variant kept the canonical participle `blank`, so it did NOT match the
+        // prediction and leaked out as a spurious `_<n>` key with a wrong participle.
+        let jsonl = concat!(
+            r#"{"word":"blonk","pos":"verb","lang_code":"en","forms":[{"form":"blank","tags":["past"]},{"form":"blonked","tags":["past"]}]}"#,
+            "\n"
+        );
+        let table = run_extract(jsonl, "blonk.jsonl", |p| extract_verb_conjugations(p));
+        assert_eq!(table.len(), 1, "spurious regular-past variant leaked: {table:?}");
+        assert_eq!(table[0].0, "blonk_2", "regular reserves the bare key");
+        assert_eq!(
+            table[0].1,
+            vec![
+                "blonks".to_string(),
+                "blank".to_string(),
+                "blonking".to_string(),
+                "blank".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn attested_participle_is_shared_by_every_past_variant() {
+        // The forbid case (regression guard): when a participle IS attested
+        // (`glumden`), an alternate past with no participle of its OWN must inherit
+        // that shared attested participle — NOT fall back to its own past. `forbid`
+        // is the real instance: forbad/forbade/forbid all take `forbidden`. Every
+        // published row must carry the attested participle in the past-participle
+        // column, never a copy of the row's own past.
+        let jsonl = concat!(
+            r#"{"word":"glimd","pos":"verb","lang_code":"en","forms":[{"form":"glomd","tags":["past"]},{"form":"glamd","tags":["past"]},{"form":"glumden","tags":["participle","past"]}]}"#,
+            "\n"
+        );
+        let table = run_extract(jsonl, "glimd.jsonl", |p| extract_verb_conjugations(p));
+        assert_eq!(table.len(), 2, "both irregular pasts published: {table:?}");
+        for (key, forms) in &table {
+            assert_eq!(
+                forms[3], "glumden",
+                "{key}: variant participle must be the shared attested `glumden`, \
+                 not a copy of its own past ({forms:?})"
+            );
+        }
+        // And the two distinct pasts are both reachable across the keys.
+        let pasts: std::collections::BTreeSet<&str> =
+            table.iter().map(|(_, f)| f[1].as_str()).collect();
+        assert_eq!(
+            pasts,
+            ["glamd", "glomd"].into_iter().collect(),
+            "both attested pasts reachable"
+        );
     }
 }

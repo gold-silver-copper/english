@@ -36,7 +36,7 @@ fn noun_die_homograph_is_pinned() {
 #[test]
 fn adjective_bad_is_pinned_to_the_standard_suppletive() {
     // The standard sense holds the bare key with the suppletive forms (standard
-    // sorts before soft at cold start). The slang sense's badder/baddest equal
+    // sorts before soft). The slang sense's badder/baddest equal
     // the CVC rule prediction, but since `worse` occupies the bare key the rule
     // can never serve them — so they are published at the next numbered key,
     // with the slang periphrastic variant after that.
