@@ -24,6 +24,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace
+      # `cargo test --workspace` uses DEFAULT features, so the `checks`-gated
+      # accuracy harness (the number every rule/table change must carry) is never
+      # exercised. Run its dump-free unit tests explicitly so a scorer regression
+      # fails CI, not just a local metric.
+      - run: cargo test -p extractor --features checks
       # Examples are assert-based demos that `cargo test` never executes (it only
       # compiles them) — run every assert-bearing example so stale key formats or
       # behavioral drift in examples fail CI, not users. speedmark is excluded:

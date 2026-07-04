@@ -233,11 +233,17 @@ impl Entry {
     }
 
     /// Deterministic, stablest author-authored senseid (e.g. `en:to_rest`).
+    ///
+    /// Senseids containing `#` are rejected: `#` is the reserved delimiter of the
+    /// anchor grammar (`#sig:` / `#u<n>`), and a raw `#` in a senseid (real dump
+    /// data has e.g. `en:totality#English`) would otherwise be truncated or
+    /// mis-parsed when embedded in a `sid:` anchor. Dropping such a senseid falls
+    /// the sense back to a content (`sig:`) anchor instead of corrupting identity.
     pub fn lowest_senseid(&self) -> Option<String> {
         self.senses
             .iter()
             .flat_map(|s| s.senseid.iter())
-            .filter(|s| !s.is_empty())
+            .filter(|s| !s.is_empty() && !s.contains('#'))
             .min()
             .cloned()
     }
@@ -383,5 +389,33 @@ mod tests {
             ],
         };
         assert_eq!(entry.first_gloss(), Some("a gloss".into()));
+    }
+
+    #[test]
+    fn senseid_with_reserved_hash_is_dropped_at_ingest() {
+        // `#` is the reserved anchor delimiter; a senseid carrying it (real dump
+        // data: `en:totality#English`) must not become an anchor. Ingest drops it,
+        // falling the sense back to a content anchor instead of corrupting identity.
+        let with_hash = Entry {
+            word: "w".into(),
+            pos: "noun".into(),
+            forms: None,
+            lang_code: "en".into(),
+            etymology_number: None,
+            senses: vec![Sense {
+                senseid: vec!["en:totality#English".into()],
+                ..Sense::default()
+            }],
+        };
+        assert_eq!(with_hash.lowest_senseid(), None);
+        // A clean senseid is still kept.
+        let clean = Entry {
+            senses: vec![Sense {
+                senseid: vec!["en:muscle".into()],
+                ..Sense::default()
+            }],
+            ..with_hash
+        };
+        assert_eq!(clean.lowest_senseid(), Some("en:muscle".into()));
     }
 }

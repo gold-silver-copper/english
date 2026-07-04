@@ -415,3 +415,63 @@ pub fn check_adjective_forms(
     );
     Ok(score)
 }
+
+// The accuracy harness is `checks`-feature-gated and is the number every rule/
+// table change must carry, yet `cargo test --workspace` runs with default
+// features and never exercises it. These dump-free unit tests pin the pure
+// scoring/key-derivation logic so an inverted hit test or a dropped bare lemma
+// fails CI (the `test` job runs `--features checks`), not just a local metric.
+#[cfg(all(test, feature = "checks"))]
+mod tests {
+    use super::*;
+    use std::collections::BTreeSet;
+
+    fn set(items: &[&str]) -> BTreeSet<String> {
+        items.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn score_slot_counts_hits_and_variant_gap() {
+        let mut score = Score::default();
+        // attested {a,b}, produced {a,c}: a hit (a is produced), one unreachable (b).
+        assert!(score_slot(&mut score, &set(&["a", "b"]), &set(&["a", "c"])));
+        assert_eq!(
+            (
+                score.matched_slots,
+                score.total_slots,
+                score.unreachable_forms
+            ),
+            (1, 1, 1)
+        );
+        // attested {x}, produced {y}: a miss, one more unreachable.
+        assert!(!score_slot(&mut score, &set(&["x"]), &set(&["y"])));
+        assert_eq!(
+            (
+                score.matched_slots,
+                score.total_slots,
+                score.unreachable_forms
+            ),
+            (1, 2, 2)
+        );
+        assert!((score.percent() - 50.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn keys_for_groups_by_lemma_and_always_includes_the_bare_lemma_once() {
+        let table_keys = vec![
+            "cat".to_string(),
+            "die".to_string(),
+            "die_2".to_string(),
+            "die_3".to_string(),
+        ];
+        let by_lemma = published_keys(&table_keys);
+        assert_eq!(by_lemma.get("die").map(|v| v.len()), Some(3));
+        // The lemma's bare key comes first and is never duplicated by the suffixed set.
+        let q = keys_for(&by_lemma, "die");
+        assert_eq!(q.first().map(String::as_str), Some("die"));
+        assert_eq!(q.iter().filter(|k| *k == "die").count(), 1);
+        assert!(q.contains(&"die_2".to_string()) && q.contains(&"die_3".to_string()));
+        // A lemma with no table entry still queries its own bare form (rule fallback).
+        assert_eq!(keys_for(&by_lemma, "zzz"), vec!["zzz".to_string()]);
+    }
+}
