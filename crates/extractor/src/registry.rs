@@ -490,16 +490,8 @@ impl Lock {
     /// human-readable violations; empty = valid.
     pub fn validate(&self) -> Vec<String> {
         let mut v = Vec::new();
-        let mut anchor_counts: BTreeMap<(String, String, String), usize> = BTreeMap::new();
         let mut suffix_occupants: BTreeMap<(String, String, u32), Vec<String>> = BTreeMap::new();
         for r in self.rows() {
-            *anchor_counts
-                .entry((
-                    r.lemma.clone(),
-                    r.pos.as_str().to_string(),
-                    r.anchor.clone(),
-                ))
-                .or_default() += 1;
             suffix_occupants
                 .entry((r.lemma.clone(), r.pos.as_str().to_string(), r.suffix))
                 .or_default()
@@ -603,13 +595,7 @@ impl Lock {
                 )),
             }
         }
-        for ((lemma, pos, anchor), n) in &anchor_counts {
-            if *n > 1 {
-                v.push(format!(
-                    "{lemma} [{pos}] anchor `{anchor}` is shared by {n} rows (anchors must be unique per lemma)"
-                ));
-            }
-        }
+        v.extend(duplicate_anchor_violations(self.rows()));
         for ((lemma, pos, suffix), anchors) in &suffix_occupants {
             if anchors.len() > 1 {
                 v.push(format!(
@@ -1211,14 +1197,12 @@ pub fn check_immutability(old: &Lock, new: &Lock, overrides: &Overrides) -> Vec<
     // Index new rows by frozen identity and by (lemma,pos,suffix).
     let mut new_by_anchor: BTreeMap<(String, String, String), &LockRow> = BTreeMap::new();
     let mut new_by_suffix: BTreeMap<(String, String, u32), Vec<&LockRow>> = BTreeMap::new();
-    let mut anchor_counts: BTreeMap<(String, String, String), usize> = BTreeMap::new();
     for r in new.rows() {
         let akey = (
             r.lemma.clone(),
             r.pos.as_str().to_string(),
             r.anchor.clone(),
         );
-        *anchor_counts.entry(akey.clone()).or_default() += 1;
         new_by_anchor.insert(akey, r);
         new_by_suffix
             .entry((r.lemma.clone(), r.pos.as_str().to_string(), r.suffix))
@@ -1228,13 +1212,7 @@ pub fn check_immutability(old: &Lock, new: &Lock, overrides: &Overrides) -> Vec<
 
     // Every frozen anchor must identify exactly one row within a (lemma,pos);
     // a duplicate means two keys share an identity (and the guard can't track them).
-    for ((lemma, pos, anchor), n) in &anchor_counts {
-        if *n > 1 {
-            violations.push(format!(
-                "{lemma} [{pos}] anchor `{anchor}` is shared by {n} rows (anchors must be unique per lemma)"
-            ));
-        }
-    }
+    violations.extend(duplicate_anchor_violations(new.rows()));
 
     for r in old.rows() {
         let id = (
@@ -1343,6 +1321,32 @@ pub fn check_immutability(old: &Lock, new: &Lock, overrides: &Overrides) -> Vec<
 }
 
 // ----- free helpers -----
+
+/// Rows sharing a (lemma, pos, anchor) triple mean two keys claim one frozen
+/// identity — the immutability guard can't tell them apart. One violation per
+/// over-shared anchor. Shared by [`Lock::validate`] and [`check_immutability`],
+/// which each own a different context (internal-only vs cross-version).
+fn duplicate_anchor_violations<'a>(rows: impl Iterator<Item = &'a LockRow>) -> Vec<String> {
+    let mut anchor_counts: BTreeMap<(String, String, String), usize> = BTreeMap::new();
+    for r in rows {
+        *anchor_counts
+            .entry((
+                r.lemma.clone(),
+                r.pos.as_str().to_string(),
+                r.anchor.clone(),
+            ))
+            .or_default() += 1;
+    }
+    anchor_counts
+        .iter()
+        .filter(|(_, n)| **n > 1)
+        .map(|((lemma, pos, anchor), n)| {
+            format!(
+                "{lemma} [{pos}] anchor `{anchor}` is shared by {n} rows (anchors must be unique per lemma)"
+            )
+        })
+        .collect()
+}
 
 /// Suffix 1 emits the bare lemma; >=2 appends `_<n>`. The underscore separator is
 /// unambiguous: extraction filters out any lemma containing `_` (word_is_proper),

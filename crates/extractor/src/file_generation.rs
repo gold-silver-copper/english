@@ -10,9 +10,8 @@ use std::io::Write;
 use std::path::Path;
 
 // ---------------------------------------------------------------------------
-// Pair-based cores. These hold the exact byte formatting of the generated
-// tables; both the CSV entry points and the lock-driven generation funnel
-// through them so output is identical regardless of source.
+// Table writers. These hold the exact byte formatting of the generated tables;
+// the lock-driven `generate_tables` path funnels through them.
 // ---------------------------------------------------------------------------
 
 pub fn write_nouns_phf(

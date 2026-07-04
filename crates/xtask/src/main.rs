@@ -25,7 +25,9 @@
 //! a semver-major crate release. ENGLISH_ALLOW_RELOCK exists as a local
 //! development escape hatch only and is never set in CI.
 
-use extractor::bootstrap::{generate_tables, load_locks, parse_phf_pairs, save_locks, seed};
+use extractor::bootstrap::{
+    ensure_locks_valid, generate_tables, load_locks, parse_phf_pairs, save_locks, seed,
+};
 use extractor::helpers::Pos;
 use extractor::registry::{CompactReport, Lock, Overrides, check_immutability, make_key};
 use std::env;
@@ -209,11 +211,7 @@ fn check_registry() -> Result<(), Box<dyn Error>> {
     // discovered after a bad refresh. legacy>0 means a pre-migration anchor
     // slipped in (validate() also rejects it).
     for (name, lock) in [("noun", &noun), ("verb", &verb), ("adj", &adj)] {
-        let c = lock.coverage();
-        println!(
-            "coverage {name:>4}: active={} (sid={} sig={} legacy={})  tombstoned={}",
-            c.active, c.by_sid, c.by_sig, c.legacy, c.tombstoned
-        );
+        println!("coverage {name:>4}: {}", coverage_summary(lock));
     }
 
     for (pos, working) in [(Pos::Noun, &noun), (Pos::Verb, &verb), (Pos::Adj, &adj)] {
@@ -510,20 +508,7 @@ fn compact() -> Result<(), Box<dyn Error>> {
     }
 
     // A compacted lock must still be structurally valid before anything is written.
-    let invalid: Vec<String> = noun
-        .validate()
-        .into_iter()
-        .chain(verb.validate())
-        .chain(adj.validate())
-        .collect();
-    if !invalid.is_empty() {
-        return Err(format!(
-            "refusing to write compacted lockfiles — {} structural violation(s):\n  - {}",
-            invalid.len(),
-            invalid.join("\n  - ")
-        )
-        .into());
-    }
+    ensure_locks_valid(&noun, &verb, &adj, "write compacted lockfiles")?;
 
     save_locks(&assignments_dir, &noun, &verb, &adj)?;
     generate_tables(&noun, &verb, &adj, &generated_dir)?;
@@ -567,20 +552,7 @@ fn migrate_anchors() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
-    let invalid: Vec<String> = noun
-        .validate()
-        .into_iter()
-        .chain(verb.validate())
-        .chain(adj.validate())
-        .collect();
-    if !invalid.is_empty() {
-        return Err(format!(
-            "refusing to write migrated lockfiles — {} structural violation(s):\n  - {}",
-            invalid.len(),
-            invalid.join("\n  - ")
-        )
-        .into());
-    }
+    ensure_locks_valid(&noun, &verb, &adj, "write migrated lockfiles")?;
 
     save_locks(&assignments_dir, &noun, &verb, &adj)?;
     // Anchors are not part of the emitted tables; regenerate anyway to prove it.
@@ -672,20 +644,7 @@ fn regen_tables() -> Result<(), Box<dyn Error>> {
     let (noun, verb, adj) = load_locks(&assignments_dir)?;
     // A structurally invalid lock (hand-edit, bad merge) must never reach the
     // emitter: the pad-with-default column path would happily write "" inflections.
-    let invalid: Vec<String> = noun
-        .validate()
-        .into_iter()
-        .chain(verb.validate())
-        .chain(adj.validate())
-        .collect();
-    if !invalid.is_empty() {
-        return Err(format!(
-            "refusing to regenerate tables — {} structural violation(s) in the lockfiles:\n  - {}",
-            invalid.len(),
-            invalid.join("\n  - ")
-        )
-        .into());
-    }
+    ensure_locks_valid(&noun, &verb, &adj, "regenerate tables from the lockfiles")?;
     generate_tables(&noun, &verb, &adj, &generated_dir)?;
     println!(
         "Regenerated tables in {} from the lockfiles.",
@@ -703,13 +662,19 @@ fn report_coverage() -> Result<(), Box<dyn Error>> {
     let assignments_dir = default_assignments_dir()?;
     let (noun, verb, adj) = load_locks(&assignments_dir)?;
     for (name, lock) in [("noun", &noun), ("verb", &verb), ("adj", &adj)] {
-        let c = lock.coverage();
-        println!(
-            "{name:>5}: active={} (sid={} sig={} legacy={})  tombstoned={}",
-            c.active, c.by_sid, c.by_sig, c.legacy, c.tombstoned
-        );
+        println!("{name:>5}: {}", coverage_summary(lock));
     }
     Ok(())
+}
+
+/// One `active=… (sid=… sig=… legacy=…)  tombstoned=…` coverage line for a lock,
+/// shared by `check-registry` (per-gate telemetry) and `report-coverage`.
+fn coverage_summary(lock: &Lock) -> String {
+    let c = lock.coverage();
+    format!(
+        "active={} (sid={} sig={} legacy={})  tombstoned={}",
+        c.active, c.by_sid, c.by_sig, c.legacy, c.tombstoned
+    )
 }
 
 /// `git show <rev:path>`; `Ok(None)` ONLY when the path does not exist at that

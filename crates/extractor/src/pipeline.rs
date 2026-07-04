@@ -18,7 +18,7 @@
 //! relocks impossible to even generate.
 
 use crate::args::Config;
-use crate::bootstrap::{generate_tables, load_locks, save_locks};
+use crate::bootstrap::{ensure_locks_valid, generate_tables, load_locks, save_locks};
 use crate::checks::run_checks;
 use crate::extract::{
     extract_irregular_adjectives, extract_irregular_nouns, extract_verb_conjugations,
@@ -177,20 +177,7 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
 
     // Strict structural validation (suffix>=1, anchor<->fields, no emit-key
     // collisions) is a hard abort — a structurally broken lock must never be written.
-    let invalid: Vec<String> = noun_lock
-        .validate()
-        .into_iter()
-        .chain(verb_lock.validate())
-        .chain(adj_lock.validate())
-        .collect();
-    if !invalid.is_empty() {
-        return Err(format!(
-            "refusing to write lockfiles — {} structural violation(s):\n  - {}",
-            invalid.len(),
-            invalid.join("\n  - ")
-        )
-        .into());
-    }
+    ensure_locks_valid(&noun_lock, &verb_lock, &adj_lock, "write lockfiles")?;
 
     save_locks(&config.assignments_dir, &noun_lock, &verb_lock, &adj_lock)?;
     generate_tables(&noun_lock, &verb_lock, &adj_lock, &config.generated_dir)?;

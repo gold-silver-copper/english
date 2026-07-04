@@ -63,36 +63,6 @@ mod verb_phf {
 }
 use verb_phf::*;
 
-/// The one parsed representation of a caller-provided inflection key.
-///
-/// This deliberately accepts only the canonical `_<digits>` suffix spelling. The
-/// old adjacent-digit spelling (`die2`) is not parsed: it is indistinguishable
-/// from real digit-bearing words (`mp3`, `F16`, `F2`) and was retired at the
-/// data-major-2 re-key. Keeping this behind a tiny enum forces every noun/verb/
-/// adjective path to make the same table-key-gated stripping decision.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SenseKey<'a> {
-    /// A real published key or alias of a published base lemma; inflect as `base`.
-    Published { base: &'a str },
-    /// Not a table-backed sense key; inflect the input opaquely by rule.
-    Opaque(&'a str),
-}
-
-impl<'a> SenseKey<'a> {
-    fn resolve(word: &'a str, is_key: impl Fn(&str) -> bool) -> Self {
-        match canonical_sense_suffix_base(word) {
-            Some(base) if is_key(word) || is_key(base) => SenseKey::Published { base },
-            _ => SenseKey::Opaque(word),
-        }
-    }
-
-    fn lemma(self) -> &'a str {
-        match self {
-            SenseKey::Published { base } | SenseKey::Opaque(base) => base,
-        }
-    }
-}
-
 /// The base of a canonical sense-suffixed key: sense suffixes are `_<digits>`
 /// (underscore plus a number, e.g. `die_2`). Returns `None` when the word carries
 /// no canonical suffix.
@@ -119,7 +89,14 @@ fn canonical_sense_suffix_base(word: &str) -> Option<&str> {
 /// (`get_*(word)` then `get_*(base)`), so `"child_2"` inflects exactly like
 /// `"child"` rather than mixing stripped singulars with regular-rule plurals.
 fn base_lemma(word: &str, is_key: impl Fn(&str) -> bool) -> &str {
-    SenseKey::resolve(word, is_key).lemma()
+    // Strip to `base` only when the `_<digits>` suffix resolves to a real table
+    // key (the word itself or its base); otherwise the input is opaque. Only the
+    // canonical `_<n>` spelling is parsed — the old adjacent-digit form (`die2`)
+    // was retired at the data-major-2 re-key (see the crate docs).
+    match canonical_sense_suffix_base(word) {
+        Some(base) if is_key(word) || is_key(base) => base,
+        _ => word,
+    }
 }
 
 /// How a capitalized input's casing is restored onto a lowercase table value.
@@ -445,25 +422,19 @@ mod rule_table_sync_tests {
     //! predict — a bare row equal to the rule's output is dead weight, and its
     //! appearance means a core rule changed without regenerating the tables.
 
-    use super::{ADJECTIVE_MAP, PLURAL_MAP, VERB_MAP};
+    use super::{ADJECTIVE_MAP, PLURAL_MAP, VERB_MAP, canonical_sense_suffix_base};
     use english_core::EnglishCore;
     use english_core::grammar::{Form, Number, Person, Tense};
     use std::collections::HashSet;
 
-    fn split_suffix(key: &str) -> Option<&str> {
-        let (base, digits) = key.rsplit_once('_')?;
-        (!base.is_empty() && !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()))
-            .then_some(base)
-    }
-
     fn is_bare(key: &str) -> bool {
-        split_suffix(key).is_none()
+        canonical_sense_suffix_base(key).is_none()
     }
 
     fn suffixed_lemmas<'a, T>(entries: &'a [(&'a str, T)]) -> HashSet<&'a str> {
         entries
             .iter()
-            .filter_map(|(k, _)| split_suffix(k))
+            .filter_map(|(k, _)| canonical_sense_suffix_base(k))
             .collect()
     }
 

@@ -208,6 +208,35 @@ pub fn save_locks(
     Ok(())
 }
 
+/// Structural-validity gate shared by every command that persists or emits from
+/// the locks (refresh, compact, migrate-anchors, regen-tables). A structurally
+/// broken lock (suffix < 1, anchor/field mismatch, wrong forms arity, emit-key
+/// collision) must never reach disk or the table emitter — the pad-with-default
+/// column path would otherwise write `""` inflections. `action` names the
+/// refused operation for the error message.
+pub fn ensure_locks_valid(
+    noun: &Lock,
+    verb: &Lock,
+    adj: &Lock,
+    action: &str,
+) -> Result<(), Box<dyn Error>> {
+    let invalid: Vec<String> = noun
+        .validate()
+        .into_iter()
+        .chain(verb.validate())
+        .chain(adj.validate())
+        .collect();
+    if invalid.is_empty() {
+        return Ok(());
+    }
+    Err(format!(
+        "refusing to {action} — {} structural violation(s):\n  - {}",
+        invalid.len(),
+        invalid.join("\n  - ")
+    )
+    .into())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

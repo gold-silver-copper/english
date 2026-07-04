@@ -7,9 +7,9 @@
 //!   they can inform decisions, but NEVER emitted as output;
 //! - plain (no tag from either set): the only forms the library publishes.
 //!
-//! [`tag_rank`] encodes this as None/Some(1)/Some(0); `EXCLUDE ∪ SOFT` must
-//! equal the legacy `BAD_TAGS` set (asserted by a test) so the emitted-form
-//! pool never silently widens or narrows relative to the published crate.
+//! [`tag_rank`] encodes this as None/Some(1)/Some(0). `EXCLUDE_TAGS` and
+//! `SOFT_TAGS` must stay disjoint (asserted by a test); whether a change to
+//! either set alters an emitted form is caught by check-registry's byte-lock.
 
 use csv::Writer;
 use serde::{Deserialize, Deserializer};
@@ -17,34 +17,9 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
-pub static BAD_TAGS: &[&str] = &[
-    "obsolete",
-    "error-unknown-tag",
-    "dialectal",
-    "alternative",
-    "nonstandard",
-    "archaic",
-    "humorous",
-    "feminine",
-    "pronunciation-spelling",
-    "rare",
-    "dated",
-    "informal",
-    "sometimes",
-    "colloquial",
-];
 pub static BAD_CHARS: &[&str] = &[
     ".", "/", "&", " ", "'", "-", "#", "@", "`", "*", "%", "(", "!",
 ];
-
-pub fn contains_bad_tag(words: Vec<String>) -> bool {
-    for word in words {
-        if BAD_TAGS.contains(&&*word) {
-            return true;
-        }
-    }
-    false
-}
 
 /// Tags that *disqualify* a form outright: dead or broken forms we never want to
 /// emit under any circumstances.
@@ -54,10 +29,10 @@ pub static EXCLUDE_TAGS: &[&str] = &["obsolete", "archaic", "error-unknown-tag"]
 /// variant (dialectal/rare/jocular/etc.). We keep these forms in the candidate pool
 /// — so a later, anchor-based identity pass can expose them as variants — but they
 /// are never chosen as the canonical emitted form: a nonstandard spelling must not
-/// shadow the regular rule (e.g. never emit `busses`/`dangerouser`/`ageing`). Note
-/// `EXCLUDE_TAGS ∪ SOFT_TAGS` equals the legacy `BAD_TAGS` set, so emitted forms are
-/// drawn from exactly the same (plain) pool as before — only the selection within it
-/// is now deterministic.
+/// shadow the regular rule (e.g. never emit `busses`/`dangerouser`/`ageing`).
+/// Emitted forms are drawn only from the (plain) pool carrying neither
+/// `EXCLUDE_TAGS` nor `SOFT_TAGS`; only the selection within it is now
+/// deterministic.
 pub static SOFT_TAGS: &[&str] = &[
     "dialectal",
     "alternative",
@@ -278,22 +253,6 @@ impl Entry {
     }
 }
 
-#[derive(Debug, Default, Eq, Hash, PartialEq, Clone, Ord, PartialOrd)]
-pub struct AdjParts {
-    pub positive: String,
-    pub comparative: String,
-    pub superlative: String,
-}
-
-#[derive(Debug, Default, Eq, Hash, PartialEq, Clone, Ord, PartialOrd)]
-pub struct VerbParts {
-    pub inf: String,
-    pub third: String,
-    pub past: String,
-    pub present_part: String,
-    pub past_part: String,
-}
-
 /// Whether a dump entry participates in extraction at all: English, the right
 /// part of speech, and a proper single-word lemma. Rejected entries are
 /// invisible to every policy downstream — including bare-key reservation — so
@@ -367,18 +326,10 @@ mod tests {
     }
 
     #[test]
-    fn exclude_plus_soft_equals_legacy_bad_tags() {
+    fn exclude_and_soft_are_disjoint() {
         use std::collections::HashSet;
-        let union: HashSet<&str> = EXCLUDE_TAGS
-            .iter()
-            .chain(SOFT_TAGS.iter())
-            .copied()
-            .collect();
-        let legacy: HashSet<&str> = BAD_TAGS.iter().copied().collect();
-        assert_eq!(
-            union, legacy,
-            "EXCLUDE_TAGS ∪ SOFT_TAGS must equal the legacy BAD_TAGS set (kept in sync by hand)"
-        );
+        // tag_rank tests EXCLUDE before SOFT, so a tag in both sets would be
+        // silently miscategorised; the two must never overlap.
         let excl: HashSet<&str> = EXCLUDE_TAGS.iter().copied().collect();
         let soft: HashSet<&str> = SOFT_TAGS.iter().copied().collect();
         assert!(
