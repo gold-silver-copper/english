@@ -284,10 +284,7 @@ pub fn entry_is_proper(entry: &Entry, pos: &str) -> bool {
 /// be confused with a numbered key. Admitting underscores here would break
 /// suffix parsing across the `english` crate.
 pub fn word_is_proper(word: &str) -> bool {
-    if contains_bad_chars(word) || !word.is_ascii() || contains_number(word) {
-        return false;
-    }
-    true
+    !word.is_empty() && word.bytes().all(|b| b.is_ascii_alphabetic())
 }
 
 pub fn base_setup(
@@ -342,6 +339,29 @@ mod tests {
             excl.is_disjoint(&soft),
             "EXCLUDE_TAGS and SOFT_TAGS must be disjoint"
         );
+    }
+
+    #[test]
+    fn word_is_proper_is_ascii_alphabetic_only() {
+        assert!(word_is_proper("word"));
+        assert!(word_is_proper("CamelCase"));
+
+        for rejected in [
+            "",
+            "F16",
+            "mp3",
+            "word_2",
+            "a|b",
+            "a b",
+            "can't",
+            "éclair",
+            "quote\"",
+            "slash\\",
+            "hyphen-word",
+            "hash#word",
+        ] {
+            assert!(!word_is_proper(rejected), "{rejected:?} must be rejected");
+        }
     }
 
     #[test]
