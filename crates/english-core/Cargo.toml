@@ -3,9 +3,15 @@ name = "english-core"
 version = "0.3.0"
 authors.workspace = true
 edition.workspace = true
+rust-version = "1.85"
 description = "English language inflector"
 license.workspace = true
 repository.workspace = true
+keywords = ["english", "inflection", "morphology", "grammar", "nlp"]
+categories = ["text-processing"]
+readme = "README.md"
 
 [lib]
+# cdylib lets this crate be built standalone as a C-ABI / wasm dynamic library;
+# Rust dependents only ever link the rlib.
 crate-type = ["cdylib", "rlib"]
