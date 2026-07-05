@@ -76,6 +76,22 @@ impl EnglishCore {
     }
 }
 
+// These suffix lists deliberately OVER-generalize, and tightening them regresses
+// common irregulars — do not "fix" them without reading this.
+//   - `("p","pping")`/`("g","gging")` double EVERY p/g verb, so `help` -> `helpping`,
+//     `leap` -> `leapping`. A real CVC gate looks obviously correct.
+//   - IRREGULAR_PAST/THIRD have no `-ay`/`-oy`/`-ey` guard, so `play` -> `plaies`.
+// Every ATTESTED verb is still correct at runtime: the extractor tables any word
+// whose attested form differs from the (wrong) prediction, so `help`/`play` are
+// served from the table. The over-general prediction (`helpping`, `plaies`) is
+// load-bearing precisely BECAUSE it matches no attested form: that keeps the
+// bare-key reservation policy (`extractor::LemmaAcc::drop_regular`) from firing.
+// Tighten a rule so it predicts the real regularized variant (`payed`, `sayed`,
+// `weeped`) and that variant — plainly attested for many irregulars — reserves
+// the bare key, demoting the standard past (`pay` -> `payed`, `say` -> `sayed`).
+// There is no dump signal to avoid this (`abide`->`abided` and `pay`->`paid` are
+// tag-identical). See `english`'s `rule_regression_guards` test, which pins the
+// vulnerable words and will fail if a rule edit here regresses them.
 static IRREGULAR_PRES_PART: &[(&str, &str)] = &[
     ("e", "ing"),
     ("p", "pping"),

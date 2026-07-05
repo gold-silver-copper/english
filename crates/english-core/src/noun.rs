@@ -39,6 +39,19 @@ impl EnglishCore {
 //
 // Some entries are commented out because they did not pull their weight on
 // accuracy vs. size when measured; re-evaluate with `cargo xtask accuracy`.
+//
+// Several ACTIVE entries over-generalize and look like bugs (`f -> ves` gives
+// `chief -> chieves`; `um -> a` gives `album -> alba`; `man -> men` gives
+// `human -> humen`), but they are a deliberate, measured tradeoff, NOT safe to
+// "fix" by removal. Each is a two-sided coin the dump cannot call: `-f` words
+// attest both `selves` (standard) and `roofs`/`rooves`, so `f -> ves` serves
+// self/shelf/leaf correctly while getting roof/staff wrong, and dropping it flips
+// exactly those errors onto the more-common words. Worse, dropping it makes the
+// rule predict `selfs`/`leafs` — which are plainly attested (Toronto Maple
+// `Leafs`) — so they RESERVE the bare key (`extractor::LemmaAcc::drop_regular`)
+// and demote `selves`/`leaves` to a `_<n>` key. Measured on the 2026-07 dump,
+// removing `f -> ves` regressed ~78 common nouns for zero net accuracy. The
+// `english` crate's `rule_regression_guards` test pins the vulnerable words.
 const IRREGULAR_SUFFIXES: &[(&str, &str)] = &[
     //  ("chassis", "chassis"),
     //  ("sheep", "sheep"),

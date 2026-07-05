@@ -40,6 +40,12 @@ impl EnglishCore {
     /// differently (`fun` -> `more fun`, `clever` -> `cleverer`) live in the
     /// `english` crate's lookup tables, which are consulted before this fallback
     /// and are regenerated against exactly this prediction.
+    ///
+    /// Known heuristic gap: a `y` between two vowels is counted as a vowel, so
+    /// `loyal`/`royal` read as one syllable and the rule would suffix them
+    /// (`loyaler`). They are attested periphrastic, so the table serves the
+    /// correct `more loyal` (pinned by `english`'s `rule_regression_guards`); a
+    /// bare `loyal` inflected by rule alone would be wrong.
     fn degree_stem(word: &str) -> Option<String> {
         if word.len() < 2 || !word.chars().all(|c| c.is_ascii_alphabetic()) {
             return None;
