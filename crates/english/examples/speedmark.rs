@@ -5,6 +5,7 @@ fn main() {
     benchmark_verb();
     benchmark_noun();
     benchmark_adj();
+    benchmark_adverb();
 }
 use std::hint::black_box;
 use std::time::Instant;
@@ -54,6 +55,21 @@ pub fn benchmark_adj() {
 
     run_benchmark("adjective", &words, |w| {
         English::adj(w, &Degree::Comparative)
+    });
+}
+
+pub fn benchmark_adverb() {
+    let words = [
+        "zzzzzzzzzzzzzzzzz",
+        //   "xxxxxxxxxxxx",
+        //  "yyyyyyyyyyyy",
+        //   "aaaaaaaaaaaaaaaaaaaaa",
+        //  "wwwwwwwwwww",
+        //   "lllllllllll",
+    ];
+
+    run_benchmark("adverb", &words, |w| {
+        English::adverb(w, &Degree::Comparative)
     });
 }
 

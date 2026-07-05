@@ -10,14 +10,14 @@
 
 ## ⚡ Speed and Accuracy
 
-Evaluation of the English inflector (`cargo xtask accuracy`, using the 2026-07-02 Wiktionary dump) and performance benchmarking (`examples/speedmark.rs`) shows:
+Evaluation of the English inflector (`cargo xtask accuracy`, using the 2026-07-02 Wiktionary dump) and performance benchmarking (`examples/speedmark.rs`; measured rows averaged over 10 release runs) shows:
 
 | Part of Speech | Correct / Total | Accuracy  | Variant Gap | Throughput (calls/sec) | Time per Call |
 |----------------|----------------|-----------|-------------|-----------------------|---------------|
-| **Nouns**      | 225900 / 225900 | 100.00%  | 0           | 7,499,749             | 133 ns        |
-| **Verbs**      | 151540 / 151540 | 100.00%  | 0           | 12,423,891            | 80 ns         |
-| **Adjectives** | 121548 / 121550 | 99.998%  | 8           | 15,607,807            | 64 ns         |
-| **Adverbs**    | 25123 / 25125   | 99.99%   | 2           | —                     | —             |
+| **Nouns**      | 225900 / 225900 | 100.00%  | 0           | 6,072,834             | 164.67 ns     |
+| **Verbs**      | 151540 / 151540 | 100.00%  | 0           | 9,549,311             | 104.73 ns     |
+| **Adjectives** | 121548 / 121550 | 99.998%  | 8           | 6,859,637             | 145.79 ns     |
+| **Adverbs**    | 25123 / 25125   | 99.99%   | 2           | 11,144,625            | 89.73 ns      |
 
 The accuracy percentages measure *recall through any published key*: the share of plain attested Wiktionary forms reproducible via the bare lemma **or** any `_n` sense key. They do not measure what the bare lemma alone returns, nor precision/over-generation.
 
