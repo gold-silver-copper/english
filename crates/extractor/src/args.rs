@@ -1,3 +1,11 @@
+//! CLI contract for the extractor binary (normally invoked via
+//! `cargo xtask refresh-data`, which forwards these flags verbatim).
+//!
+//! The generated tables always go to the committed layout
+//! (`crates/english/generated`) — that is the only location `check-registry`, the
+//! runtime, and the accuracy harness read. The filtered-dump cache defaults to
+//! `data/intermediate` and can be redirected with `--artifacts-dir`.
+
 use std::env;
 use std::error::Error;
 use std::path::PathBuf;
@@ -8,9 +16,13 @@ const DEFAULT_ARTIFACTS_DIR: &str = "data/intermediate";
 #[derive(Debug, Clone)]
 pub struct Config {
     pub dump_path: PathBuf,
+    /// Where the PHF tables are written — always the committed layout.
     pub generated_dir: PathBuf,
     pub artifacts_dir: PathBuf,
-    pub run_checks: bool,
+    /// Measure accuracy against the currently-compiled committed tables, then
+    /// stop without regenerating (`cargo xtask accuracy`). Note this reflects the
+    /// tables compiled into THIS binary, not any tables a refresh would produce.
+    pub checks_only: bool,
 }
 
 pub fn parse_args() -> Result<Config, Box<dyn Error>> {
@@ -25,9 +37,9 @@ where
         .join("../..")
         .canonicalize()?;
     let mut dump_path = None;
-    let mut generated_dir = repo_root.join(DEFAULT_GENERATED_DIR);
+    let generated_dir = repo_root.join(DEFAULT_GENERATED_DIR);
     let mut artifacts_dir = repo_root.join(DEFAULT_ARTIFACTS_DIR);
-    let mut run_checks = false;
+    let mut checks_only = false;
 
     let mut args = args.into_iter();
     while let Some(arg) = args.next() {
@@ -36,20 +48,14 @@ where
                 let value = args.next().ok_or("expected a path after `--dump`")?;
                 dump_path = Some(PathBuf::from(value));
             }
-            "--generated-dir" => {
-                let value = args
-                    .next()
-                    .ok_or("expected a path after `--generated-dir`")?;
-                generated_dir = PathBuf::from(value);
-            }
             "--artifacts-dir" => {
                 let value = args
                     .next()
                     .ok_or("expected a path after `--artifacts-dir`")?;
                 artifacts_dir = PathBuf::from(value);
             }
-            "--run-checks" => {
-                run_checks = true;
+            "--checks-only" => {
+                checks_only = true;
             }
             "-h" | "--help" => {
                 print_usage();
@@ -74,13 +80,13 @@ where
         dump_path,
         generated_dir,
         artifacts_dir,
-        run_checks,
+        checks_only,
     })
 }
 
 pub fn print_usage() {
     eprintln!(
-        "Usage: cargo run -p extractor --release -- --dump /path/to/rawwiki.jsonl [--generated-dir generated] [--artifacts-dir data/intermediate] [--run-checks]"
+        "Usage: cargo run -p extractor --release -- --dump /path/to/rawwiki.jsonl [--artifacts-dir DIR] [--checks-only]"
     );
     eprintln!("       cargo run -p extractor --release -- /path/to/rawwiki.jsonl");
 }

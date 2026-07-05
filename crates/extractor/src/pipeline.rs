@@ -1,19 +1,38 @@
+//! Refresh orchestration: filter -> extract -> emit.
+//!
+//! There is no persisted state to reconcile: each refresh regenerates the tables
+//! from the dump alone. The only guard is the parse-time abort inside the
+//! extractors (a wiktextract schema break trips the parse-failure threshold), and
+//! the duplicate-key check inside [`generate_tables`]. `--checks-only` measures
+//! accuracy without touching the generated tables.
+
 use crate::args::Config;
+use crate::bootstrap::generate_tables;
 use crate::checks::run_checks;
 use crate::extract::{
     extract_irregular_adjectives, extract_irregular_nouns, extract_verb_conjugations,
     filter_english_entries,
 };
-use crate::file_generation::{generate_adjectives_phf, generate_nouns_phf, generate_verbs_phf};
 use std::error::Error;
 use std::fs;
 
+/// Run one full data refresh. On success the three generated PHF tables are a
+/// pure deterministic function of the (filtered) dump.
 pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
     fs::create_dir_all(&config.generated_dir)?;
     fs::create_dir_all(&config.artifacts_dir)?;
 
     let filtered_json_path = config.artifacts_dir.join("english_filtered.jsonl");
-    if config.dump_path != filtered_json_path {
+    // Compare canonicalized paths: a relative/absolute spelling of the SAME file
+    // must be detected, or we would truncate the filtered file while reading it.
+    let dump_is_filtered = match (
+        fs::canonicalize(&config.dump_path),
+        fs::canonicalize(&filtered_json_path),
+    ) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => false,
+    };
+    if !dump_is_filtered {
         filter_english_entries(&config.dump_path, &filtered_json_path)?;
     } else {
         println!(
@@ -22,21 +41,22 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
         );
     }
 
-    if config.run_checks {
+    if config.checks_only {
         run_checks(&filtered_json_path, &config.artifacts_dir)?;
+        println!("Checks-only run: generated tables untouched.");
+        return Ok(());
     }
 
-    let verbs_csv = config.artifacts_dir.join("verb_conjugations.csv");
-    let nouns_csv = config.artifacts_dir.join("nouns_with_plurals.csv");
-    let adjectives_csv = config.artifacts_dir.join("adjectives.csv");
+    // Deterministic extraction: each POS is numbered independently from the dump.
+    let noun = extract_irregular_nouns(&filtered_json_path)?;
+    let verb = extract_verb_conjugations(&filtered_json_path)?;
+    let adj = extract_irregular_adjectives(&filtered_json_path)?;
 
-    extract_verb_conjugations(&filtered_json_path, &verbs_csv)?;
-    extract_irregular_nouns(&filtered_json_path, &nouns_csv)?;
-    extract_irregular_adjectives(&filtered_json_path, &adjectives_csv)?;
+    generate_tables(&noun, &verb, &adj, &config.generated_dir)?;
 
-    generate_nouns_phf(&nouns_csv, config.generated_dir.join("noun_phf.rs"))?;
-    generate_adjectives_phf(&adjectives_csv, config.generated_dir.join("adj_phf.rs"))?;
-    generate_verbs_phf(&verbs_csv, config.generated_dir.join("verb_phf.rs"))?;
-
+    println!(
+        "Refresh complete. Tables regenerated in {}.",
+        config.generated_dir.display()
+    );
     Ok(())
 }

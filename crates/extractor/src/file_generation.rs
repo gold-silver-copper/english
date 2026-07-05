@@ -1,27 +1,23 @@
+//! PHF table emission. BYTE STABILITY IS LOAD-BEARING here: the
+//! `tables_round_trip_committed_output` test parses the committed tables and
+//! re-emits them, requiring a byte-identical result — any formatting change
+//! (whitespace, ordering, headers) must be committed together with regenerated
+//! tables (`cargo xtask refresh-data`). Entries are sorted by key before writing
+//! so output is independent of input order.
+
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
 use std::path::Path;
 
-pub fn generate_nouns_phf(
-    inputik: impl AsRef<Path>,
+// ---------------------------------------------------------------------------
+// Table writers. These hold the exact byte formatting of the generated tables;
+// the `generate_tables` path funnels the extracted candidates through them.
+// ---------------------------------------------------------------------------
+
+pub fn write_nouns_phf(
+    mut pairs: Vec<(String, String)>,
     outputik: impl AsRef<Path>,
 ) -> std::io::Result<()> {
-    let input = File::open(inputik)?;
-    let reader = BufReader::new(input);
-
-    let mut pairs: Vec<(String, String)> = reader
-        .lines()
-        .skip(1) // Skip header
-        .filter_map(|line| {
-            let line = line.ok()?;
-            let mut parts = line.split(',');
-            Some((
-                parts.next()?.trim().to_string(),
-                parts.next()?.trim().to_string(),
-            ))
-        })
-        .collect();
-
     // Sort by word for determinism (not required by phf, but helps reproducibility)
     pairs.sort_by_key(|(word, _)| word.clone());
 
@@ -49,31 +45,10 @@ pub fn generate_nouns_phf(
     Ok(())
 }
 
-pub fn generate_verbs_phf(
-    inputik: impl AsRef<Path>,
+pub fn write_verbs_phf(
+    mut entries: Vec<(String, (String, String, String, String))>,
     outputik: impl AsRef<Path>,
 ) -> std::io::Result<()> {
-    let input = File::open(inputik)?;
-    let reader = BufReader::new(input);
-
-    let mut entries: Vec<(String, (String, String, String, String))> = reader
-        .lines()
-        .skip(1) // Skip header
-        .filter_map(|line| {
-            let line = line.ok()?;
-            let mut parts = line.split(',');
-            Some((
-                parts.next()?.trim().to_string(), // infinitive
-                (
-                    parts.next()?.trim().to_string(), // 3rd person singular
-                    parts.next()?.trim().to_string(), // past
-                    parts.next()?.trim().to_string(), // present participle
-                    parts.next()?.trim().to_string(), // past participle
-                ),
-            ))
-        })
-        .collect();
-
     // Sort for determinism
     entries.sort_by_key(|(inf, _)| inf.clone());
 
@@ -110,29 +85,10 @@ pub fn generate_verbs_phf(
     Ok(())
 }
 
-pub fn generate_adjectives_phf(
-    inputik: impl AsRef<Path>,
+pub fn write_adjectives_phf(
+    mut entries: Vec<(String, (String, String))>,
     outputik: impl AsRef<Path>,
 ) -> std::io::Result<()> {
-    let input = File::open(inputik)?;
-    let reader = BufReader::new(input);
-
-    let mut entries: Vec<(String, (String, String))> = reader
-        .lines()
-        .skip(1) // Skip header
-        .filter_map(|line| {
-            let line = line.ok()?;
-            let mut parts = line.split(',');
-            Some((
-                parts.next()?.trim().to_string(), // positive
-                (
-                    parts.next()?.trim().to_string(), // comparative
-                    parts.next()?.trim().to_string(), // superlative
-                ),
-            ))
-        })
-        .collect();
-
     // Sort for determinism
     entries.sort_by_key(|(pos, _)| pos.clone());
 

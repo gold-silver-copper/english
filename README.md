@@ -10,15 +10,22 @@
 
 ## ⚡ Speed and Accuracy
 
-Evaluation of the English inflector (`extractor/main.rs/check_*`) and performance benchmarking (`examples/speedmark.rs`) shows:
+Evaluation of the English inflector (`cargo xtask accuracy`, using the 2026-07-02 Wiktionary dump) and performance benchmarking (`examples/speedmark.rs`) shows:
 
-| Part of Speech | Correct / Total | Accuracy  | Throughput (calls/sec) | Time per Call |
-|----------------|----------------|-----------|-----------------------|---------------|
-| **Nouns**      | 243495 / 244001 | 99.79%   | 7,499,749             | 133 ns        |
-| **Verbs**      | 161215 / 165457 | 97.44%   | 12,423,891            | 80 ns         |
-| **Adjectives** | 121512 / 121719 | 99.83%   | 15,607,807            | 64 ns         |
+| Part of Speech | Correct / Total | Accuracy  | Variant Gap | Throughput (calls/sec) | Time per Call |
+|----------------|----------------|-----------|-------------|-----------------------|---------------|
+| **Nouns**      | 225900 / 225900 | 100.00%  | 0           | 7,499,749             | 133 ns        |
+| **Verbs**      | 151540 / 151540 | 100.00%  | 0           | 12,423,891            | 80 ns         |
+| **Adjectives** | 121548 / 121550 | 99.998%  | 8           | 15,607,807            | 64 ns         |
 
 *Note: Benchmarking was done under a worst-case scenario; typical real-world usage is 50~ nanoseconds faster.*
+
+### Breaking change in 0.3: underscore sense-key format
+
+Sense-numbered keys now use the canonical underscore format (`die_2`, `lie_2`).
+The pre-0.3 adjacent-digit spelling (`die2`, `lie2`) was removed because it is
+ambiguous with ordinary digit-bearing words such as `mp3`, `F16`, and `F2`, which
+are now always treated opaquely unless they are exact table keys.
 
 ## 📦 Installation
 
@@ -63,8 +70,8 @@ fn main() {
     );
     // Regular plurals
     assert_eq!(English::noun("cat", &Number::Plural), "cats");
-    // Add a number 2-9 to the end of the word to try different forms.
-    assert_eq!(English::noun("die2", &Number::Plural), "dice");
+    // Sense-numbered keys expose homographs and attested variants.
+    assert_eq!(English::noun("die_2", &Number::Plural), "dice");
     // Use count function for better ergonomics if needed
     assert_eq!(count("man", 2), "men");
     // Use count_with_number function to preserve the number
@@ -103,7 +110,8 @@ fn main() {
         ),
         "gone"
     );
-    // Add a number 2-9 to the end of the word to try different forms.
+    // Sense-numbered keys distinguish homographs: "lie" (recline) and "lie_2"
+    // (tell an untruth) inflect differently.
     assert_eq!(
         English::verb(
             "lie",
@@ -116,7 +124,7 @@ fn main() {
     );
     assert_eq!(
         English::verb(
-            "lie2",
+            "lie_2",
             &Person::Third,
             &Number::Singular,
             &Tense::Past,
@@ -137,14 +145,14 @@ fn main() {
     );
 
     // --- Adjectives ---
-    // Add a number 2-9 to the end of the word to try different forms. (Bad has the most forms at 3)
-    assert_eq!(English::adj("bad", &Degree::Comparative), "more bad");
-    assert_eq!(English::adj("bad", &Degree::Superlative), "most bad");
-    assert_eq!(English::adj("bad2", &Degree::Comparative), "badder");
-    assert_eq!(English::adj("bad2", &Degree::Superlative), "baddest");
-    assert_eq!(English::adj("bad3", &Degree::Comparative), "worse");
-    assert_eq!(English::adj("bad3", &Degree::Superlative), "worst");
-    assert_eq!(English::adj("bad3", &Degree::Positive), "bad");
+    // Numbered adjective keys expose standard, slang, and periphrastic variants.
+    assert_eq!(English::adj("bad", &Degree::Comparative), "worse");
+    assert_eq!(English::adj("bad", &Degree::Superlative), "worst");
+    assert_eq!(English::adj("bad_2", &Degree::Comparative), "badder");
+    assert_eq!(English::adj("bad_2", &Degree::Superlative), "baddest");
+    assert_eq!(English::adj("bad_3", &Degree::Comparative), "more bad");
+    assert_eq!(English::adj("bad_3", &Degree::Superlative), "most bad");
+    assert_eq!(English::adj("bad_3", &Degree::Positive), "bad");
 
     // --- Pronouns ---
     assert_eq!(
@@ -209,13 +217,16 @@ It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive
 * Parses large English Wiktionary dumps
 * Extracts all verb, noun, and adjective forms
 * Uses `english-core` to filter out regular forms, preserving only irregulars
+* Numbers homograph senses **deterministically** by a pure sort of their emitted forms (no lockfile, no identity, no human review — see below)
 * Generates the static PHF tables used in `english`
+* Emits every plain attested variant as its own sense-numbered key (`cactus_2` → *cacti*, `cactus_3` → …), numbered in form-signature order
+* `cargo xtask accuracy` measures, per part of speech, the share of slots whose plain attested Wiktionary forms the library reproduces, plus the variant gap (attested forms not reachable through any published key) — run it before and after any rule or table change. It needs dump data: either the cached `data/intermediate/english_filtered.jsonl` (gitignored; produced by a prior `cargo xtask refresh-data`) or an explicit `--dump /path/to/raw-wiktextract.jsonl`
 
 ---
 
 ## 📦 Obtaining Wiktionary Data & Running the Extractor
 
-This project relies on raw data extracted from Wiktionary. Current version built with data from 8/17/2025.
+This project relies on raw data extracted from Wiktionary. Current version built with data from 2026-07-02.
 
 - [Wiktextract (GitHub)](https://github.com/tatuylonen/wiktextract)
 - [Kaikki.org raw data](https://kaikki.org/dictionary/rawdata.html)
@@ -225,9 +236,45 @@ This project relies on raw data extracted from Wiktionary. Current version built
 1. Download the **raw Wiktextract JSONL dump** (~20 GB) from [Kaikki.org](https://kaikki.org/dictionary/rawdata.html).
 2. Place the file somewhere accessible (e.g. `../rawwiki.jsonl`).
 3. From the repository root, run: `cargo xtask refresh-data --dump ../rawwiki.jsonl`
-4. The generated Rust tables are written to `/crates/english/generated`, and intermediate CSV/JSONL artifacts are written to `/data/intermediate`
+4. The generated Rust tables are written to `/crates/english/generated`; intermediate CSV/JSONL artifacts to `/data/intermediate`.
+5. Review `git diff crates/english/generated/`, then run `cargo xtask check-registry` before committing.
 
-To also run the extractor evaluation reports against the current library data, add `--with-checks`.
+After committing regenerated tables, run `cargo xtask accuracy` to score them against the dump (it measures the currently-compiled committed tables).
+
+## Deterministic sense numbering
+
+Homographs that inflect differently share a lemma and are disambiguated by a numeric suffix
+(`lie` → *lay*, `lie_2` → *lied*; `die_2` → *dice*). The suffix is assigned by a **pure,
+transparent sort** of the forms — no lockfile, no frozen identity, no human-review workflow.
+
+For each `(lemma, part of speech)` the extractor:
+
+1. gathers every plain attested inflection pattern and drops the one the regular rule engine
+   already produces (so the rule serves it at runtime);
+2. sorts the survivors by emitted **form signature** (standard senses before slang/soft ones,
+   then lexicographically);
+3. hands out suffixes: if a regular form was dropped, the bare key is reserved for the rule
+   engine and numbering starts at `_2`; otherwise the first-sorted survivor takes the bare
+   lemma. The rest number upward (`_2`, `_3`, …).
+
+Because the key is a function of the forms alone, **reordering the dump's entries can never
+change the output** — generation is reproducible. `cargo xtask check-registry` is a dump-free
+consistency gate: it verifies the committed tables are well-formed, have unique and correctly
+shaped keys, no empty columns, and preserve rule/table layering (a bare key never merely
+duplicates the rule engine, which would mean an `english-core` rule changed without regenerating).
+It deliberately does **not** verify that a row's irregular *values* are correct — those are
+attested data, not derivable without the dump. `cargo xtask accuracy` (with the dump) is the
+authoritative value check; the `english-core` `regular_rules_golden` test additionally pins the
+regular fallbacks so a rule edit that breaks un-tabled words fails `cargo test`.
+
+**Stability guarantee — "fairly stable", not frozen.** Keys are deterministic but **not
+immutable**. If Wiktionary adds, removes, or edits a lemma's attested forms, the sort can
+renumber that lemma's `_<n>` keys — a lexicographically earlier new variant deliberately shifts
+the later ones up. What stays true across refreshes is that the *set* of forms a lemma exposes
+is fully reachable through some key, and that a slang-only sense never takes the bare key from a
+standard one. There is no cross-version immutability check, `DATA_MAJOR`, override file, or
+rematch proposal flow — regenerating from a newer dump is the whole story. Review the
+`crates/english/generated/` diff on a refresh as you would any regenerated artifact.
 
 ## Benchmarks
 Performance benchmarks were run on my M2 Macbook.
@@ -235,7 +282,7 @@ Performance benchmarks were run on my M2 Macbook.
 Writing benchmarks and tests for such a project is rather difficult and requires opinionated decisions. Many words may have alternative inflections, and the data in wiktionary is not perfect. Many words might be both countable and uncountable, the tagging of words may be inconsistent. This library includes a few uncountable words in its dataset, but not all. Uncountable words require special handling anyway. Take all benchmarks with a pound of salt, write your own tests for your own usecases. Any suggestions to improve the benchmarking are highly appreciated.
 
 ## Disclaimer
-Wiktionary data is often unstable and subject to weird changes. This means that the provided inflections may change unexpectedly. The generated lookup tables in `crates/english/generated/*_phf.rs` are the source of truth for a given revision.
+Wiktionary data is often unstable and subject to weird changes. This means that the provided inflections may change unexpectedly. The generated lookup tables in `crates/english/generated/*_phf.rs` are the source of truth for a given revision. Sense-numbered keys (`lie_2`, `die_2`, …) are assigned deterministically by a form-signature sort, so they are reproducible for a given dump but may be renumbered when upstream forms change — see [Deterministic sense numbering](#deterministic-sense-numbering).
 
 ## Inspirations and Thanks
 - Ole in the bevy discord suggested I use ```phf``` instead of sorted arrays, this resulted in up to 40% speedups

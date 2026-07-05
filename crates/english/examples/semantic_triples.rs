@@ -122,7 +122,7 @@ fn main() {
         Viewpoint::past().speaker(guard).listener(orc),
     );
     let worse = world.adjective(
-        &adj("bad3").degree(Degree::Comparative),
+        &adj("bad").degree(Degree::Comparative),
         Viewpoint::present(),
     );
 

@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Blocking: the full suite, including the extractor determinism tests (extractor
+  # is a default member, so `cargo test --workspace` exercises them).
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace
+      # `cargo test --workspace` uses DEFAULT features, so the `checks`-gated
+      # accuracy harness never even compiles. Build + run its dump-free unit tests
+      # so the harness stays compilable and the pure scoring helpers (score_slot,
+      # keys_for) are pinned. The per-POS slot classification still needs the dump
+      # (only `cargo xtask accuracy` exercises it), so this is not full coverage.
+      - run: cargo test -p extractor --features checks
+      # Examples are assert-based demos that `cargo test` never executes (it only
+      # compiles them) — run every assert-bearing example so stale key formats or
+      # behavioral drift in examples fail CI, not users. speedmark is excluded:
+      # it is a benchmark with no asserts.
+      - run: cargo run -p english --example test
+      - run: cargo run -p english --example semantic_triples
+
+  # Blocking: the dump-free consistency gate. Verifies the committed PHF tables
+  # are well-formed (unique, correctly-shaped keys), have no empty columns, and
+  # preserve rule/table layering (a bare key never merely duplicates the rule
+  # engine — which would mean a rule changed without regenerating). It does NOT
+  # need the multi-GB dump, and there is no cross-version immutability check:
+  # sense-numbered keys are deterministic, not frozen.
+  registry:
+    name: check-registry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo run -p xtask -- check-registry
+
+  # Both BLOCKING: the tree is formatted and clippy-clean; keep it that way.
+  # -D warnings is what makes clippy an actual gate — without it the step
+  # exits 0 no matter how many lints fire.
+  lint:
+    name: fmt + clippy (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      # --all-features so the `checks`-gated accuracy harness (compiled by
+      # `cargo xtask accuracy`) is linted too, not just the default surface.
+      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
