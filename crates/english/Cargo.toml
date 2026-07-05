@@ -3,12 +3,20 @@ name = "english"
 version = "0.3.0"
 authors.workspace = true
 edition.workspace = true
+# 1.88 (not just edition 2024's 1.85): src/lib.rs uses a let-chain (`&& let ...`),
+# stabilized in 1.88.
+rust-version = "1.88"
 description = "English inflector decliner conjugator from wiktionary data"
 license.workspace = true
 repository.workspace = true
+keywords = ["english", "inflection", "nlp", "grammar", "linguistics"]
+categories = ["text-processing", "localization"]
+readme = "README.md"
 include = ["build.rs", "examples/**/*.rs", "generated/**/*.rs", "src/**/*.rs", "Cargo.toml", "README.md"]
 
 [lib]
+# cdylib lets this crate be built standalone as a C-ABI / wasm dynamic library;
+# Rust dependents only ever link the rlib.
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
