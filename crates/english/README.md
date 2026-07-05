@@ -6,7 +6,7 @@
 [![Discord](https://img.shields.io/discord/123456789012345678.svg?logo=discord&logoColor=white&color=5865F2)](https://discord.gg/tDBPkdgApN)
 
 
-**english** is a blazing fast and light weight English inflection library written in Rust. Total bundled data size is less than 1 MB. It provides extremely accurate verb conjugation and noun/adjective/adverb declension based on highly processed Wiktionary data, making it ideal for real-time procedural text generation.
+**english** is a blazing fast and light weight English inflection library written in Rust. Total bundled data is about 1 MB. It provides extremely accurate verb conjugation and noun/adjective/adverb declension based on highly processed Wiktionary data, making it ideal for real-time procedural text generation.
 
 ## ⚡ Speed and Accuracy
 
@@ -18,6 +18,8 @@ Evaluation of the English inflector (`cargo xtask accuracy`, using the 2026-07-0
 | **Verbs**      | 151540 / 151540 | 100.00%  | 0           | 12,423,891            | 80 ns         |
 | **Adjectives** | 121548 / 121550 | 99.998%  | 8           | 15,607,807            | 64 ns         |
 | **Adverbs**    | 25123 / 25125   | 99.99%   | 2           | —                     | —             |
+
+The accuracy percentages measure *recall through any published key*: the share of plain attested Wiktionary forms reproducible via the bare lemma **or** any `_n` sense key. They do not measure what the bare lemma alone returns, nor precision/over-generation.
 
 *Note: Benchmarking was done under a worst-case scenario; typical real-world usage is 50~ nanoseconds faster.*
 
@@ -209,7 +211,7 @@ It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive
 > The public API for verb conjugation and noun/adjective/adverb declension.
 
 * Combines optimized data generated from `extractor` with inflection logic from `english-core`
-* Pure Rust, only one dependency: phf
+* Pure Rust; one third-party dependency (`phf`) plus the first-party `english-core`
 * PHF-backed irregular lookups with regular-rule fallback
 * Code generation ensures no runtime penalty
 
