@@ -24,6 +24,7 @@
 //! crate's responsibility (`rule_with_case`).
 
 mod adj;
+mod adverb;
 pub mod grammar;
 mod noun;
 pub mod sense_key;

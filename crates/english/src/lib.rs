@@ -34,7 +34,7 @@
 //! lockfile or frozen identity. What is stable is the *set* of forms a lemma
 //! exposes and the rule/table layering below.
 //!
-//! # Lookup semantics (invariants shared by [`English::noun`]/[`English::verb`]/[`English::adj`])
+//! # Lookup semantics (invariants shared by [`English::noun`]/[`English::verb`]/[`English::adj`]/[`English::adverb`])
 //!
 //! 1. Case-insensitive: Title-case and ALL-CAPS input hit the all-lowercase
 //!    tables with the casing restored on the value; regular-rule fallbacks get
@@ -71,6 +71,13 @@ mod verb_phf {
     ));
 }
 use verb_phf::*;
+mod adverb_phf {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/generated/adverb_phf.rs"
+    ));
+}
+use adverb_phf::*;
 
 /// The base of a canonical sense-suffixed key: sense suffixes are `_<digits>`
 /// (underscore plus a number, e.g. `die_2`). Returns `None` when the word carries
@@ -279,6 +286,40 @@ impl English {
         }
     }
 
+    /// Inflects an adverb into positive, comparative, or superlative form.
+    ///
+    /// The regular rule is periphrastic (`"quickly" -> "more quickly"/"most
+    /// quickly"`); the small closed set of flat and suppletive adverbs is served
+    /// from the table (`"well" -> "better"/"best"`, `"fast" -> "faster"/"fastest"`,
+    /// `"far" -> "farther"/"farthest"`). Sense-numbered keys resolve to their
+    /// pinned homograph (`"far_2" -> "further"`); a suffix that resolves to no
+    /// table key stays opaque.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use english::{Degree, English};
+    ///
+    /// assert_eq!(English::adverb("quickly", &Degree::Comparative), "more quickly");
+    /// assert_eq!(English::adverb("well", &Degree::Comparative), "better");
+    /// assert_eq!(English::adverb("fast", &Degree::Superlative), "fastest");
+    /// ```
+    pub fn adverb(word: &str, degree: &Degree) -> String {
+        let base_word = base_lemma(word, |w| ci_lookup(w, get_adverb_forms).is_some());
+        // The table lookup lives inside the arms that use it: Positive returns the
+        // base lemma directly and must not pay two probes for nothing.
+        match degree {
+            Degree::Positive => base_word.to_owned(),
+            Degree::Comparative => match ci_lookup_with_base(word, base_word, get_adverb_forms) {
+                Some(((comp, _), style)) => restyle(comp.to_owned(), style),
+                None => rule_with_case(base_word, EnglishCore::comparative_adverb),
+            },
+            Degree::Superlative => match ci_lookup_with_base(word, base_word, get_adverb_forms) {
+                Some(((_, sup), style)) => restyle(sup.to_owned(), style),
+                None => rule_with_case(base_word, EnglishCore::superlative_adverb),
+            },
+        }
+    }
+
     /// Conjugates a verb into the requested form.
     ///
     /// Handles irregular verbs (e.g., `"go" -> "went"`, `"eat" -> "ate"`)
@@ -436,7 +477,7 @@ mod rule_table_sync_tests {
     //! predict — a bare row equal to the rule's output is dead weight, and its
     //! appearance means a core rule changed without regenerating the tables.
 
-    use super::{ADJECTIVE_MAP, PLURAL_MAP, VERB_MAP, canonical_sense_suffix_base};
+    use super::{ADJECTIVE_MAP, ADVERB_MAP, PLURAL_MAP, VERB_MAP, canonical_sense_suffix_base};
     use english_core::EnglishCore;
     use english_core::grammar::{Form, Number, Person, Tense};
 
@@ -454,6 +495,7 @@ mod rule_table_sync_tests {
         let nouns: Vec<_> = PLURAL_MAP.entries().map(|(k, v)| (*k, *v)).collect();
         let verbs: Vec<_> = VERB_MAP.entries().map(|(k, v)| (*k, *v)).collect();
         let adjs: Vec<_> = ADJECTIVE_MAP.entries().map(|(k, v)| (*k, *v)).collect();
+        let adverbs: Vec<_> = ADVERB_MAP.entries().map(|(k, v)| (*k, *v)).collect();
         let mut redundant = Vec::new();
 
         for (key, plural) in &nouns {
@@ -485,6 +527,17 @@ mod rule_table_sync_tests {
             {
                 redundant.push(format!(
                     "adj {key} -> {comp}/{sup} (rule already predicts it)"
+                ));
+            }
+        }
+
+        for (key, (comp, sup)) in &adverbs {
+            if is_bare(key)
+                && EnglishCore::comparative_adverb(key) == *comp
+                && EnglishCore::superlative_adverb(key) == *sup
+            {
+                redundant.push(format!(
+                    "adverb {key} -> {comp}/{sup} (rule already predicts it)"
                 ));
             }
         }

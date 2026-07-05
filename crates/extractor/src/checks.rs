@@ -50,6 +50,26 @@ impl Score {
             100.0 * self.matched_slots as f64 / self.total_slots as f64
         }
     }
+
+    /// The percentage as a display string that never rounds a NON-perfect score
+    /// up to `100.00%` — an imperfect metric shown as `100%` is misleading
+    /// (`121548/121550` is `99.998%`, not `100.00%`). A perfect score prints
+    /// `100.00%`; an imperfect one uses the fewest decimals (>= 2) that still
+    /// render strictly below 100.
+    pub fn percent_display(&self) -> String {
+        if self.total_slots == 0 || self.matched_slots >= self.total_slots {
+            return "100.00%".to_string();
+        }
+        let pct = self.percent();
+        for prec in 2..=6usize {
+            let factor = 10f64.powi(prec as i32);
+            if (pct * factor).round() / factor < 100.0 {
+                return format!("{pct:.prec$}%");
+            }
+        }
+        // Astronomically close to 100 but not equal: floor so it never shows 100.
+        format!("{:.2}%", (pct * 100.0).floor() / 100.0)
+    }
 }
 
 pub fn run_checks(filtered_json_path: &Path, artifacts_dir: &Path) -> Result<(), Box<dyn Error>> {
@@ -62,18 +82,21 @@ pub fn run_checks(filtered_json_path: &Path, artifacts_dir: &Path) -> Result<(),
         let verb =
             check_verb_conjugations(filtered_json_path, artifacts_dir.join("verbs_check.csv"))?;
         let adj = check_adjective_forms(filtered_json_path, artifacts_dir.join("adj_check.csv"))?;
+        let adverb =
+            check_adverb_forms(filtered_json_path, artifacts_dir.join("adverb_check.csv"))?;
 
         println!("\naccuracy (slots whose plain attested forms the library reproduces):");
         for (name, s) in [
             ("noun plural", noun),
             ("verb forms", verb),
             ("adj comp/sup", adj),
+            ("adverb comp/sup", adverb),
         ] {
             println!(
-                "  {name:>12}: {:>7}/{:<7} = {:.2}%   variant gap: {} attested form(s) not produced",
+                "  {name:>12}: {:>7}/{:<7} = {}   variant gap: {} attested form(s) not produced",
                 s.matched_slots,
                 s.total_slots,
-                s.percent(),
+                s.percent_display(),
                 s.unreachable_forms,
             );
         }
@@ -206,10 +229,10 @@ pub fn check_noun_plurals(
 
     writer.flush()?;
     println!(
-        "noun plural check: {}/{} slots ({:.2}%); misses in {}",
+        "noun plural check: {}/{} slots ({}); misses in {}",
         score.matched_slots,
         score.total_slots,
-        score.percent(),
+        score.percent_display(),
         output_path.display()
     );
     Ok(score)
@@ -322,10 +345,10 @@ pub fn check_verb_conjugations(
 
     writer.flush()?;
     println!(
-        "verb form check: {}/{} slots ({:.2}%); misses in {}",
+        "verb form check: {}/{} slots ({}); misses in {}",
         score.matched_slots,
         score.total_slots,
-        score.percent(),
+        score.percent_display(),
         output_path.display()
     );
     Ok(score)
@@ -407,10 +430,95 @@ pub fn check_adjective_forms(
 
     writer.flush()?;
     println!(
-        "adj form check: {}/{} slots ({:.2}%); misses in {}",
+        "adj form check: {}/{} slots ({}); misses in {}",
         score.matched_slots,
         score.total_slots,
-        score.percent(),
+        score.percent_display(),
+        output_path.display()
+    );
+    Ok(score)
+}
+
+#[cfg(feature = "checks")]
+pub fn check_adverb_forms(
+    input_path: impl AsRef<Path>,
+    output_path: impl AsRef<Path>,
+) -> Result<Score, Box<dyn Error>> {
+    use english::*;
+
+    let output_path = output_path.as_ref();
+    let (reader, mut writer) = base_setup(input_path.as_ref(), output_path);
+    writer.write_record(["lemma", "degree", "attested_forms", "library_said"])?;
+
+    // Periphrastic attestations ("more quickly") are the norm for adverbs, so no
+    // word_is_proper filter on the forms here.
+    let mut attested: BTreeMap<String, [BTreeSet<String>; 2]> = BTreeMap::new();
+    for line in reader.lines() {
+        let line = line?;
+        let entry: Entry = match serde_json::from_str(&line) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        if !entry_is_proper(&entry, "adv") {
+            continue;
+        }
+        let lemma = entry.word.to_lowercase();
+        if let Some(forms) = &entry.forms {
+            for form in forms {
+                let f = form.form.to_lowercase();
+                if f == "dubious" || tag_rank(&form.tags) != Some(0) {
+                    continue;
+                }
+                if form.tags.iter().any(|t| t == "comparative") {
+                    attested.entry(lemma.clone()).or_default()[0].insert(f.clone());
+                }
+                if form.tags.iter().any(|t| t == "superlative") {
+                    attested.entry(lemma.clone()).or_default()[1].insert(f);
+                }
+            }
+        }
+    }
+
+    let adverb_keys = generated_keys("adverb_phf.rs")?;
+    let by_lemma = published_keys(&adverb_keys);
+
+    let mut score = Score::default();
+    for (lemma, slots) in &attested {
+        let keys = keys_for(&by_lemma, lemma);
+        for (slot, forms) in slots.iter().enumerate() {
+            if forms.is_empty() {
+                continue;
+            }
+            let degree = if slot == 0 {
+                Degree::Comparative
+            } else {
+                Degree::Superlative
+            };
+            let produced: BTreeSet<String> =
+                keys.iter().map(|v| English::adverb(v, &degree)).collect();
+            if !score_slot(&mut score, forms, &produced) {
+                let shown: Vec<&str> = forms.iter().map(|s| s.as_str()).collect();
+                writer.write_record(&[
+                    lemma.clone(),
+                    if slot == 0 {
+                        "Comparative"
+                    } else {
+                        "Superlative"
+                    }
+                    .to_string(),
+                    shown.join("|"),
+                    English::adverb(lemma, &degree),
+                ])?;
+            }
+        }
+    }
+
+    writer.flush()?;
+    println!(
+        "adverb form check: {}/{} slots ({}); misses in {}",
+        score.matched_slots,
+        score.total_slots,
+        score.percent_display(),
         output_path.display()
     );
     Ok(score)
@@ -473,5 +581,30 @@ mod tests {
         assert!(q.contains(&"die_2".to_string()) && q.contains(&"die_3".to_string()));
         // A lemma with no table entry still queries its own bare form (rule fallback).
         assert_eq!(keys_for(&by_lemma, "zzz"), vec!["zzz".to_string()]);
+    }
+
+    #[test]
+    fn percent_display_never_rounds_a_non_perfect_score_to_100() {
+        let s = |matched: u64, total: u64| Score {
+            matched_slots: matched,
+            total_slots: total,
+            unreachable_forms: 0,
+        };
+        // Perfect scores print 100.00%.
+        assert_eq!(s(0, 0).percent_display(), "100.00%");
+        assert_eq!(s(225900, 225900).percent_display(), "100.00%");
+        // 121548/121550 = 99.9984% must NOT display as 100.00% — it gains a decimal.
+        assert_eq!(s(121548, 121550).percent_display(), "99.998%");
+        // 25123/25125 = 99.992% shows below 100 at two decimals already.
+        assert_eq!(s(25123, 25125).percent_display(), "99.99%");
+        // An ordinary imperfect score.
+        assert_eq!(s(1, 2).percent_display(), "50.00%");
+        // Every imperfect score renders strictly below 100.
+        for total in [7u64, 101, 999, 25125, 121550, 1_000_000] {
+            let d = s(total - 1, total).percent_display();
+            assert_ne!(d, "100.00%", "{total}");
+            let n: f64 = d.trim_end_matches('%').parse().unwrap();
+            assert!(n < 100.0, "{d} for {total}");
+        }
     }
 }

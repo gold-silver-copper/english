@@ -10,8 +10,8 @@ use crate::args::Config;
 use crate::bootstrap::generate_tables;
 use crate::checks::run_checks;
 use crate::extract::{
-    extract_irregular_adjectives, extract_irregular_nouns, extract_verb_conjugations,
-    filter_english_entries,
+    extract_irregular_adjectives, extract_irregular_adverbs, extract_irregular_nouns,
+    extract_verb_conjugations, filter_english_entries,
 };
 use std::error::Error;
 use std::fs;
@@ -51,8 +51,9 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
     let noun = extract_irregular_nouns(&filtered_json_path)?;
     let verb = extract_verb_conjugations(&filtered_json_path)?;
     let adj = extract_irregular_adjectives(&filtered_json_path)?;
+    let adverb = extract_irregular_adverbs(&filtered_json_path)?;
 
-    generate_tables(&noun, &verb, &adj, &config.generated_dir)?;
+    generate_tables(&noun, &verb, &adj, &adverb, &config.generated_dir)?;
 
     println!(
         "Refresh complete. Tables regenerated in {}.",

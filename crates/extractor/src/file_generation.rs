@@ -121,3 +121,40 @@ pub fn write_adjectives_phf(
 
     Ok(())
 }
+
+pub fn write_adverbs_phf(
+    mut entries: Vec<(String, (String, String))>,
+    outputik: impl AsRef<Path>,
+) -> std::io::Result<()> {
+    // Sort for determinism
+    entries.sort_by_key(|(pos, _)| pos.clone());
+
+    let mut output = File::create(outputik)?;
+
+    writeln!(output, "use phf::phf_map;")?;
+    writeln!(output)?;
+    writeln!(output, "/// (comparative, superlative)")?;
+    writeln!(
+        output,
+        "pub static ADVERB_MAP: phf::Map<&'static str, (&'static str, &'static str)> = phf_map! {{"
+    )?;
+
+    for (positive, (comparative, superlative)) in &entries {
+        writeln!(
+            output,
+            "    \"{}\" => (\"{}\", \"{}\"),",
+            positive, comparative, superlative
+        )?;
+    }
+
+    writeln!(output, "}};")?;
+    writeln!(output)?;
+    writeln!(
+        output,
+        "pub fn get_adverb_forms(positive: &str) -> Option<(&'static str, &'static str)> {{"
+    )?;
+    writeln!(output, "    ADVERB_MAP.get(positive).copied()")?;
+    writeln!(output, "}}")?;
+
+    Ok(())
+}
