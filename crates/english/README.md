@@ -17,6 +17,7 @@ Evaluation of the English inflector (`cargo xtask accuracy`, using the 2026-07-0
 | **Nouns**      | 225900 / 225900 | 100.00%  | 0           | 7,499,749             | 133 ns        |
 | **Verbs**      | 151540 / 151540 | 100.00%  | 0           | 12,423,891            | 80 ns         |
 | **Adjectives** | 121548 / 121550 | 99.998%  | 8           | 15,607,807            | 64 ns         |
+| **Adverbs**    | 25123 / 25125   | 99.99%   | 2           | —                     | —             |
 
 *Note: Benchmarking was done under a worst-case scenario; typical real-world usage is 50~ nanoseconds faster.*
 
