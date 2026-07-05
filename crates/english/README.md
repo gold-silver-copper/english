@@ -6,7 +6,7 @@
 [![Discord](https://img.shields.io/discord/123456789012345678.svg?logo=discord&logoColor=white&color=5865F2)](https://discord.gg/tDBPkdgApN)
 
 
-**english** is a blazing fast and light weight English inflection library written in Rust. Total bundled data size is less than 1 MB. It provides extremely accurate verb conjugation and noun/adjective declension based on highly processed Wiktionary data, making it ideal for real-time procedural text generation.
+**english** is a blazing fast and light weight English inflection library written in Rust. Total bundled data size is less than 1 MB. It provides extremely accurate verb conjugation and noun/adjective/adverb declension based on highly processed Wiktionary data, making it ideal for real-time procedural text generation.
 
 ## ⚡ Speed and Accuracy
 
@@ -154,6 +154,17 @@ fn main() {
     assert_eq!(English::adj("bad_3", &Degree::Superlative), "most bad");
     assert_eq!(English::adj("bad_3", &Degree::Positive), "bad");
 
+    // --- Adverbs ---
+    // Regular adverbs are periphrastic (rule); flat/suppletive adverbs are tabled.
+    assert_eq!(English::adverb("quickly", &Degree::Comparative), "more quickly");
+    assert_eq!(English::adverb("well", &Degree::Comparative), "better");
+    assert_eq!(English::adverb("badly", &Degree::Superlative), "worst");
+    assert_eq!(English::adverb("fast", &Degree::Comparative), "faster");
+    assert_eq!(English::adverb("early", &Degree::Superlative), "earliest");
+    // `far` splits into numbered keys: farther/farthest and further/furthest.
+    assert_eq!(English::adverb("far", &Degree::Comparative), "farther");
+    assert_eq!(English::adverb("far_2", &Degree::Comparative), "further");
+
     // --- Pronouns ---
     assert_eq!(
         English::pronoun(
@@ -194,7 +205,7 @@ It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive
 
 ### `english`
 
-> The public API for verb conjugation and noun/adjective declension.
+> The public API for verb conjugation and noun/adjective/adverb declension.
 
 * Combines optimized data generated from `extractor` with inflection logic from `english-core`
 * Pure Rust, only one dependency: phf
@@ -215,7 +226,7 @@ It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive
 > A tool to process and refine Wiktionary data.
 
 * Parses large English Wiktionary dumps
-* Extracts all verb, noun, and adjective forms
+* Extracts all verb, noun, adjective, and adverb forms
 * Uses `english-core` to filter out regular forms, preserving only irregulars
 * Numbers homograph senses deterministically by a pure sort of their emitted forms (no lockfile, no identity)
 * Emits every plain attested variant as its own sense-numbered key (`cactus_2` → *cacti*, `cactus_3` → …), numbered in form-signature order
@@ -239,6 +250,26 @@ This project relies on raw data extracted from Wiktionary. Current version built
 5. Review `git diff crates/english/generated/`, then run `cargo xtask check-registry` before committing.
 
 After committing regenerated tables, run `cargo xtask accuracy` to score them against the dump (it measures the currently-compiled committed tables).
+
+## Adverb degree
+
+Adverbs use the same two-tier design as the other parts of speech (table first,
+rule fallback) but a **different rule** from adjectives:
+
+* **Adjectives** have a linguistically-informed rule — short words take suffixal
+  `-er`/`-est` (`fast → faster`), longer words go periphrastic.
+* **Adverbs** have a deliberately **conservative, unconditional periphrastic
+  rule**: `EnglishCore::comparative_adverb("quickly") == "more quickly"`. On the
+  dump, 99.1% of gradable adverbs take `more`/`most`.
+
+The closed set of adverbs that inflect otherwise is **table-driven**: flat adverbs
+(`fast → faster`, `early → earlier`), suppletives (`well → better`,
+`badly → worse`, `far → farther` / `far_2 → further`), and locational adverbs
+(`downhill → farther downhill`). When an adverb attests both `more X` and a
+single-word form, the periphrastic holds the bare key (`quickly → more quickly`)
+and the single-word form is a numbered key (`quickly_2 → quicklier`).
+
+**Accuracy:** 25123 / 25125 slots (99.99%). See `English::adverb`.
 
 ## Benchmarks
 Performance benchmarks were run on my M2 Macbook.

@@ -6,7 +6,7 @@
 [![Discord](https://img.shields.io/discord/123456789012345678.svg?logo=discord&logoColor=white&color=5865F2)](https://discord.gg/tDBPkdgApN)
 
 
-**english** is a blazing fast and light weight English inflection library written in Rust. Total bundled data size is less than 1 MB. It provides extremely accurate verb conjugation and noun/adjective declension based on highly processed Wiktionary data, making it ideal for real-time procedural text generation.
+**english** is a blazing fast and light weight English inflection library written in Rust. Total bundled data size is less than 1 MB. It provides extremely accurate verb conjugation and noun/adjective/adverb declension based on highly processed Wiktionary data, making it ideal for real-time procedural text generation.
 
 ## ⚡ Speed and Accuracy
 
@@ -17,6 +17,7 @@ Evaluation of the English inflector (`cargo xtask accuracy`, using the 2026-07-0
 | **Nouns**      | 225900 / 225900 | 100.00%  | 0           | 7,499,749             | 133 ns        |
 | **Verbs**      | 151540 / 151540 | 100.00%  | 0           | 12,423,891            | 80 ns         |
 | **Adjectives** | 121548 / 121550 | 99.998%  | 8           | 15,607,807            | 64 ns         |
+| **Adverbs**    | 25123 / 25125   | 99.99%   | 2           | —                     | —             |
 
 *Note: Benchmarking was done under a worst-case scenario; typical real-world usage is 50~ nanoseconds faster.*
 
@@ -154,6 +155,17 @@ fn main() {
     assert_eq!(English::adj("bad_3", &Degree::Superlative), "most bad");
     assert_eq!(English::adj("bad_3", &Degree::Positive), "bad");
 
+    // --- Adverbs ---
+    // Regular adverbs are periphrastic (rule); flat/suppletive adverbs are tabled.
+    assert_eq!(English::adverb("quickly", &Degree::Comparative), "more quickly");
+    assert_eq!(English::adverb("well", &Degree::Comparative), "better");
+    assert_eq!(English::adverb("badly", &Degree::Superlative), "worst");
+    assert_eq!(English::adverb("fast", &Degree::Comparative), "faster");
+    assert_eq!(English::adverb("early", &Degree::Superlative), "earliest");
+    // `far` splits into numbered keys: farther/farthest and further/furthest.
+    assert_eq!(English::adverb("far", &Degree::Comparative), "farther");
+    assert_eq!(English::adverb("far_2", &Degree::Comparative), "further");
+
     // --- Pronouns ---
     assert_eq!(
         English::pronoun(
@@ -194,7 +206,7 @@ It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive
 
 ### `english`
 
-> The public API for verb conjugation and noun/adjective declension.
+> The public API for verb conjugation and noun/adjective/adverb declension.
 
 * Combines optimized data generated from `extractor` with inflection logic from `english-core`
 * Pure Rust, only one dependency: phf
@@ -215,7 +227,7 @@ It shows custom noun/verb/adj/adv types, semantic triples, perspective-sensitive
 > A tool to process and refine Wiktionary data.
 
 * Parses large English Wiktionary dumps
-* Extracts all verb, noun, and adjective forms
+* Extracts all verb, noun, adjective, and adverb forms
 * Uses `english-core` to filter out regular forms, preserving only irregulars
 * Numbers homograph senses **deterministically** by a pure sort of their emitted forms (no lockfile, no identity, no human review — see below)
 * Generates the static PHF tables used in `english`
@@ -240,6 +252,40 @@ This project relies on raw data extracted from Wiktionary. Current version built
 5. Review `git diff crates/english/generated/`, then run `cargo xtask check-registry` before committing.
 
 After committing regenerated tables, run `cargo xtask accuracy` to score them against the dump (it measures the currently-compiled committed tables).
+
+## Adverb degree
+
+Adverbs use the same two-tier design as the other parts of speech (table first,
+rule fallback) but a **different rule** from adjectives:
+
+* **Adjectives** have a linguistically-informed rule — short words take suffixal
+  `-er`/`-est` (`fast → faster`), longer words go periphrastic (`beautiful → more
+  beautiful`).
+* **Adverbs** have a deliberately **conservative, unconditional periphrastic
+  rule**: `EnglishCore::comparative_adverb("quickly") == "more quickly"`. On the
+  dump, 99.1% of gradable adverbs take `more`/`most`, and a suffixal guess would
+  be wrong far more often than right (it would produce `quicklier`, `abruptlier`).
+
+The small closed set of adverbs that inflect otherwise is **table-driven**, exactly
+like irregular nouns/verbs:
+
+* flat adverbs (homographs of their adjective): `fast → faster`, `hard → harder`,
+  `early → earlier`, `late → later`;
+* suppletives: `well → better`, `badly → worse`, `far → farther` (with
+  `far_2 → further`);
+* locational/directional adverbs inflect with `farther/further`: `downhill →
+  farther downhill`, `east → farther east`.
+
+Where an adverb attests **both** the periphrastic and a single-word form, the
+periphrastic wins the bare key (so `quickly → more quickly`) and the single-word
+form is a numbered key (`quickly_2 → quicklier`). This is correct for the large
+`-ly` class; the handful of flat adverbs that also list `more X` (e.g. `deep`) get
+the periphrastic on the bare key and the suffixal at `deep_2 → deeper` — both stay
+reachable, so accuracy is unaffected.
+
+**Accuracy:** 25123 / 25125 slots (99.99%); the two residuals are a malformed
+Wiktionary form (`more ... humouredly`). See `English::adverb` and
+`EnglishCore::adverb` for the API.
 
 ## Deterministic sense numbering
 

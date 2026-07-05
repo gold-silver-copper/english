@@ -62,12 +62,15 @@ pub fn run_checks(filtered_json_path: &Path, artifacts_dir: &Path) -> Result<(),
         let verb =
             check_verb_conjugations(filtered_json_path, artifacts_dir.join("verbs_check.csv"))?;
         let adj = check_adjective_forms(filtered_json_path, artifacts_dir.join("adj_check.csv"))?;
+        let adverb =
+            check_adverb_forms(filtered_json_path, artifacts_dir.join("adverb_check.csv"))?;
 
         println!("\naccuracy (slots whose plain attested forms the library reproduces):");
         for (name, s) in [
             ("noun plural", noun),
             ("verb forms", verb),
             ("adj comp/sup", adj),
+            ("adverb comp/sup", adverb),
         ] {
             println!(
                 "  {name:>12}: {:>7}/{:<7} = {:.2}%   variant gap: {} attested form(s) not produced",
@@ -408,6 +411,91 @@ pub fn check_adjective_forms(
     writer.flush()?;
     println!(
         "adj form check: {}/{} slots ({:.2}%); misses in {}",
+        score.matched_slots,
+        score.total_slots,
+        score.percent(),
+        output_path.display()
+    );
+    Ok(score)
+}
+
+#[cfg(feature = "checks")]
+pub fn check_adverb_forms(
+    input_path: impl AsRef<Path>,
+    output_path: impl AsRef<Path>,
+) -> Result<Score, Box<dyn Error>> {
+    use english::*;
+
+    let output_path = output_path.as_ref();
+    let (reader, mut writer) = base_setup(input_path.as_ref(), output_path);
+    writer.write_record(["lemma", "degree", "attested_forms", "library_said"])?;
+
+    // Periphrastic attestations ("more quickly") are the norm for adverbs, so no
+    // word_is_proper filter on the forms here.
+    let mut attested: BTreeMap<String, [BTreeSet<String>; 2]> = BTreeMap::new();
+    for line in reader.lines() {
+        let line = line?;
+        let entry: Entry = match serde_json::from_str(&line) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        if !entry_is_proper(&entry, "adv") {
+            continue;
+        }
+        let lemma = entry.word.to_lowercase();
+        if let Some(forms) = &entry.forms {
+            for form in forms {
+                let f = form.form.to_lowercase();
+                if f == "dubious" || tag_rank(&form.tags) != Some(0) {
+                    continue;
+                }
+                if form.tags.iter().any(|t| t == "comparative") {
+                    attested.entry(lemma.clone()).or_default()[0].insert(f.clone());
+                }
+                if form.tags.iter().any(|t| t == "superlative") {
+                    attested.entry(lemma.clone()).or_default()[1].insert(f);
+                }
+            }
+        }
+    }
+
+    let adverb_keys = generated_keys("adverb_phf.rs")?;
+    let by_lemma = published_keys(&adverb_keys);
+
+    let mut score = Score::default();
+    for (lemma, slots) in &attested {
+        let keys = keys_for(&by_lemma, lemma);
+        for (slot, forms) in slots.iter().enumerate() {
+            if forms.is_empty() {
+                continue;
+            }
+            let degree = if slot == 0 {
+                Degree::Comparative
+            } else {
+                Degree::Superlative
+            };
+            let produced: BTreeSet<String> =
+                keys.iter().map(|v| English::adverb(v, &degree)).collect();
+            if !score_slot(&mut score, forms, &produced) {
+                let shown: Vec<&str> = forms.iter().map(|s| s.as_str()).collect();
+                writer.write_record(&[
+                    lemma.clone(),
+                    if slot == 0 {
+                        "Comparative"
+                    } else {
+                        "Superlative"
+                    }
+                    .to_string(),
+                    shown.join("|"),
+                    English::adverb(lemma, &degree),
+                ])?;
+            }
+        }
+    }
+
+    writer.flush()?;
+    println!(
+        "adverb form check: {}/{} slots ({:.2}%); misses in {}",
         score.matched_slots,
         score.total_slots,
         score.percent(),

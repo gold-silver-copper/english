@@ -7,7 +7,9 @@
 
 use crate::assign::split_key;
 use crate::extract::Table;
-use crate::file_generation::{write_adjectives_phf, write_nouns_phf, write_verbs_phf};
+use crate::file_generation::{
+    write_adjectives_phf, write_adverbs_phf, write_nouns_phf, write_verbs_phf,
+};
 use english_core::EnglishCore;
 use english_core::grammar::{Form, Number, Person, Tense};
 use std::collections::HashSet;
@@ -50,18 +52,20 @@ fn quoted_fields(line: &str) -> Vec<String> {
         .collect()
 }
 
-/// Emit the noun/verb/adj PHF tables from the extracted `(key, forms)` rows. The
-/// single source-of-truth -> tables path; a duplicate key is refused here rather
-/// than surfacing as an opaque `phf_map!` compile error downstream.
+/// Emit the noun/verb/adj/adverb PHF tables from the extracted `(key, forms)`
+/// rows. The single source-of-truth -> tables path; a duplicate key is refused
+/// here rather than surfacing as an opaque `phf_map!` compile error downstream.
 pub fn generate_tables(
     noun: &Table,
     verb: &Table,
     adj: &Table,
+    adverb: &Table,
     generated_dir: &Path,
 ) -> Result<(), Box<dyn Error>> {
     reject_duplicate_keys(noun, "noun")?;
     reject_duplicate_keys(verb, "verb")?;
     reject_duplicate_keys(adj, "adj")?;
+    reject_duplicate_keys(adverb, "adverb")?;
 
     // Nouns: one plural column.
     let noun_pairs: Vec<(String, String)> =
@@ -75,12 +79,19 @@ pub fn generate_tables(
         .collect();
     write_verbs_phf(verb_pairs, generated_dir.join("verb_phf.rs"))?;
 
-    // Adjectives: two columns.
+    // Adjectives: two columns (comparative, superlative).
     let adj_pairs: Vec<(String, (String, String))> = adj
         .iter()
         .map(|(k, f)| (k.clone(), (col(f, 0), col(f, 1))))
         .collect();
     write_adjectives_phf(adj_pairs, generated_dir.join("adj_phf.rs"))?;
+
+    // Adverbs: two columns (comparative, superlative), same arity as adjectives.
+    let adverb_pairs: Vec<(String, (String, String))> = adverb
+        .iter()
+        .map(|(k, f)| (k.clone(), (col(f, 0), col(f, 1))))
+        .collect();
+    write_adverbs_phf(adverb_pairs, generated_dir.join("adverb_phf.rs"))?;
 
     Ok(())
 }
@@ -133,6 +144,10 @@ pub fn audit_tables(generated_dir: &Path) -> Result<Vec<String>, Box<dyn Error>>
     })?;
     audit_pos(&mut v, generated_dir, "adj_phf.rs", 2, |lemma, forms| {
         forms[0] == EnglishCore::comparative(lemma) && forms[1] == EnglishCore::superlative(lemma)
+    })?;
+    audit_pos(&mut v, generated_dir, "adverb_phf.rs", 2, |lemma, forms| {
+        forms[0] == EnglishCore::comparative_adverb(lemma)
+            && forms[1] == EnglishCore::superlative_adverb(lemma)
     })?;
     Ok(v)
 }
@@ -221,13 +236,14 @@ mod tests {
         let noun = parse_phf_pairs(gen_dir.join("noun_phf.rs")).unwrap();
         let verb = parse_phf_pairs(gen_dir.join("verb_phf.rs")).unwrap();
         let adj = parse_phf_pairs(gen_dir.join("adj_phf.rs")).unwrap();
+        let adverb = parse_phf_pairs(gen_dir.join("adverb_phf.rs")).unwrap();
 
         let tmp = std::env::temp_dir().join("english_tables_roundtrip");
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(&tmp).unwrap();
-        generate_tables(&noun, &verb, &adj, &tmp).unwrap();
+        generate_tables(&noun, &verb, &adj, &adverb, &tmp).unwrap();
 
-        for name in ["noun_phf.rs", "verb_phf.rs", "adj_phf.rs"] {
+        for name in ["noun_phf.rs", "verb_phf.rs", "adj_phf.rs", "adverb_phf.rs"] {
             let committed = fs::read(gen_dir.join(name)).unwrap();
             let regenerated = fs::read(tmp.join(name)).unwrap();
             assert!(

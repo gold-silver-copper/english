@@ -485,6 +485,136 @@ pub fn extract_irregular_adjectives(input_path: impl AsRef<Path>) -> Result<Tabl
     Ok(table)
 }
 
+/// Scan adverb entries and number their (comparative, superlative) patterns
+/// into a table.
+///
+/// Adverbs invert the adjective policy: the rule engine's prediction is
+/// unconditionally PERIPHRASTIC (`more X`/`most X`), so the table holds the small
+/// closed set of flat/suppletive adverbs that take a single-word degree form
+/// (`fast -> faster`, `well -> better`, `far -> farther`). The two slots and the
+/// deterministic numbering are identical to adjectives; the differences are:
+/// - the prediction is periphrastic, so a plainly-attested periphrastic
+///   (`more abruptly`) equals the rule and drops out, leaving no table row;
+/// - the canonical slot is chosen with `prefer_regular = true`: when an adverb
+///   attests BOTH the periphrastic and a suffixal `-lier` form (`quickly` lists
+///   `more quickly` and `quicklier`), the periphrastic is the standard and takes
+///   the bare key (reserved for the rule), with the archaic suffixal at a numbered
+///   key. A flat adverb attesting only `faster` has no periphrastic to prefer, so
+///   `faster` is canonical and holds the bare key.
+pub fn extract_irregular_adverbs(input_path: impl AsRef<Path>) -> Result<Table, Box<dyn Error>> {
+    let input_path = input_path.as_ref();
+    let mut by_lemma: BTreeMap<String, LemmaAcc> = BTreeMap::new();
+    let reader = open_reader(input_path);
+
+    let mut tally = ParseTally::default();
+    for line in reader.lines() {
+        let line = line?;
+        let Some(entry) = tally.parse(&line) else {
+            continue;
+        };
+        if !entry_is_proper(&entry, "adv") {
+            continue;
+        }
+
+        let lemma = entry.word.to_lowercase();
+
+        // Admissible multiword adverb degree forms, mirroring adjectives: the
+        // periphrastic `more/most <lemma>` (the rule output) plus the locational
+        // `farther/further <lemma>` that directional adverbs take (`downhill` ->
+        // `farther downhill`, `east` -> `farther east`) and participial `better
+        // <lemma>`. Suppletives and flat adverbs (`better`, `worse`, `farther`,
+        // `faster`) are single words and pass `word_is_proper` on their own.
+        // Idiomatic multiword comparatives (`closer to home`) are not admitted.
+        let periphrastic = [
+            format!("more {lemma}"),
+            format!("most {lemma}"),
+            format!("farther {lemma}"),
+            format!("further {lemma}"),
+            format!("farthest {lemma}"),
+            format!("furthest {lemma}"),
+            format!("better {lemma}"),
+            format!("best {lemma}"),
+        ];
+        let mut comp_forms: Vec<(String, u8)> = Vec::new();
+        let mut sup_forms: Vec<(String, u8)> = Vec::new();
+        if let Some(forms) = &entry.forms {
+            for form in forms {
+                let tags = &form.tags;
+                let entry_form = form.form.to_lowercase();
+                if entry_form == "dubious"
+                    || (!word_is_proper(&entry_form) && !periphrastic.contains(&entry_form))
+                {
+                    continue;
+                }
+                let Some(rank) = tag_rank(tags) else {
+                    continue;
+                };
+                if tags.iter().any(|t| t == "comparative") {
+                    comp_forms.push((entry_form.clone(), rank));
+                }
+                if tags.iter().any(|t| t == "superlative") {
+                    sup_forms.push((entry_form, rank));
+                }
+            }
+        }
+
+        // Skip entries attesting nothing plain (uncomparable senses): a synthesized
+        // periphrastic candidate would be counted as a regular attestation and
+        // reserve the bare key for nothing.
+        let attests_plain = comp_forms
+            .iter()
+            .chain(sup_forms.iter())
+            .any(|(_, rank)| *rank == 0);
+        if !attests_plain {
+            continue;
+        }
+
+        let predicted_comp = EnglishCore::comparative_adverb(&lemma);
+        let predicted_sup = EnglishCore::superlative_adverb(&lemma);
+        // prefer_regular = true: the periphrastic wins the canonical slot when it
+        // is attested (so `quickly -> more quickly`), otherwise the sole attested
+        // suffixal/suppletive form is canonical (so `fast -> faster`).
+        let comparative = select_slot(&comp_forms, &predicted_comp, true);
+        let superlative = select_slot(&sup_forms, &predicted_sup, true);
+
+        let acc = by_lemma.entry(lemma).or_default();
+        acc.observe(vec![comparative.clone(), superlative.clone()], &entry);
+        let alt = [
+            slot_alternates(&comp_forms, &comparative),
+            slot_alternates(&sup_forms, &superlative),
+        ];
+        for k in 0..alt.iter().map(|v| v.len()).max().unwrap_or(0) {
+            acc.observe(
+                vec![
+                    alt[0]
+                        .get(k)
+                        .cloned()
+                        .unwrap_or_else(|| comparative.clone()),
+                    alt[1]
+                        .get(k)
+                        .cloned()
+                        .unwrap_or_else(|| superlative.clone()),
+                ],
+                &entry,
+            );
+        }
+    }
+    tally.finish("extract_irregular_adverbs")?;
+
+    let table = finalize(
+        by_lemma,
+        |lemma| {
+            vec![
+                EnglishCore::comparative_adverb(lemma),
+                EnglishCore::superlative_adverb(lemma),
+            ]
+        },
+        false,
+    );
+    println!("Numbered {} irregular adverb key(s).", table.len());
+    Ok(table)
+}
+
 /// Scan verb entries and number their (3sg, past, present participle, past
 /// participle) tuples into a table.
 ///
@@ -1310,6 +1440,99 @@ mod tests {
             participles,
             ["gorma", "gormb"].into_iter().collect(),
             "every attested participle reachable through some key"
+        );
+    }
+
+    #[test]
+    fn regular_periphrastic_adverb_is_not_tabled() {
+        // An adverb attesting only the periphrastic forms equals the rule and
+        // produces no table row — the rule serves the bare key.
+        let jsonl = concat!(
+            r#"{"word":"quockly","pos":"adv","lang_code":"en","forms":[{"form":"more quockly","tags":["comparative"]},{"form":"most quockly","tags":["superlative"]}]}"#,
+            "\n"
+        );
+        let table = run_extract(jsonl, "quockly.jsonl", |p| extract_irregular_adverbs(p));
+        assert_eq!(table, vec![], "periphrastic-only adverb needs no table row");
+    }
+
+    #[test]
+    fn flat_adverb_is_tabled_with_the_suffixal_form_on_the_bare_key() {
+        // A flat adverb attests only the single-word suffixal form (no "more X"),
+        // so it is canonical and takes the bare key.
+        let jsonl = concat!(
+            r#"{"word":"zast","pos":"adv","lang_code":"en","forms":[{"form":"zaster","tags":["comparative"]},{"form":"zastest","tags":["superlative"]}]}"#,
+            "\n"
+        );
+        let table = run_extract(jsonl, "zast.jsonl", |p| extract_irregular_adverbs(p));
+        assert_eq!(
+            table,
+            vec![(
+                "zast".to_string(),
+                vec!["zaster".to_string(), "zastest".to_string()]
+            )]
+        );
+    }
+
+    #[test]
+    fn suppletive_adverb_is_tabled() {
+        let jsonl = concat!(
+            r#"{"word":"wull","pos":"adv","lang_code":"en","forms":[{"form":"betser","tags":["comparative"]},{"form":"betst","tags":["superlative"]}]}"#,
+            "\n"
+        );
+        let table = run_extract(jsonl, "wull.jsonl", |p| extract_irregular_adverbs(p));
+        assert_eq!(
+            table,
+            vec![(
+                "wull".to_string(),
+                vec!["betser".to_string(), "betst".to_string()]
+            )]
+        );
+    }
+
+    #[test]
+    fn adverb_attesting_both_reserves_the_bare_key_for_the_periphrastic() {
+        // The quickly/deep pattern: an adverb attesting BOTH the periphrastic and a
+        // single-word form. prefer_regular=true makes the periphrastic canonical, so
+        // it equals the rule, is dropped, and reserves the bare key; the single-word
+        // form is published at the next numbered key.
+        let jsonl = concat!(
+            r#"{"word":"quockly","pos":"adv","lang_code":"en","forms":[{"form":"more quockly","tags":["comparative"]},{"form":"quocklier","tags":["comparative"]},{"form":"most quockly","tags":["superlative"]},{"form":"quockliest","tags":["superlative"]}]}"#,
+            "\n"
+        );
+        let table = run_extract(jsonl, "quockly2.jsonl", |p| extract_irregular_adverbs(p));
+        assert_eq!(
+            table,
+            vec![(
+                "quockly_2".to_string(),
+                vec!["quocklier".to_string(), "quockliest".to_string()]
+            )],
+            "periphrastic reserves the bare key; suffixal at _2"
+        );
+    }
+
+    #[test]
+    fn adverb_variants_number_deterministically_by_form_signature() {
+        // far-like: two single-word comparatives (farther/further) with no
+        // periphrastic. Numbered by form signature (farther < further), not listing
+        // order: "further" is listed FIRST here yet "farther" takes the bare key.
+        let jsonl = concat!(
+            r#"{"word":"fer","pos":"adv","lang_code":"en","forms":[{"form":"furster","tags":["comparative"]},{"form":"farster","tags":["comparative"]},{"form":"furstest","tags":["superlative"]},{"form":"farstest","tags":["superlative"]}]}"#,
+            "\n"
+        );
+        let table = run_extract(jsonl, "fer.jsonl", |p| extract_irregular_adverbs(p));
+        assert_eq!(
+            table,
+            vec![
+                (
+                    "fer".to_string(),
+                    vec!["farster".to_string(), "farstest".to_string()]
+                ),
+                (
+                    "fer_2".to_string(),
+                    vec!["furster".to_string(), "furstest".to_string()]
+                ),
+            ],
+            "form-signature order decides numbering, not listing order"
         );
     }
 }

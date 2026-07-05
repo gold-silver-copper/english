@@ -116,6 +116,25 @@ fn main() {
     assert_eq!(English::adj("bad_3", &Degree::Superlative), "most bad");
     assert_eq!(English::adj("bad_3", &Degree::Positive), "bad");
 
+    // --- Adverbs ---
+    // Regular adverbs are periphrastic (served by the rule); flat and suppletive
+    // adverbs are table-backed.
+    assert_eq!(
+        English::adverb("quickly", &Degree::Comparative),
+        "more quickly"
+    );
+    assert_eq!(
+        English::adverb("quickly", &Degree::Superlative),
+        "most quickly"
+    );
+    assert_eq!(English::adverb("well", &Degree::Comparative), "better");
+    assert_eq!(English::adverb("badly", &Degree::Superlative), "worst");
+    assert_eq!(English::adverb("fast", &Degree::Comparative), "faster");
+    assert_eq!(English::adverb("early", &Degree::Superlative), "earliest");
+    // `far` splits into numbered keys: farther/farthest and further/furthest.
+    assert_eq!(English::adverb("far", &Degree::Comparative), "farther");
+    assert_eq!(English::adverb("far_2", &Degree::Comparative), "further");
+
     // --- Pronouns ---
     assert_eq!(
         English::pronoun(
