@@ -18,10 +18,6 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
-pub static BAD_CHARS: &[&str] = &[
-    ".", "/", "&", " ", "'", "-", "#", "@", "`", "*", "%", "(", "!",
-];
-
 /// Tags that *disqualify* a form outright: dead or broken forms we never want to
 /// emit under any circumstances.
 pub static EXCLUDE_TAGS: &[&str] = &["obsolete", "archaic", "error-unknown-tag"];
@@ -117,22 +113,6 @@ pub fn choose_form(
         .filter(|(_, (_, rank))| *rank == 0)
         .min_by_key(|(i, (form, _))| ((*form == regular) != prefer_regular, *i))
         .map(|(_, (form, _))| form.clone())
-}
-
-/// Returns true if the input contains any non-alphabetic character. The
-/// explicit [`BAD_CHARS`] list predates the general `is_alphabetic` check and
-/// is kept for the early-exit hot path on huge dumps.
-pub fn contains_bad_chars(input: &str) -> bool {
-    for x in BAD_CHARS.iter() {
-        if input.contains(x) {
-            return true;
-        }
-    }
-    !input.chars().all(|c| c.is_alphabetic())
-}
-
-pub fn contains_number(s: &str) -> bool {
-    s.chars().any(|c| c.is_numeric())
 }
 
 #[derive(Debug, Deserialize)]

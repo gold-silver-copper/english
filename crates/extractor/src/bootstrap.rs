@@ -238,7 +238,8 @@ mod tests {
         let adj = parse_phf_pairs(gen_dir.join("adj_phf.rs")).unwrap();
         let adverb = parse_phf_pairs(gen_dir.join("adverb_phf.rs")).unwrap();
 
-        let tmp = std::env::temp_dir().join("english_tables_roundtrip");
+        let tmp =
+            std::env::temp_dir().join(format!("english_tables_roundtrip_{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(&tmp).unwrap();
         generate_tables(&noun, &verb, &adj, &adverb, &tmp).unwrap();
@@ -326,7 +327,8 @@ mod tests {
     fn parse_phf_pairs_reads_periphrastic_forms_with_spaces() {
         // Periphrastic adjective forms ("more free") contain spaces; the '"'-split
         // parser must recover them intact.
-        let dir = std::env::temp_dir().join("english_parse_phf_spaces");
+        let dir =
+            std::env::temp_dir().join(format!("english_parse_phf_spaces_{}", std::process::id()));
         let _ = fs::create_dir_all(&dir);
         let path = dir.join("adj_phf.rs");
         fs::write(
