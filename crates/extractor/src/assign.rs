@@ -7,7 +7,7 @@
 //! the survivors:
 //!
 //! 1. sort them deterministically — standard senses before soft ones, then by
-//!    emitted form signature lexicographically ([`Candidate::order_key`]);
+//!    emitted form signature lexicographically (`Candidate::order_key`);
 //! 2. hand out suffixes from `1` (or `2` when a regular pattern was dropped, so
 //!    the bare key is reserved for the rule engine): the first survivor gets the
 //!    bare lemma or `lemma_2`, the next `lemma_3`, and so on ([`make_key`]).
@@ -81,7 +81,7 @@ pub struct Assignment {
 /// upstream (the rule engine serves it at runtime): when it was, the bare key is
 /// reserved for the rule and numbering starts at `_2`; otherwise the first
 /// candidate takes the bare lemma. Candidates are sorted by
-/// [`Candidate::order_key`], so the result depends only on the set of surviving
+/// `Candidate::order_key`, so the result depends only on the set of surviving
 /// forms — never on dump order.
 pub fn assign(lemma: &str, mut candidates: Vec<Candidate>, had_regular: bool) -> Vec<Assignment> {
     candidates.sort_by_key(|c| c.order_key());
@@ -114,7 +114,7 @@ pub fn split_key(key: &str) -> Option<(&str, u32)> {
     Some((base, suffix))
 }
 
-/// The canonical form-signature encoding (`forms.join("|")`). [`Candidate::sig`],
+/// The canonical form-signature encoding (`forms.join("|")`). `Candidate::sig`,
 /// the extract-layer dedup, and `drop_regular` all funnel through this, so two
 /// patterns merge exactly when they emit identical forms.
 pub fn forms_sig(forms: &[String]) -> String {

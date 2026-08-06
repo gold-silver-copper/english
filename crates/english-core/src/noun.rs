@@ -8,11 +8,16 @@ impl EnglishCore {
             Number::Plural => EnglishCore::pluralize_noun(word),
         }
     }
+    /// Add a possessive suffix using the crate's simple surface rule.
+    ///
+    /// Any word ending in `s` gets a bare apostrophe (`dogs'`, but also
+    /// `bus'`/`James'`); everything else gets `'s`. This intentionally does not
+    /// encode a style guide preference for singular names ending in `s`.
     pub fn add_possessive(word: &str) -> String {
         if word.ends_with('s') {
             format!("{word}'") // Regular plural: dogs'
         } else {
-            format!("{word}'s") // Irregular plural: children’s
+            format!("{word}'s") // Irregular plural: children's
         }
     }
 

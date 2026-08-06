@@ -36,13 +36,16 @@
 //!
 //! # Lookup semantics (invariants shared by [`English::noun`]/[`English::verb`]/[`English::adj`]/[`English::adverb`])
 //!
-//! 1. Case-insensitive: Title-case and ALL-CAPS input hit the all-lowercase
-//!    tables with the casing restored on the value; regular-rule fallbacks get
-//!    the identical treatment via [`rule_with_case`], so `HOT -> HOTTER`
-//!    exactly as `GOOD -> BEST`. Mixed case is never guessed at. Known acronym
+//! 1. Case-insensitive convenience: Title-case and ALL-CAPS input hit the
+//!    all-lowercase tables with the casing restored on the value; regular-rule
+//!    fallbacks get the identical treatment via the internal `rule_with_case`
+//!    helper, so `HOT -> HOTTER` exactly as `GOOD -> BEST`. Mixed case is never
+//!    guessed at (`McDonald` falls through as `McDonalds`). Known acronym
 //!    homographs of irregular rows are excluded from the case-folded fallback
 //!    (`US` inflects by rule, never through the `us` row — see
-//!    `ACRONYM_SHADOWED`).
+//!    `ACRONYM_SHADOWED`). This is an ergonomic default, not semantic proper-noun
+//!    detection; callers that care about acronyms, surnames, or house style should
+//!    normalize casing before/after calling this crate.
 //! 2. Base-lemma agreement: when a `_<n>` suffix strips (the word or its base
 //!    is a table key), EVERY code path treats the input as that base lemma —
 //!    lookups fall back `get_*(word)` then `get_*(base)` so `child_2` inflects
@@ -410,6 +413,11 @@ impl English {
     }
     /// Adds an English possessive suffix (`'s` or `'`) to a word.
     ///
+    /// Current policy is simple and style-neutral: any word ending in `s` gets a
+    /// bare apostrophe (`dogs'`, but also `bus'`/`James'`), and everything else
+    /// gets `'s`. Callers that need a style guide's singular-`s` preference
+    /// (`bus's`, `James's`) should handle that policy themselves for now.
+    ///
     /// # Examples
     /// ```rust
     /// use english::English;
@@ -441,6 +449,10 @@ impl English {
 
 /// Inflect a noun according to a numeric count.
 ///
+/// This helper is intentionally tiny: it accepts only `u32`, treats exactly `1`
+/// as singular, and treats every other value (`0`, `2`, ...) as plural. Decimal,
+/// negative, localized, or formatted counts should be handled by callers.
+///
 /// # Examples
 /// ```rust
 /// use english::count;
@@ -458,6 +470,9 @@ pub fn count(noun: &str, count: u32) -> String {
 
 /// Inflect a noun according to a numeric count and keep the number in the
 /// output.
+///
+/// This is a display convenience over [`count`]; it does not handle decimal,
+/// negative, localized, or custom-formatted quantities.
 ///
 /// # Examples
 /// ```rust

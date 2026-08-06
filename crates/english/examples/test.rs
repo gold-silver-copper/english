@@ -141,7 +141,7 @@ fn main() {
             &Person::First,
             &Number::Singular,
             &Gender::Neuter,
-            &Case::PersonalPossesive
+            &Case::PersonalPossessive
         ),
         "my"
     );
