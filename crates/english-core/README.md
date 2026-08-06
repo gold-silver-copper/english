@@ -1,27 +1,30 @@
 # english-core
 
-The dependency-free **regular** rule engine for English inflection — the pure
-algorithmic core underneath the [`english`](https://crates.io/crates/english)
-crate.
+The dependency-free **regular fallback / prediction** engine underneath the
+[`english`](https://crates.io/crates/english) crate.
 
-`english-core` knows nothing about Wiktionary or lookup tables. It encodes the
-productive rules of English morphology — add `-s`, `-ed`, `-er`/`-est`, with
-their spelling adjustments (`big → bigger`, `happy → happier`, `nice → nicer`) —
-plus pronouns, possessives, and a few compact suffix-class lists that generalize
-over endings and compounds (`mouse → mice`, so also `dormouse → dormice`).
+`english-core` knows nothing about Wiktionary or lookup tables. It encodes a
+small approximation of productive English morphology — add `-s`, `-ed`,
+`-er`/`-est`, with spelling adjustments (`big → bigger`, `happy → happier`,
+`nice → nicer`) — plus pronouns, possessives, and compact suffix-class lists that
+generalize over endings and compounds (`mouse → mice`, so also `dormouse →
+dormice`).
 
 ## When to use it
 
 * **Has no data dependency** — logic only, no generated tables, no third-party
   crates. This keeps its footprint tiny.
-* **Can be used standalone** for an even smaller binary, at the cost of some
-  accuracy: without the irregular tables it will regularize words English does
-  not (`go → goed`, `child → childs`). If you want attested-correct irregulars,
-  use the table-backed [`english`](https://crates.io/crates/english) crate, which
-  consults its lookup tables first and falls back to this engine.
-* Inside this workspace it also serves double duty: it is the runtime fallback
-  for `english`, and the extractor uses it to classify attested forms as regular
-  (droppable) or irregular (kept in the tables).
+* **Can be used standalone** for a smaller binary when a lightweight fallback is
+  good enough.
+* **Is not a correctness guarantee for arbitrary out-of-vocabulary words.** Some
+  rules deliberately overgeneralize because this crate also serves as the
+  extractor's prediction engine. The table-backed
+  [`english`](https://crates.io/crates/english) crate consults Wiktionary-derived
+  lookup tables first and should be preferred when attested irregulars matter.
+* Inside this workspace it serves double duty: it is the runtime fallback for
+  `english`, and the extractor uses it to classify attested forms as regular
+  (droppable) or irregular (kept in the tables). Changing rules requires
+  regenerating `english`'s generated data and rerunning accuracy checks.
 
 All functionality lives in associated functions on the `EnglishCore` namespace
 struct — there is no state to construct. Inputs are assumed to be lowercase
@@ -58,15 +61,34 @@ assert_eq!(
     EnglishCore::pronoun(&Person::First, &Number::Singular, &Gender::Neuter, &Case::Possessive),
     "mine",
 );
+assert_eq!(
+    EnglishCore::pronoun(
+        &Person::First,
+        &Number::Singular,
+        &Gender::Neuter,
+        &Case::PersonalPossessive,
+    ),
+    "my",
+);
 assert_eq!(EnglishCore::add_possessive("dog"), "dog's");
 ```
 
-Because these are the *regular* rules, they are correct for productive words but
-deliberately wrong for irregulars the tables would override.
+Because these are compact fallback rules, they are intentionally wrong for many
+irregulars the table-backed crate would override (`go`, `child`, `good`, ...),
+and they may overgeneralize for unknown words. Use `english` when you want the
+attested table layer.
+
+## Known limitations
+
+* Case is not handled here; pass lowercase lemmas or normalize externally.
+* Possessives use a simple trailing-`s` rule: `dogs'`, but also `bus'`/`James'`.
+  Apply your own style guide if you prefer `bus's` or `James's`.
+* Future tense and phrase-level grammar are periphrastic/compositional and are
+  intentionally outside this crate.
 
 ## Installation
 
-```
+```bash
 cargo add english-core
 ```
 

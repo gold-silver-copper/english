@@ -4,7 +4,7 @@ pub mod lexical;
 pub mod realization;
 pub mod syntax;
 
-pub use english::{Adj, Gender, Noun, Number, Person, Verb};
+pub use english::{Gender, Number, Person};
 
 pub use crate::lexical::{
     AdjectiveEntry, AdverbEntry, Determiner, NounEntry, PrepositionEntry, Pronoun, VerbEntry,

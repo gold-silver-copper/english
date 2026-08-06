@@ -32,7 +32,7 @@ fn first_person_singular_ignores_gender() {
             "mine"
         );
         assert_eq!(
-            p(Person::First, Number::Singular, g, Case::PersonalPossesive),
+            p(Person::First, Number::Singular, g, Case::PersonalPossessive),
             "my"
         );
     }
@@ -58,7 +58,12 @@ fn second_person_singular_ignores_gender() {
             "yours"
         );
         assert_eq!(
-            p(Person::Second, Number::Singular, g, Case::PersonalPossesive),
+            p(
+                Person::Second,
+                Number::Singular,
+                g,
+                Case::PersonalPossessive
+            ),
             "your"
         );
     }
@@ -108,7 +113,7 @@ fn third_person_singular_is_gendered() {
             Person::Third,
             Number::Singular,
             Gender::Masculine,
-            Case::PersonalPossesive
+            Case::PersonalPossessive
         ),
         "his"
     );
@@ -154,7 +159,7 @@ fn third_person_singular_is_gendered() {
             Person::Third,
             Number::Singular,
             Gender::Feminine,
-            Case::PersonalPossesive
+            Case::PersonalPossessive
         ),
         "her"
     );
@@ -200,7 +205,7 @@ fn third_person_singular_is_gendered() {
             Person::Third,
             Number::Singular,
             Gender::Neuter,
-            Case::PersonalPossesive
+            Case::PersonalPossessive
         ),
         "its"
     );
@@ -220,7 +225,7 @@ fn first_person_plural_ignores_gender() {
             "ours"
         );
         assert_eq!(
-            p(Person::First, Number::Plural, g, Case::PersonalPossesive),
+            p(Person::First, Number::Plural, g, Case::PersonalPossessive),
             "our"
         );
     }
@@ -246,7 +251,7 @@ fn second_person_plural_ignores_gender() {
             "yours"
         );
         assert_eq!(
-            p(Person::Second, Number::Plural, g, Case::PersonalPossesive),
+            p(Person::Second, Number::Plural, g, Case::PersonalPossessive),
             "your"
         );
     }
@@ -272,7 +277,7 @@ fn third_person_plural_ignores_gender() {
             "theirs"
         );
         assert_eq!(
-            p(Person::Third, Number::Plural, g, Case::PersonalPossesive),
+            p(Person::Third, Number::Plural, g, Case::PersonalPossessive),
             "their"
         );
     }

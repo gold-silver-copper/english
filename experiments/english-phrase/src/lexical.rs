@@ -1,4 +1,4 @@
-use english::{Adj, Case, English, Gender, Noun, Number, Person, Verb};
+use english::{Case, English, Gender, Number, Person};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Determiner {
@@ -62,7 +62,7 @@ impl Pronoun {
     }
 
     pub fn possessive_dependent_form(self) -> &'static str {
-        self.form(Case::PersonalPossesive)
+        self.form(Case::PersonalPossessive)
     }
 
     pub fn possessive_independent_form(self) -> &'static str {
@@ -96,17 +96,17 @@ impl Pronoun {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NounEntry {
-    lemma: Noun,
+    lemma: String,
 }
 
 impl NounEntry {
-    pub fn new(lemma: impl Into<Noun>) -> Self {
+    pub fn new(lemma: impl Into<String>) -> Self {
         Self {
             lemma: lemma.into(),
         }
     }
 
-    pub fn lemma(&self) -> &Noun {
+    pub fn lemma(&self) -> &str {
         &self.lemma
     }
 
@@ -129,17 +129,17 @@ impl From<String> for NounEntry {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerbEntry {
-    lemma: Verb,
+    lemma: String,
 }
 
 impl VerbEntry {
-    pub fn new(lemma: impl Into<Verb>) -> Self {
+    pub fn new(lemma: impl Into<String>) -> Self {
         Self {
             lemma: lemma.into(),
         }
     }
 
-    pub fn lemma(&self) -> &Verb {
+    pub fn lemma(&self) -> &str {
         &self.lemma
     }
 
@@ -162,17 +162,17 @@ impl From<String> for VerbEntry {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AdjectiveEntry {
-    lemma: Adj,
+    lemma: String,
 }
 
 impl AdjectiveEntry {
-    pub fn new(lemma: impl Into<Adj>) -> Self {
+    pub fn new(lemma: impl Into<String>) -> Self {
         Self {
             lemma: lemma.into(),
         }
     }
 
-    pub fn lemma(&self) -> &Adj {
+    pub fn lemma(&self) -> &str {
         &self.lemma
     }
 

@@ -1,9 +1,11 @@
-//! The dependency-free REGULAR rule engine for English inflection.
+//! The dependency-free REGULAR fallback / prediction engine for English inflection.
 //!
-//! `english-core` knows nothing about Wiktionary or lookup tables: it encodes
-//! the productive rules of English morphology (add `-s`, `-ed`, `-er`, with
-//! their spelling adjustments) plus a few compact suffix-class lists that
-//! generalize over endings and compounds.
+//! `english-core` knows nothing about Wiktionary or lookup tables: it encodes a
+//! compact approximation of productive English morphology (add `-s`, `-ed`,
+//! `-er`, with spelling adjustments) plus a few suffix-class lists that
+//! generalize over endings and compounds. It is intentionally small and is not a
+//! guarantee of correct inflection for arbitrary out-of-vocabulary words; the
+//! table-backed `english` crate is the correctness-oriented public API.
 //!
 //! # The contract with the `english` crate (do not break casually)
 //!
@@ -21,7 +23,7 @@
 //! against every plain attested form.
 //!
 //! Inputs are assumed to be lowercase lemmas; case handling is the `english`
-//! crate's responsibility (`rule_with_case`).
+//! crate's responsibility.
 
 mod adj;
 mod adverb;

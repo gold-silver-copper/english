@@ -1,12 +1,12 @@
 [package]
 name = "english"
-version = "0.3.0"
+version = "0.4.0"
 authors.workspace = true
 edition.workspace = true
 # 1.88 (not just edition 2024's 1.85): src/lib.rs uses a let-chain (`&& let ...`),
 # stabilized in 1.88.
 rust-version = "1.88"
-description = "English inflector decliner conjugator from wiktionary data"
+description = "English inflector decliner conjugator from Wiktionary data"
 license.workspace = true
 repository.workspace = true
 keywords = ["english", "inflection", "nlp", "grammar", "linguistics"]

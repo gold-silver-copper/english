@@ -10,7 +10,7 @@
 //!    and emit every remaining plain attested pattern as an additional
 //!    candidate — each variant becomes its own `_<n>` key downstream;
 //! 4. per lemma, drop the candidate that equals the regular-rule prediction
-//!    ([`LemmaAcc::drop_regular`] — the rule engine serves it at runtime) and
+//!    (`LemmaAcc::drop_regular` — the rule engine serves it at runtime) and
 //!    number the survivors into deterministic `_<n>` keys via [`crate::assign`].
 //!
 //! Each refresh regenerates every table from the dump alone — there is no
